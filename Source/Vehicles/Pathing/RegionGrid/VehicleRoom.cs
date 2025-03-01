@@ -5,6 +5,7 @@ using UnityEngine;
 using Verse;
 using SmashTools;
 using System.Threading;
+using SmashTools.Performance;
 
 namespace Vehicles
 {
@@ -26,6 +27,7 @@ namespace Vehicles
 		public VehicleRoom(VehicleDef vehicleDef)
 		{
 			this.vehicleDef = vehicleDef;
+			ObjectCounter.Increment<VehicleRoom>();
 		}
 
 		/// <summary>

@@ -31,12 +31,12 @@ namespace Vehicles
 
 			if (DebugProperties.debug)
 			{
-				//VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldRoutePlanner), nameof(WorldRoutePlanner.WorldRoutePlannerUpdate)), prefix: null,
-				//	postfix: new HarmonyMethod(typeof(Debugging),
-				//	nameof(DebugSettlementPaths)));
-				//VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldObjectsHolder), nameof(WorldObjectsHolder.Add)),
-				//	prefix: new HarmonyMethod(typeof(Debugging),
-				//	nameof(DebugWorldObjects)));
+				VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldRoutePlanner), nameof(WorldRoutePlanner.WorldRoutePlannerUpdate)), prefix: null,
+					postfix: new HarmonyMethod(typeof(Debugging),
+					nameof(DebugSettlementPaths)));
+				VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldObjectsHolder), nameof(WorldObjectsHolder.Add)),
+					prefix: new HarmonyMethod(typeof(Debugging),
+					nameof(DebugWorldObjects)));
 			}
 
 			//VehicleHarmony.Patch(original: AccessTools.Method(typeof(FloodFillerFog), nameof(FloodFillerFog.FloodUnfog)),

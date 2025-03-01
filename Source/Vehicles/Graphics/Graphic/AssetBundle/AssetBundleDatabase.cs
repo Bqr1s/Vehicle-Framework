@@ -61,7 +61,7 @@ namespace Vehicles
 		{
 			if (!UnityData.IsInMainThread)
 			{
-				Trace.Raise("Attempting to load AssetBundles outside of MainThread.");
+				Trace.Fail("Attempting to load AssetBundles outside of MainThread.");
 				return;
 			}
 			if (Loaded) //Don't load on StaticConstructorOnStartup (only for suppressing warning)

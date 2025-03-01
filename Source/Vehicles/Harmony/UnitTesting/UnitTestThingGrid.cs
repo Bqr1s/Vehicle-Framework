@@ -15,22 +15,22 @@ namespace Vehicles.Testing
 			return vehicleDef.vehicleType == VehicleType.Land && VehiclePathGrid.PassableTerrainCost(vehicleDef, TerrainDefOf.Concrete, out _);
 		}
 
-		protected override UTResult TestVehicle(VehiclePawn vehicle, Map map, IntVec3 root)
+		protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
 		{
 			int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
 			UTResult result;
 			IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
-			VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+			VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
 			VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
 			bool success;
-			ThingGrid thingGrid = map.thingGrid;
-			HitboxTester<VehiclePawn> positionTester = new(vehicle, map, root,
+			ThingGrid thingGrid = TestMap.thingGrid;
+			HitboxTester<VehiclePawn> positionTester = new(vehicle, TestMap, root,
 				(cell) => thingGrid.ThingAt(cell, ThingCategory.Pawn) as VehiclePawn,
 				(thing) => thing == vehicle);
 			positionTester.Start();
 
-			GenSpawn.Spawn(vehicle, root, map);
+			GenSpawn.Spawn(vehicle, root, TestMap);
 			// Validate spawned vehicle registers in thingGrid
 			success = positionTester.Hitbox(true);
 			result.Add("ThingGrid (Spawn)", success);

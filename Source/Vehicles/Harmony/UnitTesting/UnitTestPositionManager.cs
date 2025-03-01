@@ -9,18 +9,18 @@ namespace Vehicles.Testing
 	{
 		public override string Name => "PositionManager";
 
-		protected override UTResult TestVehicle(VehiclePawn vehicle, Map map, IntVec3 root)
+		protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
 		{
 			int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
 			UTResult result;
 			IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
-			VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+			VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
 			VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
 			bool success;
-			VehiclePositionManager positionManager = map.GetCachedMapComponent<VehiclePositionManager>();
-			GenSpawn.Spawn(vehicle, root, map);
-			HitboxTester<VehiclePawn> positionTester = new(vehicle, map, root,
+			VehiclePositionManager positionManager = TestMap.GetCachedMapComponent<VehiclePositionManager>();
+			GenSpawn.Spawn(vehicle, root, TestMap);
+			HitboxTester<VehiclePawn> positionTester = new(vehicle, TestMap, root,
 				positionManager.ClaimedBy,
 				(claimant) => claimant == vehicle);
 			positionTester.Start();

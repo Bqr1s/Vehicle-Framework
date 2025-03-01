@@ -35,7 +35,7 @@ namespace Vehicles
 		{
 			if (!CanArriveInMap)
 			{
-				Trace.Raise($"Unable to land {vehicle} at destination. Map no longer exists, spawning as caravan nearby...");
+				Trace.Fail($"Unable to land {vehicle} at destination. Map no longer exists, spawning as caravan nearby...");
 				aerialVehicle.SwitchToCaravan();
 				return;
 			}

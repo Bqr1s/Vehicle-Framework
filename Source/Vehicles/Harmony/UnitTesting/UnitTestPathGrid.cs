@@ -10,23 +10,23 @@ namespace Vehicles.Testing
 	{
 		public override string Name => "PathGrid";
 
-		protected override UTResult TestVehicle(VehiclePawn vehicle, Map map, IntVec3 root)
+		protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
 		{
 			int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
 
 			UTResult result;
 			IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
-			VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+			VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
 			VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
-			TerrainDef terrainDef = map.terrainGrid.TerrainAt(root);
+			TerrainDef terrainDef = TestMap.terrainGrid.TerrainAt(root);
 
 			bool success;
 			// VehiclePathGrid costs shouldn't take vehicles into account
 			VehiclePathGrid pathGrid = pathData.VehiclePathGrid;
-			GenSpawn.Spawn(vehicle, root, map);
-			result.Add($"{vehicle.def.defName} Spawned", vehicle.Spawned);
+			GenSpawn.Spawn(vehicle, root, TestMap);
+			result.Add($"{vehicle.def} Spawned", vehicle.Spawned);
 
-			HitboxTester<int> positionTester = new(vehicle, map, root,
+			HitboxTester<int> positionTester = new(vehicle, TestMap, root,
 				(cell) => pathGrid.CalculatedCostAt(cell),
 				(cost) => cost == VehiclePathGrid.TerrainCostAt(vehicle.VehicleDef, terrainDef));
 			positionTester.Start();
@@ -53,13 +53,13 @@ namespace Vehicles.Testing
 			result.Add("VehiclePathGrid (DeSpawn)", success);
 
 			// Vanilla PathGrid costs should take vehicles into account
-			PathGrid vanillaPathGrid = map.pathing.Normal.pathGrid;
-			positionTester = new(vehicle, map, root,
+			PathGrid vanillaPathGrid = TestMap.pathing.Normal.pathGrid;
+			positionTester = new(vehicle, TestMap, root,
 				(cell) => vanillaPathGrid.CalculatedCostAt(cell, true, IntVec3.Invalid),
 				(cost) => cost == terrainDef.pathCost || (cost == PathGrid.ImpassableCost && terrainDef.passability == Traversability.Impassable));
 			positionTester.Start();
 
-			GenSpawn.Spawn(vehicle, root, map);
+			GenSpawn.Spawn(vehicle, root, TestMap);
 			result.Add($"{vehicle.def.defName} Spawned", vehicle.Spawned);
 
 			// Spawn

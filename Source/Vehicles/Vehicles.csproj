@@ -22,26 +22,28 @@
     <DebugType>portable</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;DISABLE_WEIGHTS;RAIDERS;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;RAIDERS;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <NoWarn>CS0649</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>RELEASE;DISABLE_WEIGHTS;</DefineConstants>
+    <DefineConstants>RELEASE;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <Prefer32Bit>false</Prefer32Bit>
     <NoWarn>CS0649</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unstable|AnyCPU' ">
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;UNSTABLE;DISABLE_WEIGHTS;RAIDERS</DefineConstants>
+    <DefineConstants>TRACE;UNSTABLE;RAIDERS</DefineConstants>
     <Optimize>true</Optimize>
     <NoWarn>CS0649</NoWarn>
     <DebugType>pdbonly</DebugType>
@@ -49,6 +51,7 @@
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <LangVersion>preview</LangVersion>
     <ErrorReport>prompt</ErrorReport>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
@@ -227,6 +230,7 @@
     <Compile Include="Harmony\PatchCategories\DefGenerators\ThingDefGenerator_Buildables.cs" />
     <Compile Include="Harmony\PatchCategories\NPCAI.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\RaidTesting.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTestRegions.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestMapDeinit.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestPathGrid.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestCoverGrid.cs" />
@@ -264,6 +268,7 @@
     <Compile Include="Misc\Interfaces\ISustainerTarget.cs" />
     <Compile Include="Misc\Interfaces\IVehicleWorldObject.cs" />
     <Compile Include="Pathing\Map\DeferredRegionGenerator.cs" />
+    <Compile Include="Pathing\Map\ThreadDisabler.cs" />
     <Compile Include="Pathing\RegionGrid\ChunkSet.cs" />
     <Compile Include="Pathing\RegionGrid\ConcurrentListerThings.cs" />
     <Compile Include="Pathing\RegionGrid\GridOwners.cs" />
@@ -675,7 +680,6 @@
     <Compile Include="Pathing\RegionGrid\VehicleRegionDirtyer.cs" />
     <Compile Include="Pathing\RegionGrid\VehicleRegionGrid.cs" />
     <Compile Include="Pathing\RegionGrid\VehicleRegionLink.cs" />
-    <Compile Include="Pathing\RegionGrid\VehicleRegionLinkDatabase.cs" />
     <Compile Include="Pathing\RegionGrid\VehicleRegionMaker.cs" />
     <Compile Include="Pathing\RegionGrid\VehicleRegionTraverser.cs" />
     <Compile Include="Pathing\RegionGrid\VehicleRegionTypeUtility.cs" />

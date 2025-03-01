@@ -9,121 +9,121 @@ using Verse;
 
 namespace Vehicles.Testing
 {
-	internal abstract class UnitTestMapTest : UnitTest
-	{
-		public override TestType ExecuteOn => TestType.GameLoaded;
+  internal abstract class UnitTestMapTest : UnitTest
+  {
+    public virtual Map TestMap => Find.CurrentMap;
 
-		public virtual bool ShouldTest(VehicleDef vehicleDef)
-		{
-			return true;
-		}
+    public override TestType ExecuteOn => TestType.GameLoaded;
 
-		public virtual CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
-		{
-			int maxSize = Mathf.Max(vehicleDef.Size.x, vehicleDef.Size.z);
-			return CellRect.CenteredOn(root, maxSize).ExpandedBy(5);
-		}
+    public virtual bool ShouldTest(VehicleDef vehicleDef)
+    {
+      return true;
+    }
 
-		public override IEnumerable<UTResult> Execute()
-		{
-			CameraJumper.TryHideWorld();
-			Map map = Find.CurrentMap;
-			Assert.IsNotNull(map);
-			Assert.IsTrue(DefDatabase<VehicleDef>.AllDefsListForReading.Count > 0, "No vehicles to test with");
+    public virtual CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
+    {
+      int maxSize = Mathf.Max(vehicleDef.Size.x, vehicleDef.Size.z);
+      return CellRect.CenteredOn(root, maxSize).ExpandedBy(5);
+    }
 
-			// Should always be at least 1 vehicle for unit tests to execute assuming debug vehicle is enabled
-			foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
-			{
-				if (ShouldTest(vehicleDef))
-				{
-					VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);
-					TerrainDef terrainDef = DefDatabase<TerrainDef>.AllDefsListForReading
-						.FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
+    public override IEnumerable<UTResult> Execute()
+    {
+      CameraJumper.TryHideWorld();
+      Assert.IsNotNull(TestMap);
+      Assert.IsTrue(DefDatabase<VehicleDef>.AllDefsListForReading.Count > 0, "No vehicles to test with");
 
-					IntVec3 root = map.Center;
-					DebugHelper.DestroyArea(TestArea(vehicleDef, root), map, terrainDef);
+      // Should always be at least 1 vehicle for unit tests to execute assuming debug vehicle is enabled
+      foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
+      {
+        if (!ShouldTest(vehicleDef)) continue;
 
-					CameraJumper.TryJump(root, map, mode: CameraJumper.MovementMode.Cut);
-					yield return TestVehicle(vehicle, map, root);
+        VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);
+        TerrainDef terrainDef = DefDatabase<TerrainDef>.AllDefsListForReading
+          .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
 
-					if (!vehicle.Destroyed)
-					{
-						vehicle.DestroyVehicleAndPawns();
-					}
-				}
-			}
-		}
+        IntVec3 root = TestMap.Center;
+        DebugHelper.DestroyArea(TestArea(vehicleDef, root), TestMap, terrainDef);
 
-		protected abstract UTResult TestVehicle(VehiclePawn vehicle, Map map, IntVec3 root);
+        CameraJumper.TryJump(root, TestMap, mode: CameraJumper.MovementMode.Cut);
+        yield return TestVehicle(vehicle, root);
 
-		protected class HitboxTester<T>
-		{
-			private readonly Map map;
-			private readonly VehiclePawn vehicle;
-			private Func<IntVec3, T> valueGetter;
-			private Func<T, bool> validator;
-			private Action<IntVec3> reset;
+        if (!vehicle.Destroyed)
+        {
+          vehicle.DestroyVehicleAndPawns();
+        }
+      }
+    }
 
-			public CellRect rect;
+    protected abstract UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root);
 
-			public HitboxTester(VehiclePawn vehicle, Map map, IntVec3 root, Func<IntVec3, T> valueGetter, Func<T, bool> validator, Action<IntVec3> reset = null)
-			{
-				this.map = map;
-				this.vehicle = vehicle;
-				this.valueGetter = valueGetter;
-				this.validator = validator;
-				this.reset = reset;
+    protected class HitboxTester<T>
+    {
+      private readonly Map map;
+      private readonly VehiclePawn vehicle;
+      private Func<IntVec3, T> valueGetter;
+      private Func<T, bool> validator;
+      private Action<IntVec3> reset;
 
-				int radius = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
-				rect = CellRect.CenteredOn(root, radius);
-			}
+      public CellRect rect;
 
-			public void Start()
-			{
-				Reset();
-			}
+      public HitboxTester(VehiclePawn vehicle, Map map, IntVec3 root, Func<IntVec3, T> valueGetter, Func<T, bool> validator, Action<IntVec3> reset = null)
+      {
+        this.map = map;
+        this.vehicle = vehicle;
+        this.valueGetter = valueGetter;
+        this.validator = validator;
+        this.reset = reset;
 
-			public void Reset()
-			{
-				if (reset != null)
-				{
-					foreach (IntVec3 cell in rect)
-					{
-						reset.Invoke(cell);
-					}
-				}
-			}
+        int radius = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
+        rect = CellRect.CenteredOn(root, radius);
+      }
 
-			public bool All(bool value)
-			{
-				return IsTrue(_ => value);
-			}
+      public void Start()
+      {
+        Reset();
+      }
 
-			public bool Hitbox(bool value)
-			{
-				return IsTrue(cell => value ^ !vehicle.OccupiedRect().Contains(cell));
-			}
+      public void Reset()
+      {
+        if (reset != null)
+        {
+          foreach (IntVec3 cell in rect)
+          {
+            reset.Invoke(cell);
+          }
+        }
+      }
 
-			public bool IsTrue(Func<IntVec3, bool> expected)
-			{
-				foreach (IntVec3 cell in rect)
-				{
-					if (!Valid(cell, expected(cell)))
-					{
-						Valid(cell, expected(cell));
-						return false;
-					}
-				}
-				return true;
-			}
+      public bool All(bool value)
+      {
+        return IsTrue(_ => value);
+      }
 
-			private bool Valid(IntVec3 cell, bool expected)
-			{
-				T current = valueGetter(cell);
-				bool value = validator(current);
-				bool result = value == expected;
-				return result;
-			}
-		}
-	}
+      public bool Hitbox(bool value)
+      {
+        return IsTrue(cell => value ^ !vehicle.OccupiedRect().Contains(cell));
+      }
+
+      public bool IsTrue(Func<IntVec3, bool> expected)
+      {
+        foreach (IntVec3 cell in rect)
+        {
+          if (!Valid(cell, expected(cell)))
+          {
+            Valid(cell, expected(cell));
+            return false;
+          }
+        }
+        return true;
+      }
+
+      private bool Valid(IntVec3 cell, bool expected)
+      {
+        T current = valueGetter(cell);
+        bool value = validator(current);
+        bool result = value == expected;
+        return result;
+      }
+    }
+  }
 }

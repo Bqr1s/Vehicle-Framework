@@ -26,7 +26,7 @@ namespace Vehicles
 #endif
 		internal void GenerateAllRegions()
 		{
-			foreach (VehicleDef ownerDef in VehicleHarmony.gridOwners.Owners)
+			foreach (VehicleDef ownerDef in GridOwners.AllOwners)
 			{
 				RequestRegionSet(ownerDef, false);
 			}
@@ -52,7 +52,7 @@ namespace Vehicles
 					{
 						if (pawn is VehiclePawn vehicle)
 						{
-							VehicleDef ownerDef = VehicleHarmony.gridOwners.GetOwner(vehicle.VehicleDef);
+							VehicleDef ownerDef = GridOwners.GetOwner(vehicle.VehicleDef);
 							activelyUsedVehicles.Add(ownerDef);
 						}
 					}
@@ -62,11 +62,11 @@ namespace Vehicles
 			{
 				if (pawn is VehiclePawn vehicle)
 				{
-					VehicleDef ownerDef = VehicleHarmony.gridOwners.GetOwner(vehicle.VehicleDef);
+					VehicleDef ownerDef = GridOwners.GetOwner(vehicle.VehicleDef);
 					activelyUsedVehicles.Add(ownerDef);
 				}
 			}
-			foreach (VehicleDef ownerDef in VehicleHarmony.gridOwners.Owners)
+			foreach (VehicleDef ownerDef in GridOwners.AllOwners)
 			{
 				if (!activelyUsedVehicles.Contains(ownerDef))
 				{
@@ -77,7 +77,7 @@ namespace Vehicles
 
 		private Urgency RequestRegionSet(VehicleDef vehicleDef, bool urgent, Action postGenerationAction = null)
 		{
-			VehicleDef ownerDef = VehicleHarmony.gridOwners.GetOwner(vehicleDef);
+			VehicleDef ownerDef = GridOwners.GetOwner(vehicleDef);
 			VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
 			// Region grid has already been initialized
 			if (!pathData.Suspended)

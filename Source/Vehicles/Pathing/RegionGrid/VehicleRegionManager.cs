@@ -6,19 +6,19 @@ using System.Threading.Tasks;
 
 namespace Vehicles
 {
-	public abstract class VehicleRegionManager
-	{
-		protected readonly VehicleMapping mapping;
-		protected readonly VehicleDef createdFor;
+  public abstract class VehicleRegionManager
+  {
+    protected readonly VehicleMapping mapping;
+    protected readonly VehicleDef createdFor;
 
-		public VehicleRegionManager(VehicleMapping mapping, VehicleDef createdFor)
-		{
-			this.mapping = mapping;
-			this.createdFor = createdFor;
-		}
-
-		public virtual void PostInit()
-		{
-		}
+    public VehicleRegionManager(VehicleMapping mapping, VehicleDef createdFor)
+    {
+      this.mapping = mapping;
+      this.createdFor = createdFor;
     }
+
+    public virtual void PostInit()
+    {
+    }
+  }
 }

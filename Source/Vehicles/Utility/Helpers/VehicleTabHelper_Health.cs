@@ -123,7 +123,7 @@ namespace Vehicles
 					DrawJobSettings(rect, vehicle);
 					break;
 				default:
-					Assert.Raise();
+					Assert.Fail();
 					break;
 			}
 			Widgets.EndGroup();

@@ -10,6 +10,7 @@ namespace Vehicles
 		Rooms = 1 << 2,
 		Links = 1 << 3,
 		Weights = 1 << 4,
-		PathCosts = 1 << 5
+		PathCosts = 1 << 5,
+		References = 1 << 6,
 	}
 }

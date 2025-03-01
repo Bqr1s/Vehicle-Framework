@@ -26,8 +26,6 @@ namespace Vehicles
 
 		private static string methodPatching = string.Empty;
 		
-		public static readonly GridOwners gridOwners = new();
-
 		internal static List<UpdateLog> updates = [];
 		
 		internal static Harmony Harmony { get; private set; } = new Harmony(VehiclesUniqueId);
@@ -37,8 +35,6 @@ namespace Vehicles
 		internal static string BuildDatePath => Path.Combine(VehicleMMD.RootDir.FullName, "BuildDate.txt");
 
 		public static List<VehicleDef> AllMoveableVehicleDefs { get; internal set; }
-
-		public static List<VehicleDef> AllVehicleOwners => gridOwners.Owners;
 
 		static VehicleHarmony()
 		{
@@ -60,7 +56,7 @@ namespace Vehicles
 
 			Utilities.InvokeWithLogging(RegisterKeyBindingDefs);
 
-			//Will want to be added via xml
+			// TODO - Will want to be added via xml
 			Utilities.InvokeWithLogging(FillVehicleLordJobTypes);
 
 			Utilities.InvokeWithLogging(ApplyAllDefModExtensions);
@@ -78,19 +74,11 @@ namespace Vehicles
 			Utilities.InvokeWithLogging(RegisterVehicleAreas);
 
 #if DEBUG
-			//UnitTestManager.onUnitTestStateChange += ForceSynchronousMaps;
 			UnitTestManager.onUnitTestStateChange += SuppressDebugLogging;
 #endif
 
-			if (DebugProperties.debug)
-			{
-				//DebugHelper.Local.VehicleDef = DefDatabase<VehicleDef>.GetNamedSilentFail("VF_TestMarshal");
-				if (DebugHelper.Local.VehicleDef != null)
-				{
-					//DebugHelper.Local.DebugType = DebugRegionType.Regions;
-				}
-			}
-		}
+      DebugProperties.Init();
+    }
 
 		private static void RunAllPatches()
 		{
@@ -192,7 +180,7 @@ namespace Vehicles
 		internal static void RecacheMoveableVehicleDefs()
 		{
 			AllMoveableVehicleDefs = DefDatabase<VehicleDef>.AllDefsListForReading.Where(PathingHelper.ShouldCreateRegions).ToList();
-			gridOwners.Init();
+			GridOwners.Init();
 			if (!Find.Maps.NullOrEmpty())
 			{
 				foreach (Map map in Find.Maps)
@@ -234,27 +222,6 @@ namespace Vehicles
 		{
 			Ext_Map.RegisterArea<Area_Road>();
 			Ext_Map.RegisterArea<Area_RoadAvoidal>();
-		}
-
-		/// <summary>
-		/// Force maps to operate synchronously for the duration of unit tests
-		/// </summary>
-		private static void ForceSynchronousMaps(bool value)
-		{
-			if (Current.ProgramState == ProgramState.Entry) return;
-
-			foreach (Map map in Find.Maps)
-			{
-				VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-				if (value)
-				{
-					mapping.ReleaseThread();
-				}
-				else
-				{
-					mapping.InitThread(map);
-				}
-			}
 		}
 
 		private static void SuppressDebugLogging(bool value)

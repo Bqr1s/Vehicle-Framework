@@ -96,15 +96,13 @@ namespace Vehicles
 			if (DebugProperties.debug)
 			{
 				Scribe_Values.Look(ref debugSpawnVehicleBuildingGodMode, nameof(debugSpawnVehicleBuildingGodMode));
-			}
 
-#if DEBUG
-			Scribe_Values.Look(ref debugUseMultithreading, nameof(debugUseMultithreading), defaultValue: true);
-			Scribe_Values.Look(ref debugLoadAssetBundles, nameof(debugLoadAssetBundles), defaultValue: true);
+        Scribe_Values.Look(ref debugUseMultithreading, nameof(debugUseMultithreading), defaultValue: true);
+        Scribe_Values.Look(ref debugLoadAssetBundles, nameof(debugLoadAssetBundles), defaultValue: true);
 
-			Scribe_Values.Look(ref debugAllowRaiders, nameof(debugAllowRaiders));
-#endif
-		}
+        Scribe_Values.Look(ref debugAllowRaiders, nameof(debugAllowRaiders));
+      }
+    }
 
 		public override void DrawSection(Rect rect)
 		{
@@ -306,8 +304,8 @@ namespace Vehicles
 						}
 						Log.Message("-------");
 						VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-						Log.Message($"Total Owners = {VehicleHarmony.AllVehicleOwners.Count}");
-						foreach (VehicleDef vehicleDef in VehicleHarmony.AllVehicleOwners)
+						Log.Message($"Total Owners = {GridOwners.AllOwners.Count}");
+						foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
 						{
 							List<VehicleDef> piggies = mapping.GetPiggies(vehicleDef);
 							Log.Message($"Owner: {vehicleDef} Piggies=({string.Join(",", piggies.Select(def => def.defName))})");
@@ -423,7 +421,8 @@ namespace Vehicles
 		public void RegionDebugMenu()
 		{
 			List<Toggle> vehicleDefToggles = new List<Toggle>();
-			vehicleDefToggles.Add(new Toggle("None", () => DebugHelper.Local.VehicleDef == null || DebugHelper.Local.DebugType == DebugRegionType.None, delegate (bool value)
+			vehicleDefToggles.Add(new Toggle("None", () => DebugHelper.Local.VehicleDef == null || 
+			DebugHelper.Local.DebugType == DebugRegionType.None, delegate (bool value)
 			{
 				if (value)
 				{
@@ -431,11 +430,13 @@ namespace Vehicles
 					DebugHelper.Local.DebugType = DebugRegionType.None;
 				}
 			}));
-			foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def => def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId, ignorePostfix: true))
-																						   .ThenBy(def => def.modContentPack.Name)
-																						   .ThenBy(d => d.defName))
+			foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def => 
+				def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId, ignorePostfix: true))
+				.ThenBy(def => def.modContentPack.Name)
+				.ThenBy(d => d.defName))
 			{
-				Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name, () => DebugHelper.Local.VehicleDef == vehicleDef, (value) => { }, onToggle: delegate (bool value)
+				Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name, () => DebugHelper.Local.VehicleDef == vehicleDef, 
+					(value) => { }, onToggle: delegate (bool value)
 				{
 					if (value)
 					{

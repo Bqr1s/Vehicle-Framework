@@ -1,25 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using SmashTools;
-using SmashTools.Performance;
 using UnityEngine;
 using Verse;
+using RegionResult = Vehicles.VehicleRegionMaker.RegionResult;
 
 namespace Vehicles
 {
-	/// <summary>
-	/// Region and room update handler
-	/// </summary>
-	public class VehicleRegionAndRoomUpdater : VehicleRegionManager
+  /// <summary>
+  /// Region and room update handler
+  /// </summary>
+  public class VehicleRegionAndRoomUpdater : VehicleRegionManager
     {
-		private readonly List<VehicleRegion> newRegions = new List<VehicleRegion>();
+		private readonly List<VehicleRegion> newRegions = [];
 
-		private readonly List<VehicleRoom> newRooms = new List<VehicleRoom>();
-		private readonly HashSet<VehicleRoom> reusedOldRooms = new HashSet<VehicleRoom>();
+		private readonly List<VehicleRoom> newRooms = [];
+		private readonly HashSet<VehicleRoom> reusedOldRooms = [];
 
-		private readonly List<VehicleRegion> currentRegionGroup = new List<VehicleRegion>();
+		private readonly List<VehicleRegion> currentRegionGroup = [];
 
-		public VehicleRegionAndRoomUpdater(VehicleMapping mapping, VehicleDef createdFor) : base(mapping, createdFor)
+		private VehicleRegionGrid regionGrid;
+
+		public VehicleRegionAndRoomUpdater(VehicleMapping mapping, VehicleDef createdFor) 
+			: base(mapping, createdFor)
 		{
 		}
 
@@ -32,6 +36,14 @@ namespace Vehicles
 		/// Currently updating regions
 		/// </summary>
 		public bool UpdatingRegion { get; private set; }
+
+		/// <summary>
+		/// Cross check objects not in thread safe code is not being modified outside
+		/// of the thread responsible for updating the region set. If within the same
+		/// thread, many locks can be avoided since many of the region specific fields
+		/// are not accessed outside of this context.
+		/// </summary>
+		internal int UpdatingFromThreadId { get; private set; }
 
 		/// <summary>
 		/// Anything in RegionGrid that needs to be rebuilt
@@ -47,7 +59,8 @@ namespace Vehicles
 		{
 			Enabled = true;
 			mapping[createdFor].Suspended = false;
-			mapping[createdFor].VehicleRegionGrid.Init();
+			regionGrid = mapping[createdFor].VehicleRegionGrid;
+      regionGrid.Init();
 		}
 
 		public void Release()
@@ -55,7 +68,7 @@ namespace Vehicles
 			Initialized = false;
 			Enabled = false;
 			mapping[createdFor].Suspended = true;
-			mapping[createdFor].VehicleRegionGrid.Release();
+      regionGrid.Release();
 		}
 
 		/// <summary>
@@ -85,10 +98,7 @@ namespace Vehicles
 		/// </summary>
 		public void TryRebuildVehicleRegions()
 		{
-			if (UpdatingRegion || !Enabled)
-			{
-				return;
-			}
+			if (UpdatingRegion || !Enabled) return;
 
 			UpdatingRegion = true;
 			if (!Initialized)
@@ -102,16 +112,18 @@ namespace Vehicles
 			}
 			try
 			{
+#if DEBUG
+				UpdatingFromThreadId = Thread.CurrentThread.ManagedThreadId;
+#endif
 				RegenerateNewVehicleRegions();
 				CreateOrUpdateVehicleRooms();
 			}
-			catch (Exception ex)
+			finally
 			{
-				Log.Error($"Exception while rebuilding vehicle regions for {createdFor}. Exception={ex}");
-			}
-			newRegions.Clear();
-			Initialized = true;
-			UpdatingRegion = false;
+        newRegions.Clear();
+        Initialized = true;
+        UpdatingRegion = false;
+      }
 		}
 
 		/// <summary>
@@ -125,17 +137,35 @@ namespace Vehicles
 			{
 				if (!cell.InBounds(mapping.map))
 				{
-					continue;
-				}
+					Assert.Fail("Dirtied invalid cell.");
+          continue;
+        }
 				VehicleRegion region = pathData.VehicleRegionGrid.GetRegionAt(cell);
-				bool needsNew = region == null || !region.valid;
 
-				// Buffer should never hold a region which still has references in the region grid.
-				Assert.IsTrue(region == null || !region.Suspended, $"{region} has been pushed to buffer prematurely.");
-
-				if (needsNew && pathData.VehicleRegionMaker.TryGenerateRegionFrom(cell, out region))
+				// ObjectPool should never hold a region which still has references in the region grid.
+				Assert.IsTrue(region == null || !region.InPool, $"{region} has been returned to pool prematurely.");
+				
+				if (region == null || !region.valid)
 				{
-					newRegions.Add(region);
+					RegionResult result = pathData.VehicleRegionMaker.TryGenerateRegionFrom(cell, ref region);
+					switch (result)
+					{
+						case RegionResult.Success:
+							{
+                newRegions.Add(region);
+              }
+							break;
+						case RegionResult.NoRegion:
+              {
+								// Clean immediately rather than following RimWorld convention of delayed
+								// Update-based clean.
+								if (region != null)
+								{
+									regionGrid.SetRegionAt(cell, null);
+								}
+              }
+              break;
+					}
 				}
 			}
 		}
