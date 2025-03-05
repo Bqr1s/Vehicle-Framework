@@ -30,13 +30,7 @@ namespace Vehicles
     /// <summary>
     /// Region grid getter
     /// </summary>
-    public VehicleRegion[] DirectGrid
-    {
-      get
-      {
-        return regionGrid;
-      }
-    }
+    public VehicleRegion[] DirectGrid => regionGrid;
 
     /// <summary>
     /// Yield all non-null regions
@@ -97,8 +91,7 @@ namespace Vehicles
     public void Release()
     {
       regionGrid = null;
-      allRegionsYielded = null;
-      allRooms = null;
+      allRooms.Clear();
     }
 
     public void Init()
@@ -114,54 +107,28 @@ namespace Vehicles
     /// <summary>
     /// Retrieve valid region at <paramref name="cell"/>
     /// </summary>
-    public VehicleRegion GetValidRegionAt(IntVec3 cell)
+    public VehicleRegion GetValidRegionAt(IntVec3 cell, bool rebuild = true)
     {
       if (!cell.InBounds(mapping.map))
       {
         Log.Error($"Tried to get valid vehicle region for {createdFor} out of bounds at {cell}");
         return null;
       }
-      if (!mapping[createdFor].VehicleRegionAndRoomUpdater.Enabled &&
-        mapping[createdFor].VehicleRegionAndRoomUpdater.AnythingToRebuild)
+      if (rebuild)
       {
-        Log.Warning($"Trying to get valid vehicle region for {createdFor} at {cell} but RegionAndRoomUpdater is disabled. The result may be incorrect.");
+        if (!mapping[createdFor].VehicleRegionAndRoomUpdater.Enabled &&
+        mapping[createdFor].VehicleRegionAndRoomUpdater.AnythingToRebuild)
+        {
+          Log.Warning($"Trying to get valid vehicle region for {createdFor} at {cell} but RegionAndRoomUpdater is disabled. The result may be incorrect.");
+        }
+        mapping[createdFor].VehicleRegionAndRoomUpdater.TryRebuildVehicleRegions();
       }
-      mapping[createdFor].VehicleRegionAndRoomUpdater.TryRebuildVehicleRegions();
       VehicleRegion region = GetRegionAt(cell);
       return (region != null && region.valid) ? region : null;
     }
 
     /// <summary>
-    /// Get valid region at <paramref name="cell"/> without rebuilding the region grid
-    /// </summary>
-    public VehicleRegion GetValidRegionAt_NoRebuild(IntVec3 cell)
-    {
-      if (mapping.map is null)
-      {
-        Log.Error($"Tried to get valid region with null map.");
-        return null;
-      }
-      if (mapping.map.info is null)
-      {
-        Log.Error($"Tried to get map info with null info. Map = {mapping.map.uniqueID}");
-        return null;
-      }
-      if (regionGrid is null)
-      {
-        Log.Error($"Tried to get valid region with null regionGrid. Have the vehicle regions been instantiated yet?");
-        return null;
-      }
-      if (!cell.InBounds(mapping.map))
-      {
-        Log.Error("Tried to get valid region out of bounds at " + cell);
-        return null;
-      }
-      VehicleRegion region = GetRegionAt(cell);
-      return region != null && region.valid ? region : null;
-    }
-
-    /// <summary>
-    /// Get any existing region at <paramref name="cell"/>
+    /// Get region from grid at <paramref name="cell"/>
     /// </summary>
     public VehicleRegion GetRegionAt(IntVec3 cell)
     {
@@ -170,17 +137,21 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Get any existing region at <paramref name="cell"/>
+    /// Get region from grid at <paramref name="index"/>
     /// </summary>
     public VehicleRegion GetRegionAt(int index)
     {
-      return regionGrid[index];
+      // regionGrid will be null if region set has been suspended from updating
+      return regionGrid?[index];
     }
 
     /// <summary>
     /// Set existing region at <paramref name="cell"/> to <paramref name="region"/>
     /// </summary>
-    public void SetRegionAt(IntVec3 cell, VehicleRegion region) => SetRegionAt(mapping.map.cellIndices.CellToIndex(cell), region);
+    public void SetRegionAt(IntVec3 cell, VehicleRegion region)
+    {
+      SetRegionAt(mapping.map.cellIndices.CellToIndex(cell), region);
+    }
 
     /// <summary>
     /// Set existing region at <paramref name="index"/> to <paramref name="region"/>
@@ -225,7 +196,7 @@ namespace Vehicles
         if (region != null && !region.valid)
         {
           Assert.Fail("Cleaning region which should have already been returned to pool.");
-          //SetRegionAt(curCleanIndex, null);
+          SetRegionAt(curCleanIndex, null);
         }
         curCleanIndex++;
       }
@@ -236,10 +207,7 @@ namespace Vehicles
     /// </summary>
     public void DebugDraw(DebugRegionType debugRegionType)
     {
-      if (mapping.map != Find.CurrentMap)
-      {
-        return;
-      }
+      if (mapping.map != Find.CurrentMap) return;
 
       foreach (VehicleRoom room in allRooms.Keys)
       {

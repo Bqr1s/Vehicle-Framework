@@ -16,6 +16,8 @@ namespace Vehicles
 
     private static object gridOwnerLock = new();
 
+    public static bool AnyOwners { get; private set; }
+
     public static List<VehicleDef> AllOwners => owners;
 
     public static List<VehicleDef> AllPiggies => piggies;
@@ -40,6 +42,8 @@ namespace Vehicles
         // drain if they are never going to be changed outside of initialization.
         GridOwners.owners = owners;
         GridOwners.piggies = piggies;
+
+        AnyOwners = owners.Count > 0;
       }
     }
 

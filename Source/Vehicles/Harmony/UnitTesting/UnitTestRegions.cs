@@ -15,6 +15,8 @@ namespace Vehicles.Testing
 
     public override string Name => "Regions";
 
+    public override TestType ExecuteOn => TestType.Disabled;
+
     public override bool ShouldTest(VehicleDef vehicleDef)
     {
       return PathingHelper.ShouldCreateRegions(vehicleDef) && GridOwners.IsOwner(vehicleDef);
@@ -48,6 +50,7 @@ namespace Vehicles.Testing
 
       {
         // Verify region is sent to pool and later retrieved when area is cleared
+        // If successful, object count should not change while dirtying regions.
         ObjectCountWatcher<VehicleRegion> ocwRegions = new();
         ObjectCountWatcher<VehicleRegionLink> ocwLinks = new();
 

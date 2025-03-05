@@ -94,9 +94,7 @@ namespace Vehicles
         nameof(SetPositionAndUpdateVehicleRegions)));
       VehicleHarmony.Patch(original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Rotation)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(SetRotationAndUpdateVehicleRegionsClipping)),
-        postfix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(SetRotationAndUpdateVehicleRegions)));
+        nameof(SetRotationAndUpdateVehicleRegionsClipping)));
       VehicleHarmony.Patch(original: AccessTools.Method(typeof(ThingGrid), nameof(ThingGrid.Register)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
         nameof(MonitorThingGridRegisterStart)),
@@ -465,13 +463,13 @@ namespace Vehicles
       }
     }
 
-    private static void SetPositionAndUpdateVehicleRegions(Thing __instance)
+    private static void SetPositionAndUpdateVehicleRegions(Thing __instance, IntVec3 value)
     {
       if (__instance.Spawned)
       {
         if (__instance is VehiclePawn vehicle)
         {
-          vehicle.Map.GetCachedMapComponent<VehiclePositionManager>().ClaimPosition(vehicle);
+          vehicle.ReclaimPosition();
         }
         PathingHelper.ThingAffectingRegionsOrientationChanged(__instance, __instance.Map);
       }
@@ -519,7 +517,7 @@ namespace Vehicles
     {
       if (!map.TileInfo.WaterCovered)
       {
-        PathingHelper.DisableAllRegionUpdaters(map);
+        map.GetCachedMapComponent<VehicleMapping>().DisableAllRegionUpdaters();
       }
     }
 

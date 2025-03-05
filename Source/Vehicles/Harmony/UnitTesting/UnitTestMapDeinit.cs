@@ -28,8 +28,17 @@ namespace Vehicles.Testing
 			VehicleMapping mapping = Find.CurrentMap.GetCachedMapComponent<VehicleMapping>();
 			Assert.IsNotNull(mapping);
 
-			// Testing that all threads can be terminated and the caller will wait until they finish
-			ThreadManager.ReleaseThreadsAndClearCache();
+			// Create a few threads to validate that cleanup occurs
+			ThreadManager.CreateNew();
+      ThreadManager.CreateNew();
+      ThreadManager.CreateNew();
+
+			// Thread count may not explicitly be 3 if dedicated threads haven't been disabled for
+			// unit testing on this pass. We just care that any threads exist for testing cleanup.
+      yield return UTResult.For("Threads Created", !ThreadManager.AllThreadsTerminated);
+
+      // Testing that all threads can be terminated and the caller will wait until they finish
+      ThreadManager.ReleaseThreadsAndClearCache();
 			yield return UTResult.For("Threads Terminated", ThreadManager.AllThreadsTerminated);
 		}
 	}

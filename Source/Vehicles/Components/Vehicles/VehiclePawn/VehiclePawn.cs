@@ -223,9 +223,8 @@ namespace Vehicles
 			Drawer.Notify_Spawned();
 			InitializeHitbox();
 			Map.GetCachedMapComponent<VehicleMapping>().VehicleSpawned(this);
-			Map.GetCachedMapComponent<VehiclePositionManager>().ClaimPosition(this);
-			//Map.GetCachedMapComponent<VehicleRegionUpdateCatalog>().Notify_VehicleSpawned(this);
-			Map.GetCachedMapComponent<ListerVehiclesRepairable>().Notify_VehicleSpawned(this);
+			ReclaimPosition();
+      Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleSpawned(this);
 			ResetRenderStatus();
 
 			Initialized = true;

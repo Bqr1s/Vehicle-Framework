@@ -115,51 +115,47 @@ namespace Vehicles
 			{
 				TickRare();
 			}
-			if (!Suspended)
-			{
-				sustainers.Tick();
-				if (Spawned)
-				{
-					animator?.AnimationTick();
-					vehiclePather.PatherTick();
-					stances.StanceTrackerTick();
-					if (Drafted || Deploying)
-					{
-						jobs.JobTrackerTick();
-					}
-					TickHandlers();
-					TickExplosives();
-					if (currentlyFishing)
-					{
-						if (Find.TickManager.TicksGame % 240 == 0)
-						{
-							if (AllPawnsAboard.Count == 0)
-							{
-								currentlyFishing = false;
-							}
-							else
-							{
-								IntVec3 cell = this.OccupiedRect().ExpandedBy(1).EdgeCells.RandomElement();
-								MoteMaker.MakeStaticMote(cell, Map, ThingDefOf_VehicleMotes.Mote_FishingNet);
-							}
-						}
-					}
-				}
-				//equipment?.EquipmentTrackerTick();
+			//if (Suspended) return; // Vehicles can't be suspended, unsure if I'll implement such a feature.
 
-				//caller?.CallTrackerTick();
-				//skills?.SkillsTick();
-				//abilities?.AbilitiesTick();
-				inventory?.InventoryTrackerTick();
-				//relations?.RelationsTrackerTick();
+      sustainers.Tick();
+      if (Spawned)
+      {
+        animator?.AnimationTick();
+        vehiclePather.PatherTick();
+        stances.StanceTrackerTick();
+        if (Drafted || Deploying)
+        {
+          jobs.JobTrackerTick();
+        }
+        TickHandlers();
+        TickExplosives();
+        if (currentlyFishing && Find.TickManager.TicksGame % 240 == 0)
+        {
+          if (AllPawnsAboard.Count == 0)
+          {
+            currentlyFishing = false;
+          }
+          else
+          {
+            IntVec3 cell = this.OccupiedRect().ExpandedBy(1).EdgeCells.RandomElement();
+            MoteMaker.MakeStaticMote(cell, Map, ThingDefOf_VehicleMotes.Mote_FishingNet);
+          }
+        }
+      }
+      //equipment?.EquipmentTrackerTick();
 
-				if (ModsConfig.RoyaltyActive)
-				{
-					//royalty?.RoyaltyTrackerTick();
-				}
-				ageTracker.AgeTick();
-				records.RecordsTick();
-			}
-		}
+      //caller?.CallTrackerTick();
+      //skills?.SkillsTick();
+      //abilities?.AbilitiesTick();
+      inventory?.InventoryTrackerTick();
+      //relations?.RelationsTrackerTick();
+
+      if (ModsConfig.RoyaltyActive)
+      {
+        //royalty?.RoyaltyTrackerTick();
+      }
+      ageTracker.AgeTick();
+      records.RecordsTick();
+    }
 	}
 }

@@ -21,7 +21,6 @@ namespace Vehicles.Testing
 			TerrainDef terrainDef = TestMap.terrainGrid.TerrainAt(root);
 
 			bool success;
-			// VehiclePathGrid costs shouldn't take vehicles into account
 			VehiclePathGrid pathGrid = pathData.VehiclePathGrid;
 			GenSpawn.Spawn(vehicle, root, TestMap);
 			result.Add($"{vehicle.def} Spawned", vehicle.Spawned);

@@ -167,7 +167,8 @@ namespace Vehicles
 		{
 			if (Local.VehicleDef != null)
 			{
-				map.GetCachedMapComponent<VehicleMapping>()[Local.VehicleDef].VehicleRegionGrid.DebugDraw(Local.DebugType);
+				map.GetCachedMapComponent<VehicleMapping>()[Local.VehicleDef].VehicleRegionGrid
+					.DebugDraw(Local.DebugType);
 			}
 		}
 
@@ -179,7 +180,8 @@ namespace Vehicles
 		{
 			if (Local.VehicleDef != null)
 			{
-				map.GetCachedMapComponent<VehicleMapping>()[Local.VehicleDef].VehicleRegionGrid.DebugOnGUI(Local.DebugType);
+				map.GetCachedMapComponent<VehicleMapping>()[Local.VehicleDef].VehicleRegionGrid
+					.DebugOnGUI(Local.DebugType);
 			}
 		}
 

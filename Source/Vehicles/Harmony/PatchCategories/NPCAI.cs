@@ -61,8 +61,8 @@ namespace Vehicles
           prefix: new HarmonyMethod(typeof(NpcAi),
           nameof(DisableVanillaJobForVehicle)));
 #endif
-#endif
       }
+#endif
     }
 
     private static void InjectVehiclesIntoPawnKindGroupPrepare(PawnGroupMakerParms parms, PawnGroupMaker groupMaker)

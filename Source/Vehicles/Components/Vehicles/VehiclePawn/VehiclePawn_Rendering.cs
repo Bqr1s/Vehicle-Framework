@@ -307,11 +307,11 @@ namespace Vehicles
 			{
 				Map.thingGrid.Register(this);
 				Map.coverGrid.Register(this);
-				Map.GetCachedMapComponent<VehiclePositionManager>().ClaimPosition(this);
+				ReclaimPosition();
 
-				CellRect oldRect = this.OccupiedRectShifted(IntVec2.Zero, oldRot).ExpandedBy(1);
+				CellRect oldRect = this.OccupiedRectShifted(IntVec2.Zero, oldRot);
 				CellRect newRect = this.OccupiedRectShifted(IntVec2.Zero, rotationInt);
-				foreach (IntVec3 cell in oldRect.Encapsulate(newRect))
+				foreach (IntVec3 cell in oldRect.AllCellsNoRepeat(newRect))
 				{
 					Map.pathing.RecalculatePerceivedPathCostAt(cell);
 				}
@@ -957,7 +957,7 @@ namespace Vehicles
 					action = delegate ()
 					{
 						statHandler.components.ForEach(c => c.HealComponent(float.MaxValue));
-						Map.GetCachedMapComponent<ListerVehiclesRepairable>().Notify_VehicleRepaired(this);
+						Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleRepaired(this);
 					}
 				};
 				yield return new Command_Action

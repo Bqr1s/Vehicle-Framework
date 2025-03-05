@@ -299,7 +299,6 @@ namespace Vehicles
     /// <summary>
     /// Determine reachability by region traversal
     /// </summary>
-    /// <param name="traverseParms"></param>
     private bool CheckRegionBasedReachability(TraverseParms traverseParms)
     {
       while (openQueue.Count > 0)

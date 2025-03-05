@@ -18,8 +18,7 @@ namespace Vehicles
 		public const string AllowTerrainWithTag = "PassableVehicles";
 		public const string DisallowTerrainWithTag = "ImpassableVehicles";
 
-		internal static readonly Dictionary<ThingDef, List<VehicleDef>> regionEffectors = new Dictionary<ThingDef, List<VehicleDef>>();
-    internal static readonly Dictionary<TerrainDef, List<VehicleDef>> terrainEffectors = new Dictionary<TerrainDef, List<VehicleDef>>();
+		internal static readonly Dictionary<ThingDef, List<VehicleDef>> regionEffectors = [];
 
 		/// <summary>
 		/// VehicleDef , &lt;TerrainDef Tag,pathCost&gt;
@@ -27,8 +26,6 @@ namespace Vehicles
 		public static readonly Dictionary<string, Dictionary<string, int>> allTerrainCostsByTag = new Dictionary<string, Dictionary<string, int>>();
 
     public static bool IsRegionEffector(ThingDef thingDef) => regionEffectors.ContainsKey(thingDef);
-
-    public static bool IsTerrainEffector(TerrainDef terrainDef) => terrainEffectors.ContainsKey(terrainDef);
 
     /// <summary>
     /// Quick retrieval of region updating status
@@ -168,11 +165,6 @@ namespace Vehicles
 			{
 				RegisterRegionEffecter(thingDef);
 			}
-
-			foreach (TerrainDef terrainDef in DefDatabase<TerrainDef>.AllDefsListForReading)
-			{
-				RegisterTerrainEffecter(terrainDef);
-			}
 		}
 
 		/// <summary>
@@ -194,29 +186,6 @@ namespace Vehicles
 				else if (thingDef.AffectsRegions)
 				{
           regionEffectors[thingDef].Add(vehicleDef);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Register <paramref name="terrainDef"/> as a potential terrain that will effect vehicle regions
-		/// </summary>
-		/// <param name="terrainDef"></param>
-		public static void RegisterTerrainEffecter(TerrainDef terrainDef)
-		{
-			terrainEffectors[terrainDef] = new List<VehicleDef>();
-			foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
-			{
-				if (vehicleDef.properties.customTerrainCosts.TryGetValue(terrainDef, out int value))
-				{
-					if (value >= VehiclePathGrid.ImpassableCost)
-					{
-						terrainEffectors[terrainDef].Add(vehicleDef);
-					}
-				}
-				else if (terrainDef.passability == Traversability.Impassable || vehicleDef.properties.defaultTerrainImpassable)
-				{
-					terrainEffectors[terrainDef].Add(vehicleDef);
 				}
 			}
 		}
@@ -263,7 +232,7 @@ namespace Vehicles
 				mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostUnderRect(occupiedRect);
 				if (GridOwners.IsOwner(vehicleDef))
 				{
-					mapping[vehicleDef].VehicleRegionDirtyer.Notify_ThingAffectingRegionsSpawned(occupiedRect);
+					mapping[vehicleDef].VehicleRegionDirtyer.NotifyThingAffectingRegionsSpawned(occupiedRect);
 					mapping[vehicleDef].VehicleReachability.ClearCache();
 				}
 			}
@@ -276,7 +245,7 @@ namespace Vehicles
 				mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostUnderRect(occupiedRect);
 				if (GridOwners.IsOwner(vehicleDef))
 				{
-					mapping[vehicleDef].VehicleRegionDirtyer.Notify_ThingAffectingRegionsDespawned(occupiedRect);
+					mapping[vehicleDef].VehicleRegionDirtyer.NotifyThingAffectingRegionsDespawned(occupiedRect);
 					mapping[vehicleDef].VehicleReachability.ClearCache();
 				}
 			}
@@ -316,7 +285,7 @@ namespace Vehicles
 			LongEventHandler.ExecuteWhenFinished(delegate ()
 			{
 				VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-				if (!GridOwners.AllOwners.NullOrEmpty())
+				if (GridOwners.AnyOwners)
 				{
 					RecalculateAllPerceivedPathCosts(mapping);
 				}
@@ -342,21 +311,20 @@ namespace Vehicles
 		/// <param name="map"></param>
 		public static void RecalculatePerceivedPathCostAt(IntVec3 cell, Map map)
 		{
-			VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-			if (!GridOwners.AllOwners.NullOrEmpty())
-			{
-				if (mapping.ThreadAvailable)
-				{
-					AsyncPathingAction asyncAction = AsyncPool<AsyncPathingAction>.Get();
-					asyncAction.Set(mapping, cell);
-					mapping.dedicatedThread.Queue(asyncAction);
-				}
-				else
-				{
-					RecalculatePerceivedPathCostAtFor(mapping, cell);
-				}
-			}
-		}
+			if (!GridOwners.AnyOwners) return;
+
+      VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
+      if (mapping.ThreadAvailable)
+      {
+        AsyncPathingAction asyncAction = AsyncPool<AsyncPathingAction>.Get();
+        asyncAction.Set(mapping, cell);
+        mapping.dedicatedThread.Queue(asyncAction);
+      }
+      else
+      {
+        RecalculatePerceivedPathCostAtFor(mapping, cell);
+      }
+    }
 
 		internal static void RecalculatePerceivedPathCostAtFor(VehicleMapping mapping, IntVec3 cell)
 		{
@@ -540,16 +508,6 @@ namespace Vehicles
 			QuestUtility.SendQuestTargetSignals(vehicle.questTags, "LeftMap", vehicle.Named("SUBJECT"));
 			Find.FactionManager.Notify_PawnLeftMap(vehicle);
 			Find.IdeoManager.Notify_PawnLeftMap(vehicle);
-		}
-
-		public static void DisableAllRegionUpdaters(Map map)
-		{
-			VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-			foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
-			{
-				VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
-				pathData.VehicleRegionAndRoomUpdater.Disable();
-			}
 		}
 	}
 }

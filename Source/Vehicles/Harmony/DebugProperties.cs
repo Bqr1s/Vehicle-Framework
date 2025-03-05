@@ -13,7 +13,7 @@ namespace Vehicles
   {
     // Enhanced debugging state which will enable many costly
     // debugging features.
-    internal static readonly bool debug = true;
+    internal static readonly bool debug = false;
 
     internal static readonly bool drawPaths = false;
 
@@ -22,9 +22,11 @@ namespace Vehicles
     internal static readonly (string defName, DebugRegionType regionType) regionDebugging =
       ("VF_TestMarshal", DebugRegionType.Regions | DebugRegionType.Links);
 
-    [Conditional("DEBUG")]
     internal static void Init()
     {
+#if RELEASE
+      Ext_Type.SetStaticFieldsDefault(typeof(DebugProperties));
+#else
       if (!debug)
       {
         Ext_Type.SetStaticFieldsDefault(typeof(DebugProperties));
@@ -37,5 +39,6 @@ namespace Vehicles
         DebugHelper.Local.DebugType = regionDebugging.regionType;
       }
     }
+#endif
   }
 }

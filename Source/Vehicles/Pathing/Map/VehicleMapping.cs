@@ -1,16 +1,19 @@
-﻿using RimWorld;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using LudeonTK;
+using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Debugging;
 using SmashTools.Performance;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 using Verse;
+using Verse.Sound;
+using Urgency = Vehicles.DeferredRegionGenerator.Urgency;
 
 namespace Vehicles
 {
@@ -20,14 +23,12 @@ namespace Vehicles
   [StaticConstructorOnStartup]
   public sealed class VehicleMapping : MapComponent
   {
-    private const int MaxThreadQueueCount = 1000;
     private const int EventMapId = 0;
-    private const int TempIncidentMapId = 1;
 
     private VehiclePathData[] vehicleData;
 
     private VehicleDef buildingFor;
-    private int vehicleRegionGridIndexChecking = 0;
+    private int ownerCleanIndex = 0;
 
     internal DedicatedThread dedicatedThread;
     internal DeferredRegionGenerator deferredRegionGenerator;
@@ -36,6 +37,7 @@ namespace Vehicles
 
     public VehicleMapping(Map map) : base(map)
     {
+      ConstructComponents();
     }
 
     public bool ComponentsInitialized { get; private set; } = false;
@@ -54,12 +56,7 @@ namespace Vehicles
     /// </summary>
     /// <remarks>Verify this is true before queueing up a method, otherwise you may just be sending it to the void 
     /// where it will never be executed.</remarks>
-    public bool ThreadAvailable => ThreadAlive && !ThreadBusy && !dedicatedThread.Suspended;
-
-    /// <summary>
-    /// <see cref="dedicatedThread"/> is either processing a long operation or the queue has grown large enough to warrant waiting.
-    /// </summary>
-    public bool ThreadBusy => dedicatedThread.InLongOperation || dedicatedThread.QueueCount > MaxThreadQueueCount;
+    public bool ThreadAvailable => ThreadAlive && !dedicatedThread.Suspended;
 
     /// <summary>
     /// Generates all path data if they haven't been already and fetches <see cref="VehiclePathData"/> for <paramref name="vehicleDef"/>.
@@ -76,10 +73,6 @@ Recursion is not supported here.");
           return null;
         }
 #endif
-        if (!ComponentsInitialized)
-        {
-          ConstructComponents();
-        }
         return vehicleData[vehicleDef.DefIndex];
       }
     }
@@ -99,9 +92,7 @@ Recursion is not supported here.");
       {
         return; // MapParent won't have reference resolved when loading from save, GetDedicatedThread will be called a 2nd time on PostLoadInit
       }
-      DedicatedThread thread = GetDedicatedThread(map);
-      thread.update += UpdateRegions;
-      dedicatedThread = thread;
+      dedicatedThread = GetDedicatedThread(map);
       deferredRegionGenerator = new DeferredRegionGenerator(this);
     }
 
@@ -114,12 +105,6 @@ Recursion is not supported here.");
         Log.Message($"<color=orange>{VehicleHarmony.LogLabel} Creating thread (id={thread?.id})</color>");
         return thread;
       }
-      //if (map.IsPocketMap || map.IsTempIncidentMap)
-      //{
-      //  thread = ThreadManager.GetShared(TempIncidentMapId);
-      //  Log.Message($"<color=orange>{VehicleHarmony.LogLabel} Fetching thread from pool (id={thread?.id})</color>");
-      //  return thread;
-      //}
       thread = ThreadManager.GetShared(EventMapId);
       Log.Message($"<color=orange>{VehicleHarmony.LogLabel} Fetching thread from pool (id={thread?.id})</color>");
       return thread;
@@ -143,7 +128,7 @@ Recursion is not supported here.");
 
     public List<VehicleDef> GetPiggies(VehicleDef ownerDef)
     {
-      List<VehicleDef> owners = new List<VehicleDef>();
+      List<VehicleDef> owners = [];
       if (!GridOwners.IsOwner(ownerDef))
       {
         return owners;
@@ -168,15 +153,10 @@ Recursion is not supported here.");
     public override void FinalizeInit()
     {
       base.FinalizeInit();
-
-      if (!ComponentsInitialized)
-      {
-        ConstructComponents();
-      }
       RegenerateGrids();
     }
 
-    public void RegenerateGrids()
+    public void RegenerateGrids(bool forceRegenerate = false)
     {
       Ext_Map.StashLongEventText();
 
@@ -192,7 +172,7 @@ Recursion is not supported here.");
       // suspended sporadically during unit testing so deferred generation will get interrupted.
       if (deferredRegionGenerator != null && !UnitTestManager.RunningUnitTests)
       {
-        deferredRegionGenerator.GenerateAllRegions();
+        if (forceRegenerate) deferredRegionGenerator.GenerateAllRegions();
       }
       else
       {
@@ -223,16 +203,13 @@ Recursion is not supported here.");
 
     private void GenerateRegions()
     {
-      if (GridOwners.AllOwners.NullOrEmpty())
-      {
-        return;
-      }
+      if (!GridOwners.AnyOwners) return;
 
       int total = GridOwners.AllOwners.Count;
       for (int i = 0; i < total; i++)
       {
         VehicleDef vehicleDef = GridOwners.AllOwners[i];
-        LongEventHandler.SetCurrentEventText($"{"VF_GeneratingPathGrids".Translate()} {i}/{total}");
+        LongEventHandler.SetCurrentEventText($"{"VF_GeneratingRegions".Translate()} {i}/{total}");
 
         VehiclePathData vehiclePathData = this[vehicleDef];
         vehiclePathData.VehicleRegionAndRoomUpdater.Init();
@@ -242,14 +219,12 @@ Recursion is not supported here.");
 
     private void GenerateRegionsAsync()
     {
-      if (GridOwners.AllOwners.NullOrEmpty()) return;
+      if (!GridOwners.AnyOwners) return;
 
-      // TODO - provide benchmark results
-      if (GridOwners.AllOwners.Count < 3)
+      if (GridOwners.AllOwners.Count <= 3)
       {
-        // Will be faster to generate the regions when owner count is relatively low.
-        // Results may vary per user but benchmark shows ~3 is the cutoff for Parallel
-        // not netting a performance gain for region generation.
+        // Generating regions is a lot faster now, so anything below 2~3
+        // can just be done synchronously. Will take < 1s regardless.
         GenerateRegions();
         return;
       }
@@ -276,8 +251,16 @@ Recursion is not supported here.");
       ComponentsInitialized = true;
 
       GenerateAllPathData();
+      DisableAllRegionUpdaters();
+    }
 
-      PathingHelper.DisableAllRegionUpdaters(map);
+    public void DisableAllRegionUpdaters()
+    {
+      foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
+      {
+        VehiclePathData pathData = this[vehicleDef];
+        pathData.VehicleRegionAndRoomUpdater.Disable();
+      }
     }
 
     public override void ExposeData()
@@ -296,7 +279,7 @@ Recursion is not supported here.");
     {
       // Try to generate regions immediately for a vehicle being spawned and cut in line
       // in front of any deferred region requests that may have just been queued.
-      deferredRegionGenerator?.GenerateRegionsFor(vehicle.VehicleDef, true);
+      deferredRegionGenerator?.GenerateRegionsFor(vehicle.VehicleDef, Urgency.Deferred);
     }
 
     public override void MapRemoved()
@@ -311,7 +294,6 @@ Recursion is not supported here.");
 
       Debug.Message($"<color=orange>Releasing thread {Thread.id}.</color>");
       bool released = dedicatedThread.Release();
-      dedicatedThread.update -= UpdateRegions;
       dedicatedThread = null;
       return released;
     }
@@ -332,11 +314,8 @@ Recursion is not supported here.");
 
     public override void MapComponentUpdate()
     {
-      if (!ThreadAlive)
-      {
-        UpdateRegions();
-      }
-#if !RELEASE
+      UpdateRegions();
+#if DEBUG
       FlashGridType flashGridType = VehicleMod.settings.debug.debugDrawFlashGrid;
       if (flashGridType != FlashGridType.None)
       {
@@ -421,48 +400,41 @@ Recursion is not supported here.");
 
     private void UpdateRegions()
     {
-      if (ThreadAlive)
-      {
-        for (int i = 0; i < GridOwners.AllOwners.Count; i++)
-        {
-          UpdateRegionSet(i);
-        }
-      }
-      else if (GridOwners.AllOwners.Count > 0 && vehicleRegionGridIndexChecking < GridOwners.AllOwners.Count)
-      {
-        UpdateRegionSet(vehicleRegionGridIndexChecking);
-        vehicleRegionGridIndexChecking++;
-        if (vehicleRegionGridIndexChecking >= GridOwners.AllOwners.Count)
-        {
-          vehicleRegionGridIndexChecking = 0;
-        }
-      }
+      if (!GridOwners.AnyOwners) return;
 
-      void UpdateRegionSet(int index)
+      if (ownerCleanIndex < GridOwners.AllOwners.Count)
       {
-        VehicleDef vehicleDef = GridOwners.AllOwners[index];
+        VehicleDef vehicleDef = GridOwners.AllOwners[ownerCleanIndex];
         VehiclePathData pathData = this[vehicleDef];
-        if (!pathData.Suspended)
+        if (!pathData.Suspended && pathData.VehicleRegionDirtyer.AnyDirty)
         {
-          pathData.VehicleRegionGrid.UpdateClean();
-          pathData.VehicleRegionAndRoomUpdater.TryRebuildVehicleRegions();
+          if (ThreadAvailable)
+          {
+            AsyncRebuildRegionsAction action = AsyncPool<AsyncRebuildRegionsAction>.Get();
+            action.Set(pathData);
+            dedicatedThread.Queue(action);
+          }
+          else
+          {
+            // NOTE - This is not executed on the dedicated thread, I don't think this is necessary
+            // anymore but it needs further testing + a unit test to ensure no invalid regions are left
+            // behind in the region grid.
+            pathData.VehicleRegionGrid.UpdateClean();
+            pathData.VehicleRegionAndRoomUpdater.TryRebuildVehicleRegions();
+          }
         }
+        ownerCleanIndex++;
+        if (ownerCleanIndex >= GridOwners.AllOwners.Count) ownerCleanIndex = 0;
       }
     }
 
     private void GenerateAllPathData()
     {
-      Ext_Map.StashLongEventText();
-      LongEventHandler.SetCurrentEventText("VF_GeneratingPathData".Translate());
-      foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
+      // All vehicles need path data (even aerial vehicles for landing)
+      foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
       {
         GeneratePathData(vehicleDef);
       }
-      foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading) //Even shuttles need path data for landing
-      {
-        GeneratePathData(vehicleDef);
-      }
-      Ext_Map.RevertLongEventText();
     }
 
     /// <summary>
@@ -486,7 +458,7 @@ Recursion is not supported here.");
         }
         else
         {
-          VehicleDef ownerDef = GridOwners.GetOwner(vehicleDef); //Will return itself if it's an owner
+          VehicleDef ownerDef = GridOwners.GetOwner(vehicleDef); // Will return itself if it's an owner
           vehiclePathData.ReachabilityData = vehicleData[ownerDef.DefIndex].ReachabilityData;
         }
       }
@@ -500,6 +472,82 @@ Recursion is not supported here.");
       }
 
       return vehiclePathData;
+    }
+
+    [DebugOutput(VehicleHarmony.VehiclesLabel, name = "Benchmark RegionGen", onlyWhenPlaying = true)]
+    private static void BenchmarkRegionGeneration()
+    {
+      const int IterationsPerTest = 50;
+      const int MaxTimeForBenchmark = 10; // minutes
+
+      CameraJumper.TryHideWorld();
+      Map map = Find.CurrentMap;
+      if (map is null)
+      {
+        Assert.Fail("Trying to perform region benchmark with null map.");
+        return;
+      }
+
+      Stopwatch timeout = new();
+
+      LongEventHandler.QueueLongEvent(delegate ()
+      {
+        List<VehicleDef> regionOwners = GridOwners.AllOwners.Where(PathingHelper.ShouldCreateRegions).ToList();
+        int total = regionOwners.Count;
+        // Results will be useless if we don't have at least 5 owners for varied results
+        Assert.IsTrue(total > 5);
+        // No need for testing more than 10 owners. Test will stall for far too long and we
+        // already know that parallelization will be far superior at >10. We're just
+        // benchmarking for what vehicle count is the cutoff for async performance gains.
+        total = Mathf.Min(total, 10); 
+
+        VehicleMapping mapping = Find.CurrentMap.GetCachedMapComponent<VehicleMapping>();
+
+        // x2 since we're testing both sync and async region generation per count
+        int totalVehiclesTested = Ext_Math.ArithmeticSeries(total, IterationsPerTest * 2);
+        int tested = 0;
+
+        timeout.Start();
+        // Rerun test incrementing how many vehicles to generate regions for
+        // and log results from benchmarking.
+        for (int i = 1; i <= total; i++)
+        {
+          List<VehicleDef> defsToTest = regionOwners.Take(i).ToList();
+
+          Benchmark.Results asyncResult = Benchmark.Run(IterationsPerTest, delegate ()
+          {
+            // delegate will add a little bit of overhead from CallVirt but
+            // this is how the original method is written so it's accurate.
+            Parallel.ForEach(defsToTest, delegate (VehicleDef vehicleDef)
+            {
+              VehiclePathData vehiclePathData = mapping[vehicleDef];
+              vehiclePathData.VehicleRegionAndRoomUpdater.Init();
+              vehiclePathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
+
+              Interlocked.Increment(ref tested);
+              LongEventHandler.SetCurrentEventText($"Running Benchmark {tested}/{totalVehiclesTested}");
+            });
+          });
+
+          Benchmark.Results syncResult = Benchmark.Run(IterationsPerTest, delegate ()
+          {
+            foreach (VehicleDef vehicleDef in defsToTest)
+            {
+              VehiclePathData vehiclePathData = mapping[vehicleDef];
+              vehiclePathData.VehicleRegionAndRoomUpdater.Init();
+              vehiclePathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
+
+              Interlocked.Increment(ref tested);
+              LongEventHandler.SetCurrentEventText($"Running Benchmark {tested}/{totalVehiclesTested}");
+            }
+          });
+
+          Log.Message($"{i} | Async({asyncResult.TotalString}) Sync({syncResult.TotalString})");
+          if (timeout.Elapsed.TotalMinutes >= MaxTimeForBenchmark) break;
+        }
+        timeout.Stop();
+        SoundDefOf.TinyBell.PlayOneShotOnCamera();
+      }, string.Empty, true, null);
     }
 
     /// <summary>

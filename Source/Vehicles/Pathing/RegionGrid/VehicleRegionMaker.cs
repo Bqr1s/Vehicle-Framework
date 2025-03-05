@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using LudeonTK;
@@ -28,7 +29,7 @@ namespace Vehicles
     private readonly ObjectPool<VehicleRegionLink> linkPool;
     private readonly ObjectPool<VehicleRegion> regionPool;
 
-    private readonly Dictionary<ulong, VehicleRegionLink> activeLinks = [];
+    private readonly ConcurrentDictionary<ulong, VehicleRegionLink> activeLinks = [];
 
     private readonly BFS<IntVec3> floodfiller = new();
 
@@ -184,7 +185,7 @@ namespace Vehicles
       {
         regionLink = linkPool.Get();
         regionLink.SetNew(span);
-        activeLinks.Add(key, regionLink);
+        activeLinks.TryAdd(key, regionLink);
       }
       return regionLink;
     }
@@ -308,7 +309,7 @@ namespace Vehicles
 
     public void Return(VehicleRegionLink regionLink)
     {
-      activeLinks.Remove(regionLink.UniqueHashCode());
+      activeLinks.TryRemove(regionLink.UniqueHashCode(), out _);
       linkPool.Return(regionLink);
     }
 
@@ -390,7 +391,7 @@ namespace Vehicles
               DebugHelper.Local.DebugType = DebugRegionType.Regions | DebugRegionType.Links;
 
               IntVec3 cell = UI.MouseCell();
-              map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionDirtyer.Notify_WalkabilityChanged(cell);
+              map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionDirtyer.NotifyWalkabilityChanged(cell);
             }
           });
         }

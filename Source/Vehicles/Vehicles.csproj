@@ -230,6 +230,7 @@
     <Compile Include="Harmony\PatchCategories\DefGenerators\ThingDefGenerator_Buildables.cs" />
     <Compile Include="Harmony\PatchCategories\NPCAI.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\RaidTesting.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTestTerrainGrid.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestRegions.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestMapDeinit.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestPathGrid.cs" />
@@ -538,6 +539,7 @@
     <Compile Include="Utility\Helpers\AerialVehicle\AerialVehicleTraderHelper.cs" />
     <Compile Include="Utility\Helpers\AsyncActions\AsyncPathFindAction.cs" />
     <Compile Include="Utility\Helpers\AsyncActions\AsyncPathingAction.cs" />
+    <Compile Include="Utility\Helpers\AsyncActions\AsyncRebuildRegionsAction.cs" />
     <Compile Include="Utility\Helpers\AsyncActions\AsyncRegionAction.cs" />
     <Compile Include="Utility\Helpers\AsyncActions\AsyncReachabilityCacheAction.cs" />
     <Compile Include="Utility\Helpers\Combat\CombatFormationHelper.cs" />

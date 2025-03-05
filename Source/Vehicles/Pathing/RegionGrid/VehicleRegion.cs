@@ -64,8 +64,8 @@ namespace Vehicles
     /// </summary>
     public bool InPool { get; set; }
     
-    // Only used for seed generation, doesn't matter if list count is inaccurate at
-    // time of reading. No need for a lock here since List<T>::_size does not access the
+    // Only used for seed generation, doesn't matter if list count is stale at time of
+    // reading. No need for a lock here since List<T>::_size does not access the
     // internal array.
     public int LinksCount => links.Count;
     

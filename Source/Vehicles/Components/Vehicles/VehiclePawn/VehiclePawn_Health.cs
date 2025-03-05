@@ -83,7 +83,7 @@ namespace Vehicles
 			if (Spawned)
 			{
 				animator?.SetBool(PropertyIds.Disabled, CanMove);
-				Map.GetCachedMapComponent<ListerVehiclesRepairable>().Notify_VehicleTookDamage(this);
+				Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleTookDamage(this);
 			}
 		}
 
@@ -150,12 +150,11 @@ namespace Vehicles
 				vehiclePather.StopDead();
 			}
 			Map.GetCachedMapComponent<VehiclePositionManager>().ReleaseClaimed(this);
-			//Map.GetCachedMapComponent<VehicleRegionUpdateCatalog>().Notify_VehicleDespawned(this);
 			VehicleReservationManager reservationManager = Map.GetCachedMapComponent<VehicleReservationManager>();
 			reservationManager.ClearReservedFor(this);
 			reservationManager.RemoveAllListerFor(this);
 			cargoToLoad.Clear(); //Clear cargo when leaving map, otherwise pawns may attempt to access those items from another map
-			Map.GetCachedMapComponent<ListerVehiclesRepairable>().Notify_VehicleDespawned(this);
+			Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleDespawned(this);
 			EventRegistry[VehicleEventDefOf.Despawned].ExecuteEvents();
 			base.DeSpawn(mode);
 			SoundCleanup();

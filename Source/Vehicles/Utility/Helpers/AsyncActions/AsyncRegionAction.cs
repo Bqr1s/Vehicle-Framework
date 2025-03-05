@@ -30,7 +30,6 @@ namespace Vehicles
 			if (spawned)
 			{
 				PathingHelper.ThingInRegionSpawned(cellRect, mapping, vehicleDefs);
-				
 			}
 			else
 			{

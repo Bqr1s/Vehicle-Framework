@@ -322,7 +322,7 @@ namespace Vehicles
 						foreach (Map map in Find.Maps)
 						{
 							VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-							mapping.RegenerateGrids();
+							mapping.RegenerateGrids(forceRegenerate: true);
 						}
 					}, "Regenerating Regions", true, null);
 				}

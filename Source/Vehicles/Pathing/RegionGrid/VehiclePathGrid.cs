@@ -140,7 +140,7 @@ namespace Vehicles
 			if (walkabilityChanged && !mapping[vehicleDef].Suspended)
 			{
 				mapping[vehicleDef].VehicleReachability.ClearCache();
-				mapping[vehicleDef].VehicleRegionDirtyer.Notify_WalkabilityChanged(cell);
+				mapping[vehicleDef].VehicleRegionDirtyer.NotifyWalkabilityChanged(cell);
 			}
 		}
 
