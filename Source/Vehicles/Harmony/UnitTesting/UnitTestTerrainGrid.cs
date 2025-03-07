@@ -17,16 +17,16 @@ namespace Vehicles.Testing
 
     protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
     {
-      using ThreadDisabler td = new();
-
       UTResult result;
 
       VehicleDef vehicleDef = vehicle.VehicleDef;
       VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
+      VehicleRegionGrid regionGrid = mapping[vehicleDef].VehicleRegionGrid;
       VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
 
       CellRect testArea = TestArea(vehicleDef, root);
       CellRect terrainArea = testArea.ContractedBy(vehicleDef.SizePadding);
+      DebugHelper.DestroyArea(testArea.ExpandedBy(vehicleDef.SizePadding), TestMap);
 
       TerrainDef terrainOrig = TestMap.terrainGrid.TerrainAt(root);
       TerrainDef passableTerrain = DefDatabase<TerrainDef>.AllDefsListForReading
@@ -45,22 +45,29 @@ namespace Vehicles.Testing
       // Terrain cost updates
       SetArea(in terrainArea, passableTerrain);
       success = AreaCost(in terrainArea, passableTerrain);
-      result.Add("TerrainGrid (PathCost)", success);
+      result.Add($"TerrainGrid_{vehicleDef} (PathCost)", success);
 
       // Terrain becomes impassable
       SetArea(in terrainArea, impassableTerrain);
       success = AreaCost(in terrainArea, impassableTerrain) && 
         !VehiclePathGrid.PassableTerrainCost(vehicleDef, impassableTerrain, out _);
-      result.Add("TerrainGrid (ImpassableCost)", success);
+      result.Add($"TerrainGrid_{vehicleDef} (ImpassableCost)", success);
 
-      // Impassable terrain invalidates regions
-      success = Regions(in testArea, false);
-      result.Add("TerrainGrid (Invalid Regions)", success);
+      if (PathingHelper.ShouldCreateRegions(vehicleDef))
+      {
+        // Impassable terrain invalidates regions
+        success = Regions(in testArea, false);
+        result.Add($"TerrainGrid_{vehicleDef} (Removed Regions)", success);
+        success = !regionGrid.AnyInvalidRegions;
+        result.Add($"TerrainGrid_{vehicleDef} (Invalid Regions)", success);
 
-      // Impassable terrain removal invalidates regions
-      SetArea(in terrainArea, terrainOrig);
-      success = Regions(in testArea, true);
-      result.Add("TerrainGrid (Valid Regions)", success);
+        // Impassable terrain removal invalidates regions
+        SetArea(in terrainArea, terrainOrig);
+        success = Regions(in testArea, true);
+        result.Add($"TerrainGrid_{vehicleDef} (Created Regions)", success);
+        success = !regionGrid.AnyInvalidRegions;
+        result.Add($"TerrainGrid_{vehicleDef} (Invalid Regions)", success);
+      }
 
       return result;
 

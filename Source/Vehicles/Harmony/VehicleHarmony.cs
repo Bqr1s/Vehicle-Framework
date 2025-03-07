@@ -74,7 +74,6 @@ namespace Vehicles
       Utilities.InvokeWithLogging(RegisterVehicleAreas);
 
 #if DEBUG
-      UnitTestManager.OnUnitTestStateChange += ForceSynchronousMaps;
       UnitTestManager.OnUnitTestStateChange += SuppressDebugLogging;
 #endif
 
@@ -223,17 +222,6 @@ namespace Vehicles
     {
       Ext_Map.RegisterArea<Area_Road>();
       Ext_Map.RegisterArea<Area_RoadAvoidal>();
-    }
-
-    private static void ForceSynchronousMaps(bool value)
-    {
-      if (Current.ProgramState == ProgramState.Entry) return;
-
-      foreach (Map map in Find.Maps)
-      {
-        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-        mapping.dedicatedThread.Suspended = value;
-      }
     }
 
     private static void SuppressDebugLogging(bool value)

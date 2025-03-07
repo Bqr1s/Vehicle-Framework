@@ -87,12 +87,11 @@ namespace Vehicles
           {
             SetRegionDirty(region);
           }
+          else
+          {
+            dirtyCells.Add(adjCell);
+          }
         }
-      }
-
-      if (GenGridVehicles.Walkable(cell, createdFor, mapping))
-      {
-        dirtyCells.Add(cell);
       }
     }
 
@@ -124,11 +123,6 @@ namespace Vehicles
             SetRegionDirty(validRegion);
           }
         }
-      }
-
-      foreach (IntVec3 cell in occupiedRect)
-      {
-        dirtyCells.Add(cell);
       }
     }
 

@@ -292,7 +292,7 @@ Recursion is not supported here.");
     {
       if (dedicatedThread == null) return false;
 
-      Debug.Message($"<color=orange>Releasing thread {Thread.id}.</color>");
+      Log.Message($"<color=orange>Releasing thread {Thread.id}.</color>");
       bool released = dedicatedThread.Release();
       dedicatedThread = null;
       return released;

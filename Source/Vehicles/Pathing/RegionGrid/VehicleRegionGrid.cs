@@ -14,14 +14,14 @@ namespace Vehicles
 
     //Thread Safe - Only accessed from the same thread within the same method
     private HashSet<VehicleRegion> allRegionsYielded;
-    
+
     //Thread safe - Only used inside UpdateClean
     private int curCleanIndex;
     private VehicleRegion[] regionGrid;
 
     public ConcurrentSet<VehicleRoom> allRooms = [];
 
-    private VehicleRegionMaker regionMaker;
+    private VehicleRegionAndRoomUpdater regionUpdater;
 
     public VehicleRegionGrid(VehicleMapping mapping, VehicleDef createdFor) : base(mapping, createdFor)
     {
@@ -57,6 +57,19 @@ namespace Vehicles
         {
           allRegionsYielded.Clear();
         }
+      }
+    }
+
+    internal bool AnyInvalidRegions
+    {
+      get
+      {
+        for (int i = 0; i < regionGrid.Length; i++)
+        {
+          if (regionGrid[i] is VehicleRegion region && !region.valid)
+            return true;
+        }
+        return false;
       }
     }
 
@@ -96,12 +109,12 @@ namespace Vehicles
 
     public void Init()
     {
-      // RegionGrid is large in size and could still be in-use if rebuild-all is called from debug menu.
-      // No need to reallocate the entire array if this is the case.
+      // RegionGrid is large in size and could still be in-use if rebuild-all is called
+      // from debug menu. No need to reallocate the entire array if this is the case.
       regionGrid ??= new VehicleRegion[mapping.map.cellIndices.NumGridCells];
       allRegionsYielded = [];
       allRooms = [];
-      regionMaker = mapping[createdFor].VehicleRegionMaker;
+      regionUpdater = mapping[createdFor].VehicleRegionAndRoomUpdater;
     }
 
     /// <summary>
@@ -116,12 +129,12 @@ namespace Vehicles
       }
       if (rebuild)
       {
-        if (!mapping[createdFor].VehicleRegionAndRoomUpdater.Enabled &&
-        mapping[createdFor].VehicleRegionAndRoomUpdater.AnythingToRebuild)
+        if (!regionUpdater.Enabled && regionUpdater.AnythingToRebuild)
         {
-          Log.Warning($"Trying to get valid vehicle region for {createdFor} at {cell} but RegionAndRoomUpdater is disabled. The result may be incorrect.");
+          Log.Warning($@"Trying to get valid vehicle region for {createdFor} at {cell} but RegionAndRoomUpdater
+is disabled. The result may be incorrect.");
         }
-        mapping[createdFor].VehicleRegionAndRoomUpdater.TryRebuildVehicleRegions();
+        regionUpdater.TryRebuildVehicleRegions();
       }
       VehicleRegion region = GetRegionAt(cell);
       return (region != null && region.valid) ? region : null;

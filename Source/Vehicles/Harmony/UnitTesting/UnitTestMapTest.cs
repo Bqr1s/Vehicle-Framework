@@ -32,7 +32,12 @@ namespace Vehicles.Testing
       Assert.IsNotNull(TestMap);
       Assert.IsTrue(DefDatabase<VehicleDef>.AllDefsListForReading.Count > 0, "No vehicles to test with");
 
-      // Should always be at least 1 vehicle for unit tests to execute assuming debug vehicle is enabled
+      // All map-based tests should be run synchronously, otherwise 
+      // we would have race conditions when validating grids.
+      using ThreadDisabler td = new();
+
+      // Should always be at least 1 vehicle for unit tests to execute
+      // assuming debug vehicle is enabled
       foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
       {
         if (!ShouldTest(vehicleDef)) continue;
@@ -56,6 +61,9 @@ namespace Vehicles.Testing
 
     protected abstract UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root);
 
+    /// <summary>
+    /// Test class for validating cells within a vehicle's hitbox.
+    /// </summary>
     protected class HitboxTester<T>
     {
       private readonly Map map;
@@ -66,7 +74,8 @@ namespace Vehicles.Testing
 
       public CellRect rect;
 
-      public HitboxTester(VehiclePawn vehicle, Map map, IntVec3 root, Func<IntVec3, T> valueGetter, Func<T, bool> validator, Action<IntVec3> reset = null)
+      public HitboxTester(VehiclePawn vehicle, Map map, IntVec3 root, Func<IntVec3, T> valueGetter, 
+        Func<T, bool> validator, Action<IntVec3> reset = null)
       {
         this.map = map;
         this.vehicle = vehicle;
