@@ -15,12 +15,12 @@ namespace Vehicles.Testing
 
     public override TestType ExecuteOn => TestType.GameLoaded;
 
-    public virtual bool ShouldTest(VehicleDef vehicleDef)
+    protected virtual bool ShouldTest(VehicleDef vehicleDef)
     {
       return true;
     }
 
-    public virtual CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
+    protected virtual CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
     {
       int maxSize = Mathf.Max(vehicleDef.Size.x, vehicleDef.Size.z);
       return CellRect.CenteredOn(root, maxSize).ExpandedBy(5);

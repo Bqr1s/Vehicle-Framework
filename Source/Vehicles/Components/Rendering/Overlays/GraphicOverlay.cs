@@ -42,7 +42,7 @@ namespace Vehicles
 			this.vehicleDef = vehicle.VehicleDef;
 			this.renderer = vehicle.overlayRenderer;
 
-			this.vehicle.AddEvent(VehicleEventDefOf.Destroyed, OnDestroy);
+			this.vehicle.AddEvent(VehicleEventDefOf.Destroyed, Destroy);
 
 			if (data.dynamicShadows)
 			{
@@ -155,9 +155,9 @@ This may result in a memory leak.");
 			}
 		}
 
-		public void OnDestroy()
+    public void Destroy()
 		{
-			RGBMaterialPool.Release(this);
+      RGBMaterialPool.Release(this);
 		}
 
 		public static GraphicOverlay Create(GraphicDataOverlay graphicDataOverlay, VehiclePawn vehicle)

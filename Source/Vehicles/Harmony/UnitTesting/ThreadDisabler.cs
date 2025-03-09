@@ -16,20 +16,19 @@ namespace Vehicles
   /// </summary>
   public readonly struct ThreadDisabler : IDisposable
   {
+    private readonly Dictionary<Map, bool> activateThread = [];
+
     public ThreadDisabler()
     {
       // Need to disable from main thread, Find.Maps is not thread safe
       Assert.IsTrue(UnityData.IsInMainThread);
-      PauseAllThreads();
-    }
 
-    private void PauseAllThreads()
-    {
       foreach (Map map in Find.Maps)
       {
         VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
         if (mapping.ThreadAlive)
         {
+          activateThread[map] = !mapping.dedicatedThread.Suspended;
           mapping.dedicatedThread.Suspended = true;
         }
       }
@@ -40,7 +39,7 @@ namespace Vehicles
       foreach (Map map in Find.Maps)
       {
         VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-        if (mapping.ThreadAlive)
+        if (mapping.ThreadAlive && activateThread.TryGetValue(map, out bool activate) && activate)
         {
           mapping.dedicatedThread.Suspended = false;
         }

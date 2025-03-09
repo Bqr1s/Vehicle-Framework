@@ -9,7 +9,7 @@ namespace Vehicles.Testing
   {
     public override string Name => "VehicleHandler";
 
-    public override bool ShouldTest(VehicleDef vehicleDef)
+    protected override bool ShouldTest(VehicleDef vehicleDef)
     {
       return vehicleDef.properties.roles.NotNullAndAny(role => role.Slots > 0);
     }

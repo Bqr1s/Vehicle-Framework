@@ -15,7 +15,7 @@ namespace Vehicles
   [StaticConstructorOnStartup]
   internal static class VehicleHarmony
   {
-    // Project Start Date: DEC 7 2019
+    // Project Start Date: 7 DEC 2019
 
     public const string VehiclesUniqueId = "SmashPhil.VehicleFramework";
     public const string VehiclesLabel = "Vehicle Framework";
@@ -82,7 +82,7 @@ namespace Vehicles
 
     private static void RunAllPatches()
     {
-      List<IPatchCategory> patchCategories = new List<IPatchCategory>();
+      List<IPatchCategory> patchCategories = [];
       foreach (Assembly assembly in VehicleMCP.assemblies.loadedAssemblies)
       {
         foreach (Type type in assembly.GetTypes())
@@ -102,14 +102,17 @@ namespace Vehicles
         }
         catch
         {
-          SmashLog.Error($"Failed to Patch <type>{patch.GetType().FullName}</type>. Method=\"{methodPatching}\"");
+          SmashLog.Error($"Failed to Patch <type>{patch.GetType().FullName}</type>. " +
+            $"Method=\"{methodPatching}\"");
           throw;
         }
       }
-      if (Prefs.DevMode) SmashLog.Message($"<color=orange>{LogLabel}</color> <success>{Harmony.GetPatchedMethods().Count()} patches successfully applied.</success>");
+      if (Prefs.DevMode) SmashLog.Message($@"<color=orange>{LogLabel}</color> 
+<success>{Harmony.GetPatchedMethods().Count()} patches successfully applied.</success>");
     }
 
-    public static void Patch(MethodBase original, HarmonyMethod prefix = null, HarmonyMethod postfix = null, HarmonyMethod transpiler = null, HarmonyMethod finalizer = null)
+    public static void Patch(MethodBase original, HarmonyMethod prefix = null, HarmonyMethod postfix = null, 
+      HarmonyMethod transpiler = null, HarmonyMethod finalizer = null)
     {
       methodPatching = original?.Name ?? $"Null\", Previous = \"{methodPatching}";
       Harmony.Patch(original, prefix, postfix, transpiler, finalizer);
@@ -162,9 +165,12 @@ namespace Vehicles
 
     private static void RegisterKeyBindingDefs()
     {
-      MainMenuKeyBindHandler.RegisterKeyBind(KeyBindingDefOf_Vehicles.VF_RestartGame, GenCommandLine.Restart);
-      MainMenuKeyBindHandler.RegisterKeyBind(KeyBindingDefOf_Vehicles.VF_QuickStartMenu, () => StartupTest.OpenMenu());
-      MainMenuKeyBindHandler.RegisterKeyBind(KeyBindingDefOf_Vehicles.VF_DebugSettings, () => VehiclesModSettings.OpenWithContext());
+      MainMenuKeyBindHandler.RegisterKeyBind(KeyBindingDefOf_Vehicles.VF_RestartGame, 
+        GenCommandLine.Restart);
+      MainMenuKeyBindHandler.RegisterKeyBind(KeyBindingDefOf_Vehicles.VF_QuickStartMenu, 
+        () => StartupTest.OpenMenu());
+      MainMenuKeyBindHandler.RegisterKeyBind(KeyBindingDefOf_Vehicles.VF_DebugSettings, 
+        () => VehiclesModSettings.OpenWithContext());
     }
 
     private static void FillVehicleLordJobTypes()
@@ -179,7 +185,8 @@ namespace Vehicles
 
     internal static void RecacheMoveableVehicleDefs()
     {
-      AllMoveableVehicleDefs = DefDatabase<VehicleDef>.AllDefsListForReading.Where(PathingHelper.ShouldCreateRegions).ToList();
+      AllMoveableVehicleDefs = DefDatabase<VehicleDef>.AllDefsListForReading
+        .Where(PathingHelper.ShouldCreateRegions).ToList();
       GridOwners.Init();
       if (!Find.Maps.NullOrEmpty())
       {
@@ -201,21 +208,36 @@ namespace Vehicles
 
     private static void RegisterTweakFieldsInEditor()
     {
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffset)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetNorth)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetEast)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetSouth)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetWest)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffset)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetNorth)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetEast)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetSouth)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetWest)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffset)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetNorth)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetEast)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetSouth)), string.Empty, string.Empty, UISettingsType.FloatBox);
-      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetWest)), string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffset)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetNorth)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetEast)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetSouth)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicData), nameof(GraphicData.drawOffsetWest)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffset)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetNorth)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetEast)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetSouth)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataLayered), nameof(GraphicData.drawOffsetWest)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffset)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetNorth)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetEast)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetSouth)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
+      EditWindow_TweakFields.RegisterField(AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetWest)), 
+        string.Empty, string.Empty, UISettingsType.FloatBox);
     }
 
     private static void RegisterVehicleAreas()

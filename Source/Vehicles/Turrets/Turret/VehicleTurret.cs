@@ -136,14 +136,19 @@ namespace Vehicles
 		protected Texture2D gizmoIcon;
 		protected Texture2D mainMaskTex;
 
-		protected Texture2D cachedTexture;
-		protected Material cachedMaterial;
-		protected Graphic_Turret cachedGraphic;
-		protected GraphicDataRGB cachedGraphicData;
+    [Unsaved]
+    protected Texture2D cachedTexture;
+    [Unsaved]
+    protected Material cachedMaterial;
+    [Unsaved]
+    protected Graphic_Turret cachedGraphic;
+    [Unsaved]
+    protected GraphicDataRGB cachedGraphicData;
 
+		[Unsaved]
 		protected List<TurretDrawData> turretGraphics;
-
-		protected RotatingList<Texture2D> overheatIcons;
+    [Unsaved]
+    protected RotatingList<Texture2D> overheatIcons;
 
 		protected MaterialPropertyBlock materialPropertyBlock;
 
@@ -221,7 +226,6 @@ namespace Vehicles
 
 			TurretRotation = reference.defaultAngleRotated;
 
-			ResolveCannonGraphics(vehicle);
 			InitRecoilTrackers();
 		}
 
@@ -476,7 +480,7 @@ namespace Vehicles
 		{
 			get
 			{
-				if (cachedGraphic is null)
+				if (cachedGraphic is null && !NoGraphic)
 				{
 					ResolveCannonGraphics(vehicle);
 				}
@@ -497,7 +501,7 @@ namespace Vehicles
 		{
 			get
 			{
-				if (cachedGraphicData is null)
+				if (cachedGraphicData is null && !NoGraphic)
 				{
 					ResolveCannonGraphics(vehicle);
 				}
@@ -720,8 +724,16 @@ namespace Vehicles
 			}
 
 			ResetAngle();
-			LongEventHandler.ExecuteWhenFinished(RecacheRootDrawPos);
+			if (vehicle.Spawned)
+			{
+        LongEventHandler.ExecuteWhenFinished(RecacheRootDrawPos);
+      }
 		}
+
+		public virtual void PostSpawnSetup(bool respawningAfterLoad)
+		{
+      LongEventHandler.ExecuteWhenFinished(RecacheRootDrawPos);
+    }
 
 		public void SetTurretRestriction(Type type)
 		{
@@ -2174,7 +2186,7 @@ namespace Vehicles
 			public VehicleTurret turret;
 
 			public Graphic_Turret graphic;
-			public GraphicDataRGB graphicDataRGB;
+			public GraphicDataRGB graphicData;
 			public VehicleTurretRenderData renderData;
 
 			public TurretDrawData(VehicleTurret turret, VehicleTurretRenderData renderData)
@@ -2191,7 +2203,7 @@ namespace Vehicles
 
 			public void Set(GraphicDataRGB copyFrom, PatternData patternData)
 			{
-				graphic = GenerateGraphicData(this, turret, copyFrom, patternData, ref graphicDataRGB);
+				graphic = GenerateGraphicData(this, turret, copyFrom, patternData, ref graphicData);
 			}
 
 			public Vector3 DrawOffset(Vector3 drawPos, Rot8 rot)
@@ -2208,7 +2220,7 @@ namespace Vehicles
 
 			public override string ToString()
 			{
-				return $"TurretDrawData_{turret.key}_({graphicDataRGB.texPath})";
+				return $"TurretDrawData_{turret.key}_({graphicData.texPath})";
 			}
 		}
 	}

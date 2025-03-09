@@ -159,12 +159,12 @@ namespace Vehicles
 					{
 						Rect turretRect = VehicleGraphics.TurretRect(rect, vehicleDef, turret, rot);
 						bool canMask = turretDrawData.graphic.Shader.SupportsMaskTex() || turretDrawData.graphic.Shader.SupportsRGBMaskTex();
-						Color color = canMask ? turretDrawData.graphicDataRGB.color : Color.white;
+						Color color = canMask ? turretDrawData.graphicData.color : Color.white;
 						if (canMask && turret.turretDef.matchParentColor)
 						{
 							color = patternData.color;
 						}
-						yield return new RenderData(turretRect, turretDrawData.graphic.TexAt(Rot8.North), color, turretDrawData.graphicDataRGB.drawOffset.y, turret.defaultAngleRotated + rot.AsAngle);
+						yield return new RenderData(turretRect, turretDrawData.graphic.TexAt(Rot8.North), color, turretDrawData.graphicData.drawOffset.y, turret.defaultAngleRotated + rot.AsAngle);
 					}
 				}
 			}

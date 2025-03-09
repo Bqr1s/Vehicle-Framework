@@ -88,6 +88,12 @@ namespace Vehicles
       }
     }
 
+    public bool LinksRegions(VehicleRegion regionA, VehicleRegion regionB)
+    {
+      return (this.regionA == regionA && this.regionB == regionB) ||
+        (this.regionA == regionB && this.regionB == regionA);
+    }
+
     /// <summary>
     /// Draws <paramref name="weight"/> on map from this link to <paramref name="regionLink"/>
     /// </summary>

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SmashTools;
+﻿using SmashTools;
 using Verse;
 
 namespace Vehicles
@@ -24,7 +18,11 @@ namespace Vehicles
 
     internal static void Init()
     {
+      // Debug settings cannot be allowed in release builds, as there is no way for
+      // a user to unset them. Set everything to default as a fail safe, but we should
+      // still verify it's not enabled.
 #if RELEASE
+      Trace.IsFalse(debug);
       Ext_Type.SetStaticFieldsDefault(typeof(DebugProperties));
 #else
       if (!debug)

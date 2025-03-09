@@ -174,11 +174,14 @@ namespace Vehicles
         animator.SetBool(PropertyIds.Disabled, CanMove);
         animator.PostLoad();
       }
-			ReleaseSustainerTarget(); //Ensure SustainerTarget and sustainer manager is given a clean slate to work with
+      // Ensure SustainerTarget and sustainer manager is given a clean slate to work with
+      ReleaseSustainerTarget();
 			EventRegistry[VehicleEventDefOf.Spawned].ExecuteEvents();
 			if (Drafted)
 			{
-				EventRegistry[VehicleEventDefOf.IgnitionOn].ExecuteEvents(); //Retrigger draft event if spawned with draft status = on (important for sustainers, tick requests, etc.)
+        // Trigger draft event if spawned with draft status On
+				// This is important for sustainers and tick requests.
+        EventRegistry[VehicleEventDefOf.IgnitionOn].ExecuteEvents(); 
 			}
 
 			sharedJob ??= new SharedJob();

@@ -24,6 +24,7 @@ namespace Vehicles
   public sealed class VehicleMapping : MapComponent
   {
     private const int EventMapId = 0;
+    public const bool ForceGenerateAllRegions = true;
 
     private VehiclePathData[] vehicleData;
 
@@ -156,7 +157,7 @@ Recursion is not supported here.");
       RegenerateGrids();
     }
 
-    public void RegenerateGrids(bool forceRegenerate = false)
+    public void RegenerateGrids(bool forceRegenerate = ForceGenerateAllRegions)
     {
       Ext_Map.StashLongEventText();
 

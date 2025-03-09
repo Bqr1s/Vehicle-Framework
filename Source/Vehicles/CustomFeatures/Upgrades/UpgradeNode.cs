@@ -25,7 +25,8 @@ namespace Vehicles
 		public SoundDef resetSound;
 
 		public IntVec2 gridCoordinate;
-		public Vector2 drawSize = new Vector2(ITab_Vehicle_Upgrades.UpgradeNodeDim, ITab_Vehicle_Upgrades.UpgradeNodeDim);
+		public Vector2 drawSize = new Vector2(ITab_Vehicle_Upgrades.UpgradeNodeDim, 
+			ITab_Vehicle_Upgrades.UpgradeNodeDim);
 
 		public Color? drawColorOne;
 		public Color? drawColorTwo;
@@ -38,14 +39,14 @@ namespace Vehicles
 		public string disableIfUpgradeNodeEnabled; //TODO - Remove in 1.6 in favor of disable conditions
 		public List<string> disableIfUpgradeNodesEnabled; //TODO - Remove in 1.6 in favor of disable conditions
 
-		public List<ResearchProjectDef> researchPrerequisites = new List<ResearchProjectDef>();
-		public List<string> prerequisiteNodes = new List<string>();
+		public List<ResearchProjectDef> researchPrerequisites = [];
+		public List<string> prerequisiteNodes = [];
 
 		[LoadAlias("costList")] //TODO 1.6 - switch to costList
-		public List<ThingDefCountClass> ingredients = new List<ThingDefCountClass>();
+		public List<ThingDefCountClass> ingredients = [];
 
 		public float refundFraction = 0.5f; //Default in vanilla deconstructing is 50%
-		public SimpleDictionary<ThingDef, float> refundLeavings = new SimpleDictionary<ThingDef, float>();
+		public SimpleDictionary<ThingDef, float> refundLeavings = [];
 
 		public List<GraphicDataOverlay> graphicOverlays;
 

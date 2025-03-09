@@ -27,7 +27,8 @@ namespace Vehicles
 			}
 			if (def is null)
 			{
-				yield return "<field>def</field> is null. Consider removing CompProperties_UpgradeTree if you don't plan on using upgrades.".ConvertRichText();
+				yield return @"<field>def</field> is null. Consider removing CompProperties_UpgradeTree 
+if you don't plan on using upgrades.".ConvertRichText();
 			}
 			else if (!def.nodes.NullOrEmpty())
 			{
@@ -35,7 +36,9 @@ namespace Vehicles
 				{
 					if (node.GridCoordinate.x < 0 || node.GridCoordinate.x >= ITab_Vehicle_Upgrades.totalLinesAcross)
 					{
-						yield return $"Maximum grid coordinate width={ITab_Vehicle_Upgrades.totalLinesAcross - 1}. Larger coordinates are not supported, consider going downward. Coord=({node.GridCoordinate.x},{node.GridCoordinate.z})".ConvertRichText();
+						yield return $@"Maximum grid coordinate width={ITab_Vehicle_Upgrades.totalLinesAcross - 1}. 
+Larger coordinates are not supported, consider going downward. 
+Coord=({node.GridCoordinate.x},{node.GridCoordinate.z})".ConvertRichText();
 					}
 				}
 			}

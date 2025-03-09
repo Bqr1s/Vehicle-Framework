@@ -10,7 +10,7 @@ namespace Vehicles.Testing
   {
     public override string Name => "TerrainGrid";
 
-    public override CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
+    protected override CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
     {
       return CellRect.CenteredOn(root, 5);
     }
@@ -53,7 +53,7 @@ namespace Vehicles.Testing
         !VehiclePathGrid.PassableTerrainCost(vehicleDef, impassableTerrain, out _);
       result.Add($"TerrainGrid_{vehicleDef} (ImpassableCost)", success);
 
-      if (PathingHelper.ShouldCreateRegions(vehicleDef))
+      if (PathingHelper.ShouldCreateRegions(vehicleDef) && GridOwners.IsOwner(vehicleDef))
       {
         // Impassable terrain invalidates regions
         success = Regions(in testArea, false);

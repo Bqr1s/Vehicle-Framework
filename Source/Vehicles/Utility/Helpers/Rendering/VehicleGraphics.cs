@@ -436,7 +436,7 @@ namespace Vehicles
 							material = RGBMaterialPool.Get(turretDrawData, Rot8.North);
 							RGBMaterialPool.SetProperties(turretDrawData, patternData, turretDrawData.graphic.TexAt, turretDrawData.graphic.MaskAt);
 						}
-						yield return new RenderData(turretRect, turretDrawData.graphic.TexAt(Rot8.North), material, turretDrawData.graphicDataRGB.DrawOffsetFull(rot).y + turretRef.DrawLayerOffset, turretRef.defaultAngleRotated + rot.AsAngle);
+						yield return new RenderData(turretRect, turretDrawData.graphic.TexAt(Rot8.North), material, turretDrawData.graphicData.DrawOffsetFull(rot).y + turretRef.DrawLayerOffset, turretRef.defaultAngleRotated + rot.AsAngle);
 					}
 				}
 			}

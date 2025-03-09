@@ -1,12 +1,9 @@
-﻿#define LAZY_REGIONS
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using LudeonTK;
 using RimWorld;
 using SmashTools;
-using SmashTools.Debugging;
 using SmashTools.Performance;
 using Verse;
 
@@ -31,12 +28,14 @@ namespace Vehicles
     {
       foreach (VehicleDef ownerDef in GridOwners.AllOwners)
       {
-        if (mapping[ownerDef].Suspended) continue;
+        if (mapping[ownerDef].Suspended && !VehicleMapping.ForceGenerateAllRegions) 
+          continue;
 
         Action postGenerationAction = null;
 #if DEBUG
         postGenerationAction = () => CoroutineManager.QueueInvoke(() =>
-          Messages.Message($"Regions generated for owner {ownerDef.LabelCap}.", MessageTypeDefOf.SilentInput));
+          Ext_Messages.Message($"Regions generated for owner {ownerDef.LabelCap}.", MessageTypeDefOf.SilentInput, 
+          time: 0.25f, historical: false));
 #endif
         RequestRegionSet(ownerDef, Urgency.Deferred, postGenerationAction: postGenerationAction);
       }
@@ -50,7 +49,6 @@ namespace Vehicles
       }
     }
 
-    [Conditional("LAZY_REGIONS")]
     public void DoPass()
     {
       Assert.IsTrue(activelyUsedVehicles.Count == 0);
@@ -138,7 +136,8 @@ namespace Vehicles
         pathData.VehicleRegionAndRoomUpdater.Release();
 
 #if DEBUG
-        Messages.Message($"Released Regions for {ownerDef}", MessageTypeDefOf.SilentInput, historical: false);
+        Ext_Messages.Message($"Released Regions for {ownerDef}", MessageTypeDefOf.SilentInput, 
+          time: 0.5f, historical: false);
 #endif
       }
     }

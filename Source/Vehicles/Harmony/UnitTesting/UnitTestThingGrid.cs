@@ -10,9 +10,10 @@ namespace Vehicles.Testing
 	{
 		public override string Name => "ThingGrid";
 
-		public override bool ShouldTest(VehicleDef vehicleDef)
+    protected override bool ShouldTest(VehicleDef vehicleDef)
 		{
-			return vehicleDef.vehicleType == VehicleType.Land && VehiclePathGrid.PassableTerrainCost(vehicleDef, TerrainDefOf.Concrete, out _);
+			return vehicleDef.vehicleType == VehicleType.Land && 
+				VehiclePathGrid.PassableTerrainCost(vehicleDef, TerrainDefOf.Concrete, out _);
 		}
 
 		protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)

@@ -28,9 +28,13 @@ namespace Vehicles
 
 		public List<GraphicOverlay> Overlays => overlays;
 
-		public List<GraphicOverlay> AllOverlaysListForReading { get; private set; } = [];
+		public List<GraphicOverlay> ExtraOverlays => extraOverlays;
 
-		public void Init()
+    public List<GraphicOverlay> AllOverlaysListForReading { get; private set; } = [];
+
+    public List<GraphicOverlay> ExtraOverlaysByKey(string key) => extraOverlayLookup.TryGetValue(key, fallback: null);
+
+    public void Init()
 		{
 			if (!vehicle.VehicleDef.drawProperties.overlays.NullOrEmpty())
 			{
@@ -59,13 +63,13 @@ namespace Vehicles
 				{
 					extraOverlays.Remove(graphicOverlay);
 					AllOverlaysListForReading.Remove(graphicOverlay);
-					graphicOverlay.OnDestroy();
+					graphicOverlay.Destroy();
 				}
 				extraOverlayLookup.Remove(key);
 			}
 		}
 
-		public void DrawOverlays(ref readonly TransformData transformData)
+    public void DrawOverlays(ref readonly TransformData transformData)
 		{
 			for (int i = 0; i <  AllOverlaysListForReading.Count; i++)
 			{

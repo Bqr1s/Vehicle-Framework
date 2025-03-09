@@ -26,8 +26,8 @@ namespace Vehicles
       new HashSet<IntVec3>()
     ];
 
-    private readonly ObjectPool<VehicleRegionLink> linkPool;
-    private readonly ObjectPool<VehicleRegion> regionPool;
+    internal readonly ObjectPool<VehicleRegionLink> linkPool;
+    internal readonly ObjectPool<VehicleRegion> regionPool;
 
     private readonly ConcurrentDictionary<ulong, VehicleRegionLink> activeLinks = [];
 
@@ -39,9 +39,9 @@ namespace Vehicles
     {
       const float poolSize = 0.5f; // Create pool for 50% of average objects used
       float totalRegions = ((float)mapping.map.Size.x / VehicleRegion.GridSize) * 
-        ((float)mapping.map.Size.y / VehicleRegion.GridSize);
+        ((float)mapping.map.Size.z / VehicleRegion.GridSize);
       int regions = Mathf.CeilToInt(totalRegions * poolSize);
-      int links = Mathf.CeilToInt(regions * 4 * poolSize); // 4 cardinal directions are typical
+      int links = Mathf.CeilToInt(regions * 4); // 4 cardinal directions are typical
       regionPool = new(regions);
       linkPool = new(links);
     }
