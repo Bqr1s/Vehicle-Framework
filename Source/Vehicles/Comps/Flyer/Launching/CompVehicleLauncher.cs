@@ -39,6 +39,8 @@ namespace Vehicles
 
 		private DeploymentTimer timer;
 
+		public bool loiter = false;
+
 		public bool inFlight = false;
 
 		public virtual bool AnyFlightControl { get; private set; }
@@ -170,9 +172,13 @@ namespace Vehicles
 
 			if (SettingsCache.TryGetValue(Vehicle.VehicleDef, typeof(VehicleDef), nameof(VehicleDef.vehicleMovementPermissions), Vehicle.VehicleDef.vehicleMovementPermissions) > VehiclePermissions.NotAllowed)
 			{
-				if (!Vehicle.CanMoveFinal || Vehicle.Angle != 0)
+				if (!Vehicle.CanMoveFinal)
 				{
 					disableReason = "VF_CannotLaunchImmobile".Translate(Vehicle.LabelShort);
+				}
+				else if (Vehicle.Angle != 0)
+				{
+					disableReason = "VF_CannotLaunchRotated".Translate(Vehicle.LabelShort);
 				}
 			}
 			else
@@ -256,18 +262,30 @@ namespace Vehicles
 			return amount / speedPctPerTick;
 		}
 
-		public virtual void InitializeLaunchProtocols(bool regenerateProtocols)
+		public virtual void ResolveProtocolProperties()
 		{
-			if (regenerateProtocols)
-			{
-				launchProtocol = (LaunchProtocol)Activator.CreateInstance(Props.launchProtocol.GetType(), new object[] { Props.launchProtocol, Vehicle });
-			}
 			launchProtocol.ResolveProperties(Props.launchProtocol);
 		}
 
 		public override void PostLoad()
 		{
-			InitializeLaunchProtocols(false);
+			ResolveProtocolProperties();
+		}
+
+		public override void PostGeneration()
+		{
+			base.PostGeneration();
+			InitLaunchProtocol();
+		}
+
+		public void InitLaunchProtocol()
+		{
+			if (Props.launchProtocol == null)
+			{
+				Log.Error($"Vehicle has null launchProtocol.");
+				return;
+			}
+			launchProtocol ??= (LaunchProtocol)Activator.CreateInstance(Props.launchProtocol.GetType(), [Props.launchProtocol, Vehicle]);
 		}
 
 		public override void CompTick()
@@ -287,7 +305,6 @@ namespace Vehicles
 			{
 				fuelEfficiencyWorldModifier = 0;
 			}
-			InitializeLaunchProtocols(!respawningAfterLoad);
 		}
 
 		public override void PostExposeData()
@@ -301,6 +318,7 @@ namespace Vehicles
 			Scribe_Values.Look(ref landingAltitudeModifier, nameof(landingAltitudeModifier));
 
 			Scribe_Values.Look(ref inFlight, nameof(inFlight));
+			Scribe_Values.Look(ref loiter, nameof(loiter));
 			Scribe_Values.Look(ref timer, nameof(timer));
 		}
 

@@ -29,6 +29,17 @@ namespace Vehicles
 
 		/* -------------------------------------- */
 
+		public IOrderedEnumerable<VehicleHandler> HandlersOrdered
+		{
+			get
+			{
+				return handlers.OrderBy(handler => handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
+							   .ThenBy(handler => handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Turret));
+			}
+		}
+
+		// TODO 1.6 - remove
+		[Obsolete("Will be removed in 1.6")]
 		public bool MovementHandlerAvailable
 		{
 			get
@@ -301,14 +312,14 @@ namespace Vehicles
 			return handlers.FirstOrDefault(x => x.handlers.Contains(pawn));
 		}
 
-		//REDO - cleanup
 		public VehicleHandler NextAvailableHandler(HandlingTypeFlags? handlingTypeFlag = null, bool priorityHandlers = false)
 		{
-			IEnumerable<VehicleHandler> prioritizedHandlers = priorityHandlers ? handlers.Where(h => h.role.HandlingTypes > HandlingTypeFlags.None) : handlers;
-			IEnumerable<VehicleHandler> filteredHandlers = handlingTypeFlag is null ? prioritizedHandlers : prioritizedHandlers.Where(h => h.role.HandlingTypes.HasFlag(handlingTypeFlag));
-			foreach (VehicleHandler handler in filteredHandlers)
+			foreach (VehicleHandler handler in HandlersOrdered)
 			{
-				if (handler.AreSlotsAvailable)
+				if (priorityHandlers && handler.role.HandlingTypes == HandlingTypeFlags.None) continue;
+				if (handlingTypeFlag != null && !handler.role.HandlingTypes.HasFlag(handlingTypeFlag)) continue;
+
+				if (handler.AreSlotsAvailableAndReservable)
 				{
 					return handler;
 				}
@@ -330,41 +341,86 @@ namespace Vehicles
 			bills.Add(new Bill_BoardVehicle(pawn, handler));
 		}
 
-		public bool Notify_Boarded(Pawn pawnToBoard, Map map = null)
+		/// <summary>
+		/// Pawn with bill has boarded vehicle.
+		/// </summary>
+		/// <remarks>For boarding vehicles outside of the job system, use <see cref="TryAddPawn"/></remarks>
+		/// <param name="pawnToBoard"></param>
+		/// <param name="map"></param>
+		/// <returns>Pawn successfully boarded the vehicle</returns>
+		public bool Notify_Boarded(Pawn pawnToBoard)
 		{
 			if (bills != null && bills.Count > 0)
 			{
 				Bill_BoardVehicle bill = bills.FirstOrDefault(x => x.pawnToBoard == pawnToBoard);
 				if (bill != null)
 				{
-					map ??= Map;
 					if (pawnToBoard.IsWorldPawn())
 					{
 						Log.Error("Tried boarding vehicle with world pawn. Use Notify_BoardedCaravan instead.");
 						return false;
 					}
-					VehicleReservationManager reservationManager = map.GetCachedMapComponent<VehicleReservationManager>();
-					if (!reservationManager.ReservedBy<VehicleHandler, VehicleHandlerReservation>(this, pawnToBoard, bill.handler) && !bill.handler.AreSlotsAvailable)
+					if (!TryAddPawn(pawnToBoard, bill.handler))
 					{
-						bool canReserve = Map.GetCachedMapComponent<VehicleReservationManager>().CanReserve<VehicleHandler, VehicleHandlerReservation>(this, null, bill.handler);
-						return false; //If pawn attempts to board vehicle role which is already full, stop immediately
+						return false;
 					}
-					if (pawnToBoard.Spawned)
-					{
-						pawnToBoard.DeSpawn(DestroyMode.WillReplace);
-					}
-					if (!bill.handler.handlers.TryAddOrTransfer(pawnToBoard, canMergeWithExistingStacks: false) && pawnToBoard.holdingOwner != null)
-					{
-						//If can't add to handler and currently has other owner, transfer
-						pawnToBoard.holdingOwner.TryTransferToContainer(pawnToBoard, bill.handler.handlers);
-					}
-					reservationManager.ReleaseAllClaimedBy(pawnToBoard);
 					bills.Remove(bill);
-					EventRegistry[VehicleEventDefOf.PawnEntered].ExecuteEvents();
 					return true;
 				}
 			}
 			return false;
+		}
+
+		public bool TryAddPawn(Pawn pawn)
+		{
+			if (handlers.NullOrEmpty()) return false;
+			
+			foreach (VehicleHandler handler in HandlersOrdered)
+			{
+				if (TryAddPawn(pawn, handler))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		public bool TryAddPawn(Pawn pawn, VehicleHandler handler)
+		{
+			// Pawn can be boarded pre-spawned for events such as raids, in this case the map will be null
+			// and no reservation checks are needed.
+			VehicleReservationManager reservationManager = null;
+			if (Spawned)
+			{
+				reservationManager = Map.GetCachedMapComponent<VehicleReservationManager>();
+				if (!reservationManager.ReservedBy<VehicleHandler, VehicleHandlerReservation>(this, pawn, handler) && !handler.AreSlotsAvailable)
+				{
+					//If pawn attempts to board vehicle role which is already full, stop immediately
+					return false;
+				}
+			}
+
+			Assert.IsTrue(handlers.Contains(handler));
+			bool result = true;
+			if (!handler.AreSlotsAvailable)
+			{
+				return false;
+			}
+			if (pawn.Spawned)
+			{
+				pawn.DeSpawn(DestroyMode.WillReplace);
+			}
+			if (!handler.handlers.TryAddOrTransfer(pawn, canMergeWithExistingStacks: false) && pawn.holdingOwner != null)
+			{
+				//If can't add to handler and currently has other owner, transfer
+				result = pawn.holdingOwner.TryTransferToContainer(pawn, handler.handlers);
+			}
+			reservationManager?.ReleaseAllClaimedBy(pawn);
+			if (result)
+			{
+				EventRegistry?[VehicleEventDefOf.PawnEntered].ExecuteEvents();
+			}
+			return result;
 		}
 
 		public void Notify_BoardedCaravan(Pawn pawnToBoard, ThingOwner handler)
@@ -445,22 +501,20 @@ namespace Vehicles
 
 		public void DisembarkAll()
 		{
-			List<Pawn> pawnsToDisembark = new List<Pawn>(AllPawnsAboard);
-			if (!(pawnsToDisembark is null) && pawnsToDisembark.Count > 0)
+			if (this.GetVehicleCaravan() is VehicleCaravan caravan && !Spawned)
 			{
-				if (this.GetCaravan() != null && !Spawned)
+				List<VehicleHandler> handlerList = handlers;
+				for (int i = 0; i < handlerList.Count; i++)
 				{
-					List<VehicleHandler> handlerList = handlers;
-					for (int i = 0; i < handlerList.Count; i++)
-					{
-						VehicleHandler handler = handlerList[i];
-						handler.handlers.TryTransferAllToContainer(this.GetCaravan().pawns, false);
-					}
-					return;
+					VehicleHandler handler = handlerList[i];
+					handler.handlers.TryTransferAllToContainer(caravan.pawns, false);
 				}
-				foreach (Pawn pawn in pawnsToDisembark)
+			}
+			else
+			{
+				for (int i = AllPawnsAboard.Count - 1; i >= 0; i--)
 				{
-					DisembarkPawn(pawn);
+					DisembarkPawn(AllPawnsAboard[i]);
 				}
 			}
 		}

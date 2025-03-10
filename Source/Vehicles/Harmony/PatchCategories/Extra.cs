@@ -25,7 +25,7 @@ namespace Vehicles
 				prefix: new HarmonyMethod(typeof(Extra),
 				nameof(GetVehicleHandlerIThingHolders)));
 
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Selector), "HandleMapClicks"),
+			VehicleHarmony.Patch(original: AccessTools.Method(typeof(RimWorld.Selector), "HandleMapClicks"),
 				prefix: new HarmonyMethod(typeof(Extra),
 				nameof(MultiSelectFloatMenu)));
 			VehicleHarmony.Patch(original: AccessTools.Method(typeof(MentalState_Manhunter), nameof(MentalState_Manhunter.ForceHostileTo), new Type[] { typeof(Thing) }), prefix: null,
@@ -125,29 +125,9 @@ namespace Vehicles
 					yield return new CodeInstruction(opcode: OpCodes.Ldarg_2);
 					yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(Extra), nameof(ChangeAreaColor)));
 				}
-				/*
-				if (instruction.opcode == OpCodes.Stloc_1)
-				{
-					yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.PropertyGetter(typeof(Extra), nameof(VehiclesButtonWidth)));
-					yield return new CodeInstruction(opcode: OpCodes.Add);
-				}
-				if (instruction.Calls(AccessTools.Method(typeof(WidgetRow), nameof(WidgetRow.Label))))
-				{
-					yield return instruction; //Call WidgetRow.Label
-					instruction = instructionList[++i];
-					yield return instruction; //Pop
-					instruction = instructionList[++i];
-
-					yield return new CodeInstruction(opcode: OpCodes.Ldloc_0);
-					yield return new CodeInstruction(opcode: OpCodes.Ldarg_1);
-					yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(Extra), nameof(ConfigureVehicleArea)));
-				}
-				*/
 				yield return instruction;
 			}
 		}
-
-		private static float VehiclesButtonWidth => -(Text.CalcSize("VF_Vehicles".Translate()).x + 20);
 
 		private static void ChangeAreaColor(Rect rect, Area area)
 		{
@@ -159,19 +139,6 @@ namespace Vehicles
 					AccessTools.Field(typeof(Area), "colorTextureInt").SetValue(area, null);
 					AccessTools.Field(typeof(Area), "drawer").SetValue(area, null);
 				}));
-			}
-		}
-
-		private static void ConfigureVehicleArea(WidgetRow widgetRow, Area area)
-		{
-			if (widgetRow.ButtonText("VF_Vehicles".Translate(), "VehiclesConfigurationAreaTooltip".Translate()))
-			{
-				if (Find.CurrentMap is null)
-				{
-					Messages.Message("Map must be loaded in order to configure areas for vehicles.", MessageTypeDefOf.RejectInput);
-					return;
-				}
-				Find.WindowStack.Add(new Dialog_ConfigureVehicleAreas(Find.CurrentMap, area));
 			}
 		}
 

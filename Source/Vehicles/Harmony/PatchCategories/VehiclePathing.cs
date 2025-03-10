@@ -15,559 +15,522 @@ using SmashTools.Performance;
 
 namespace Vehicles
 {
-	internal class VehiclePathing : IPatchCategory
-	{
-		private static readonly HashSet<IntVec3> hitboxUpdateCells = new HashSet<IntVec3>();
+  internal class VehiclePathing : IPatchCategory
+  {
+    private static readonly Type jobDriverGotoDisplayClassType;
 
-		public void PatchMethods()
-		{
-			//TODO - Implement in 1.5 with more testing and drag-to-rotate
-			//	   - Needs another patch on RCellFinder.BestOrderedGotoDestNear so it recomputes best position for vehicle
-			//VehicleHarmony.Patch(original: AccessTools.Method(typeof(FloatMenuMakerMap), "CanTakeOrder"),
-			//	postfix: new HarmonyMethod(typeof(VehiclePathing),
-			//	nameof(VehiclesCanTakeOrders)));
+    private static readonly HashSet<IntVec3> hitboxUpdateCells = new HashSet<IntVec3>();
+    
+    static VehiclePathing()
+    {
+      jobDriverGotoDisplayClassType = typeof(JobDriver_Goto).GetNestedTypes(AccessTools.all).FirstOrDefault();
+      Assert.IsNotNull(jobDriverGotoDisplayClassType);
+    }
 
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(FloatMenuMakerMap), "GotoLocationOption"),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(GotoLocationVehicles)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(JobDriver_Goto), "MakeNewToils"),
-				postfix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(GotoToilsPassthrough)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.IsCurrentJobPlayerInterruptible)),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(JobInterruptibleForVehicle)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_PathFollower), "NeedNewPath"),
-				postfix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(IsVehicleInNextCell)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_PathFollower), nameof(Pawn_PathFollower.StartPath)),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(StartVehiclePath)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.AdjacentTo8WayOrInside), parameters: new Type[] { typeof(IntVec3), typeof(Thing) }),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(AdjacentTo8WayOrInsideVehicle)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.OccupiedRect), parameters: new Type[] { typeof(Thing) }),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(OccupiedRectVehicles)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pathing), nameof(Pathing.RecalculateAllPerceivedPathCosts)),
-				postfix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(RecalculateAllPerceivedPathCostForVehicle)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pathing), nameof(Pathing.RecalculatePerceivedPathCostAt)),
-				postfix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(RecalculatePerceivedPathCostForVehicle)));
+    public void PatchMethods()
+    {
+      //TODO 1.6 - Implement with more testing
+      //	   - Needs another patch on RCellFinder.BestOrderedGotoDestNear so it recomputes best position for vehicle
+      //VehicleHarmony.Patch(original: AccessTools.Method(typeof(FloatMenuMakerMap), "CanTakeOrder"),
+      //	postfix: new HarmonyMethod(typeof(VehiclePathing),
+      //	nameof(VehiclesCanTakeOrders)));
 
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(TerrainGrid), "DoTerrainChangedEffects"),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(SetTerrainAndUpdateVehiclePathCosts)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.DeSpawn)),
-				transpiler: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(DeSpawnAndUpdateVehicleRegionsTranspiler)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.SpawnSetup)),
-				transpiler: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(SpawnAndUpdateVehicleRegionsTranspiler)));
-			VehicleHarmony.Patch(original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Position)),
-				postfix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(SetPositionAndUpdateVehicleRegions)));
-			VehicleHarmony.Patch(original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Rotation)),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(SetRotationAndUpdateVehicleRegionsClipping)),
-				postfix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(SetRotationAndUpdateVehicleRegions)));
+#if RAIDERS
+      if (VehicleMod.settings.debug.debugAllowRaiders)
+      {
+        // Compiler generated methods from JobDriver_Goto::<>c__DisplayClass1_0
+        var gotoMethods = jobDriverGotoDisplayClassType.GetDeclaredMethods();
+        // <MakeNewToils>b__0
+        MethodInfo makeToilsDelegate0 = gotoMethods[0];
+        Assert.IsTrue(makeToilsDelegate0.Name == "<MakeNewToils>b__0");
+        VehicleHarmony.Patch(original: makeToilsDelegate0,
+          postfix: new HarmonyMethod(typeof(VehiclePathing),
+          nameof(GotoToilsFirstExit)));
+        // <MakeNewToils>b__6
+        MethodInfo makeToilsDelegate6 = gotoMethods[6];
+        Assert.IsTrue(makeToilsDelegate6.Name == "<MakeNewToils>b__6");
+        VehicleHarmony.Patch(original: makeToilsDelegate6,
+          postfix: new HarmonyMethod(typeof(VehiclePathing),
+          nameof(GotoToilsSecondExit)));
+      }
+#endif
 
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenStep_RocksFromGrid), nameof(GenStep_RocksFromGrid.Generate)),
-				prefix: new HarmonyMethod(typeof(VehiclePathing),
-				nameof(DisableRegionUpdatingRockGen)));
-		}
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(FloatMenuMakerMap), "GotoLocationOption"),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(GotoLocationVehicles)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.IsCurrentJobPlayerInterruptible)),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(JobInterruptibleForVehicle)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_PathFollower), "NeedNewPath"),
+        postfix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(IsVehicleInNextCell)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_PathFollower), nameof(Pawn_PathFollower.StartPath)),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(StartVehiclePath)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.AdjacentTo8WayOrInside), parameters: [typeof(IntVec3), typeof(Thing)]),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(AdjacentTo8WayOrInsideVehicle)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.OccupiedRect), parameters: [typeof(Thing)]),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(OccupiedRectVehicles)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pathing), nameof(Pathing.RecalculateAllPerceivedPathCosts)),
+        postfix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(RecalculateAllPerceivedPathCostForVehicle)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pathing), nameof(Pathing.RecalculatePerceivedPathCostAt)),
+        postfix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(RecalculatePerceivedPathCostForVehicle)));
 
-		private static void VehiclesCanTakeOrders(Pawn pawn, ref bool __result)
-		{
-			if (!__result && pawn is VehiclePawn)
-			{
-				__result = true;
-			}
-		}
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(TerrainGrid), "DoTerrainChangedEffects"),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(SetTerrainAndUpdateVehiclePathCosts)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.DeSpawn)),
+        transpiler: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(DeSpawnAndUpdateVehicleRegionsTranspiler)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.SpawnSetup)),
+        transpiler: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(SpawnAndUpdateVehicleRegionsTranspiler)));
+      VehicleHarmony.Patch(original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Position)),
+        postfix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(SetPositionAndUpdateVehicleRegions)));
+      VehicleHarmony.Patch(original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Rotation)),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(SetRotationAndUpdateVehicleRegionsClipping)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(ThingGrid), nameof(ThingGrid.Register)),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(MonitorThingGridRegisterStart)),
+        finalizer: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(MonitorThingGridRegisterEnd)));
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(ThingGrid), nameof(ThingGrid.Deregister)),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(MonitorThingGridDeregisterStart)),
+        finalizer: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(MonitorThingGridDeregisterEnd)));
 
-		/// <summary>
-		/// Intercepts FloatMenuMakerMap call to restrict by size and call through to custom water based pathing requirements
-		/// </summary>
-		/// <param name="clickCell"></param>
-		/// <param name="pawn"></param>
-		/// <param name="__result"></param>
-		private static bool GotoLocationVehicles(IntVec3 clickCell, Pawn pawn, ref FloatMenuOption __result, bool suppressAutoTakeableGoto)
-		{
-			if (pawn is VehiclePawn vehicle)
-			{
-				if (suppressAutoTakeableGoto)
-				{
-					__result = null;
-					return false;
-				}
-				if (vehicle.Faction != Faction.OfPlayer || !vehicle.CanMoveFinal)
-				{
-					return false;
-				}
-				if (vehicle.Deploying || (vehicle.CompVehicleTurrets != null && vehicle.CompVehicleTurrets.Deployed))
-				{
-					Messages.Message("VF_VehicleImmobileDeployed".Translate(vehicle), MessageTypeDefOf.RejectInput);
-					return false;
-				}
-				
-				if (vehicle.CompFueledTravel != null && vehicle.CompFueledTravel.EmptyTank)
-				{
-					Messages.Message("VF_OutOfFuel".Translate(vehicle), MessageTypeDefOf.RejectInput);
-					return false;
-				}
+      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenStep_RocksFromGrid), nameof(GenStep_RocksFromGrid.Generate)),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+        nameof(DisableRegionUpdatingRockGen)));
+    }
 
-				VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(vehicle.Map);
-				
-				int num = GenRadial.NumCellsInRadius(2.9f);
-				IntVec3 curLoc;
-				for (int i = 0; i < num; i++)
-				{
-					curLoc = GenRadial.RadialPattern[i] + clickCell;
+    private static void VehiclesCanTakeOrders(Pawn pawn, ref bool __result)
+    {
+      if (!__result && pawn is VehiclePawn)
+      {
+        __result = true;
+      }
+    }
 
-					if (GenGridVehicles.Standable(curLoc, vehicle, vehicle.Map) && (!VehicleMod.settings.main.fullVehiclePathing || vehicle.DrivableRectOnCell(curLoc)))
-					{
-						if (curLoc == vehicle.Position || vehicle.beached)
-						{
-							__result = null;
-							return false;
-						}
-						if (!VehicleReachabilityUtility.CanReachVehicle(vehicle, curLoc, PathEndMode.OnCell, Danger.Deadly, TraverseMode.ByPawn))
-						{
-							__result = new FloatMenuOption("VF_CannotMoveToCell".Translate(vehicle.LabelCap), null);
-							return false;
-						}
-						
-						__result = new FloatMenuOption("GoHere".Translate(), delegate ()
-						{
-							VehicleOrientationController.StartOrienting(vehicle, curLoc, clickCell);
-						}, MenuOptionPriority.GoHere, null, null, 0f, null, null)
-						{
-							autoTakeable = true,
-							autoTakeablePriority = 10f
-						};
-						return false;
-					}
-				}
-				__result = null;
-				return false;
-			}
-			else
-			{
-				if (PathingHelper.VehicleImpassableInCell(pawn.Map, clickCell))
-				{
-					__result = new FloatMenuOption("CannotGoNoPath".Translate(), null, MenuOptionPriority.Default, null, null, 0f, null, null);
-					return false;
-				}
-			}
-			return true;
-		}
+    /// <summary>
+    /// Intercepts FloatMenuMakerMap call to restrict by size and call through to custom water based pathing requirements
+    /// </summary>
+    /// <param name="clickCell"></param>
+    /// <param name="pawn"></param>
+    /// <param name="__result"></param>
+    private static bool GotoLocationVehicles(IntVec3 clickCell, Pawn pawn, ref FloatMenuOption __result, bool suppressAutoTakeableGoto)
+    {
+      if (pawn is VehiclePawn vehicle)
+      {
+        __result = null;
+        if (suppressAutoTakeableGoto)
+        {
+          return false;
+        }
+        if (vehicle.Faction != Faction.OfPlayer || !vehicle.CanMoveFinal)
+        {
+          return false;
+        }
+        if (vehicle.Deploying || (vehicle.CompVehicleTurrets != null && vehicle.CompVehicleTurrets.Deployed))
+        {
+          Messages.Message("VF_VehicleImmobileDeployed".Translate(vehicle), MessageTypeDefOf.RejectInput);
+          return false;
+        }
+        
+        if (vehicle.CompFueledTravel != null && vehicle.CompFueledTravel.EmptyTank)
+        {
+          Messages.Message("VF_OutOfFuel".Translate(vehicle), MessageTypeDefOf.RejectInput);
+          return false;
+        }
 
-		private static IEnumerable<Toil> GotoToilsPassthrough(IEnumerable<Toil> __result, Job ___job, Pawn ___pawn)
-		{
-			bool first = true;
-			foreach (Toil toil in __result)
-			{
-				if (first)
-				{
-					first = false;
-					toil.AddPreTickAction(delegate ()
-					{
-						if (___pawn is VehiclePawn vehicle && ___job.exitMapOnArrival && vehicle.InhabitedCells(1).NotNullAndAny(cell => ___pawn.Map.exitMapGrid.IsExitCell(cell)))
-						{
-							PathingHelper.ExitMapForVehicle(vehicle, ___job);
-						}
-					});
-				}
-				yield return toil;
-			}
-		}
+        VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(vehicle.Map);
+        
+        if (PathingHelper.TryFindNearestStandableCell(vehicle, clickCell, out IntVec3 result))
+        {
+          __result = new FloatMenuOption("GoHere".Translate(), delegate ()
+          {
+            VehicleOrientationController.StartOrienting(vehicle, result, clickCell);
+          }, MenuOptionPriority.GoHere, null, null, 0f, null, null)
+          {
+            autoTakeable = true,
+            autoTakeablePriority = 10f
+          };
+        }
+        if (!VehicleReachabilityUtility.CanReachVehicle(vehicle, clickCell, PathEndMode.OnCell, Danger.Deadly, TraverseMode.ByPawn))
+        {
+          __result = new FloatMenuOption("VF_CannotMoveToCell".Translate(vehicle.LabelCap), null);
+        }
+        return false;
+      }
+      else
+      {
+        if (PathingHelper.VehicleImpassableInCell(pawn.Map, clickCell))
+        {
+          __result = new FloatMenuOption("CannotGoNoPath".Translate(), null, MenuOptionPriority.Default, null, null, 0f, null, null);
+          return false;
+        }
+      }
+      return true;
+    }
 
-		/// <summary>
-		/// Bypass vanilla check for now, since it forces on-fire pawns to not be able to interrupt jobs which obviously shouldn't apply to vehicles.
-		/// </summary>
-		private static bool JobInterruptibleForVehicle(Pawn_JobTracker __instance, Pawn ___pawn, ref bool __result)
-		{
-			if (___pawn is VehiclePawn)
-			{
-				__result = true;
-				if (__instance.curJob != null)
-				{
-					if (!__instance.curJob.def.playerInterruptible)
-					{
-						__result = false;
-					}
-					else if (__instance.curDriver != null && !__instance.curDriver.PlayerInterruptable)
-					{
-						__result = false;
-					}
-				}
-				return false;
-			}
-			return true;
-		}
+    private static void GotoToilsFirstExit(JobDriver_Goto __instance /* JobDriver_goto::<>c__DisplayClass1_0 */)
+    {
+      TryExitMapForVehicle(__instance, false, true);
+    }
 
-		/// <summary>
-		/// Determine if next cell is walkable with final determination if vehicle is in cell or not
-		/// </summary>
-		/// <param name="__result"></param>
-		/// <param name="___pawn"></param>
-		/// <param name="nextCell"></param>
-		private static void IsVehicleInNextCell(ref bool __result, Pawn ___pawn, Pawn_PathFollower __instance)
-		{
-			if (!__result)
-			{
-				//Peek 2 nodes ahead to avoid collision last second
-				__result = (__instance.curPath.NodesLeftCount > 1 && PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(1))) || 
-					(__instance.curPath.NodesLeftCount > 2 && PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(2)));
-			}
-		}
+    private static void GotoToilsSecondExit(JobDriver_Goto __instance  /* JobDriver_goto::<>c__DisplayClass1_0 */)
+    {
+      TryExitMapForVehicle(__instance, true, true);
+    }
 
-		/// <summary>
-		/// StartPath hook to divert to vehicle related pather
-		/// </summary>
-		/// <param name="dest"></param>
-		/// <param name="peMode"></param>
-		/// <param name="___pawn"></param>
-		private static bool StartVehiclePath(LocalTargetInfo dest, PathEndMode peMode, Pawn ___pawn)
-		{
-			if (___pawn is VehiclePawn vehicle)
-			{
-				vehicle.vehiclePather.StartPath(dest, peMode);
-				return false;
-			}
-			return true;
-		}
+    private static void TryExitMapForVehicle(JobDriver_Goto __instance /* JobDriver_goto::<>c__DisplayClass1_0 */, 
+      bool onEdge, bool onExitCell)
+    {
+      // Sticking with compiler generated notation here for ease of debugging
+      JobDriver_Goto __this = Traverse.Create(__instance).Field("<>4__this").GetValue<JobDriver_Goto>();
+      if (__this.pawn is VehiclePawn vehicle && __this.job.exitMapOnArrival && vehicle.Spawned)
+      {
+        Rot4 rot = CellRect.WholeMap(vehicle.Map).GetClosestEdge(vehicle.Position);
+        // Only need to check 1 cell per edge, if 1 is touching then all on that edge will be.
+        if (vehicle.PawnOccupiedCells(vehicle.Position, rot).Cardinals().Any(cell =>
+          (onEdge && cell.OnEdge(vehicle.Map)) || 
+          (onExitCell && vehicle.Map.exitMapGrid.IsExitCell(cell))))
+        {
+          PathingHelper.ExitMapForVehicle(vehicle, __this.job);
+        }
+      }
+    }
 
-		private static bool AdjacentTo8WayOrInsideVehicle(IntVec3 root, Thing t, ref bool __result)
-		{
-			if (t is VehiclePawn vehicle)
-			{
-				IntVec2 size = vehicle.def.size;
-				Rot4 rot = vehicle.Rotation;
-				Ext_Vehicles.AdjustForVehicleOccupiedRect(ref size, ref rot);
-				__result = root.AdjacentTo8WayOrInside(vehicle.Position, rot, size);
-				return false;
-			}
-			return true;
-		}
+    /// <summary>
+    /// Bypass vanilla check for now, since it forces on-fire pawns to not be able to interrupt jobs which obviously shouldn't apply to vehicles.
+    /// </summary>
+    private static bool JobInterruptibleForVehicle(Pawn_JobTracker __instance, Pawn ___pawn, ref bool __result)
+    {
+      if (___pawn is VehiclePawn)
+      {
+        __result = true;
+        if (__instance.curJob != null)
+        {
+          if (!__instance.curJob.def.playerInterruptible)
+          {
+            __result = false;
+          }
+          else if (__instance.curDriver != null && !__instance.curDriver.PlayerInterruptable)
+          {
+            __result = false;
+          }
+        }
+        return false;
+      }
+      return true;
+    }
 
-		/// <summary>
-		/// Set cells in which vehicles reside as impassable to other Pawns
-		/// </summary>
-		/// <param name="instructions"></param>
-		/// <param name="ilg"></param>
-		private static IEnumerable<CodeInstruction> PathAroundVehicles(IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
-		{
-			List<CodeInstruction> instructionList = instructions.ToList();
-			for(int i = 0; i < instructionList.Count; i++)
-			{
-				CodeInstruction instruction = instructionList[i];
-				if (instruction.Calls(AccessTools.Method(typeof(CellIndices), nameof(CellIndices.CellToIndex), new Type[] { typeof(int), typeof(int) })))
-				{
-					Label label = ilg.DefineLabel();
-					Label vehicleLabel = ilg.DefineLabel();
+    /// <summary>
+    /// Determine if next cell is walkable with final determination if vehicle is in cell or not
+    /// </summary>
+    /// <param name="__result"></param>
+    /// <param name="___pawn"></param>
+    /// <param name="nextCell"></param>
+    private static void IsVehicleInNextCell(ref bool __result, Pawn ___pawn, Pawn_PathFollower __instance)
+    {
+      if (!__result)
+      {
+        //Peek 2 nodes ahead to avoid collision last second
+        __result = (__instance.curPath.NodesLeftCount > 1 && PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(1))) || 
+          (__instance.curPath.NodesLeftCount > 2 && PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(2)));
+      }
+    }
 
-					yield return instruction; //CALLVIRT CELLTOINDEX
-					instruction = instructionList[++i];
-					yield return instruction; //STLOC.S 43
-					instruction = instructionList[++i];
+    /// <summary>
+    /// StartPath hook to divert to vehicle related pather
+    /// </summary>
+    /// <param name="dest"></param>
+    /// <param name="peMode"></param>
+    /// <param name="___pawn"></param>
+    private static bool StartVehiclePath(LocalTargetInfo dest, PathEndMode peMode, Pawn ___pawn)
+    {
+      if (___pawn is VehiclePawn vehicle)
+      {
+        vehicle.vehiclePather.StartPath(dest, peMode);
+        return false;
+      }
+      return true;
+    }
 
-					yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
-					yield return new CodeInstruction(opcode: OpCodes.Ldfld, operand: AccessTools.Field(typeof(PathFinder), "map"));
-					yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, 41);
-					yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, 42);
-					yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(PathingHelper), nameof(PathingHelper.VehicleImpassableInCell), new Type[] { typeof(Map), typeof(int), typeof(int) }));
+    private static bool AdjacentTo8WayOrInsideVehicle(IntVec3 root, Thing t, ref bool __result)
+    {
+      if (t is VehiclePawn vehicle)
+      {
+        IntVec2 size = vehicle.def.size;
+        Rot4 rot = vehicle.Rotation;
+        Ext_Vehicles.AdjustForVehicleOccupiedRect(ref size, ref rot);
+        __result = root.AdjacentTo8WayOrInside(vehicle.Position, rot, size);
+        return false;
+      }
+      return true;
+    }
 
-					yield return new CodeInstruction(opcode: OpCodes.Brfalse, label);
-					yield return new CodeInstruction(opcode: OpCodes.Ldc_I4_0);
-					yield return new CodeInstruction(opcode: OpCodes.Br, vehicleLabel);
+    /// <summary>
+    /// Set cells in which vehicles reside as impassable to other Pawns
+    /// </summary>
+    /// <param name="instructions"></param>
+    /// <param name="ilg"></param>
+    private static IEnumerable<CodeInstruction> PathAroundVehicles(IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
+    {
+      List<CodeInstruction> instructionList = instructions.ToList();
+      for(int i = 0; i < instructionList.Count; i++)
+      {
+        CodeInstruction instruction = instructionList[i];
+        if (instruction.Calls(AccessTools.Method(typeof(CellIndices), nameof(CellIndices.CellToIndex), new Type[] { typeof(int), typeof(int) })))
+        {
+          Label label = ilg.DefineLabel();
+          Label vehicleLabel = ilg.DefineLabel();
 
-					for (int j = i; j < instructionList.Count; j++)
-					{
-						CodeInstruction instruction2 = instructionList[j];
-						if (instruction2.opcode == OpCodes.Brfalse || instruction2.opcode == OpCodes.Brfalse_S)
-						{
-							instruction2.labels.Add(vehicleLabel);
-							break;
-						}
-					}
+          yield return instruction; //CALLVIRT CELLTOINDEX
+          instruction = instructionList[++i];
+          yield return instruction; //STLOC.S 43
+          instruction = instructionList[++i];
 
-					instruction.labels.Add(label);
+          yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
+          yield return new CodeInstruction(opcode: OpCodes.Ldfld, operand: AccessTools.Field(typeof(PathFinder), "map"));
+          yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, 41);
+          yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, 42);
+          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(PathingHelper), nameof(PathingHelper.VehicleImpassableInCell), new Type[] { typeof(Map), typeof(int), typeof(int) }));
 
-				}
-				yield return instruction;
-			}
-		}
+          yield return new CodeInstruction(opcode: OpCodes.Brfalse, label);
+          yield return new CodeInstruction(opcode: OpCodes.Ldc_I4_0);
+          yield return new CodeInstruction(opcode: OpCodes.Br, vehicleLabel);
 
-		/// <summary>
-		/// Modify CanReach result if position is claimed by Vehicle in PositionManager
-		/// </summary>
-		/// <param name="start"></param>
-		/// <param name="dest"></param>
-		/// <param name="peMode"></param>
-		/// <param name="traverseParams"></param>
-		/// <param name="__result"></param>
-		private static bool CanReachVehiclePosition(IntVec3 start, LocalTargetInfo dest, PathEndMode peMode, TraverseParms traverseParams, ref bool __result)
-		{
-			if (peMode == PathEndMode.OnCell && !(traverseParams.pawn is VehiclePawn) && traverseParams.pawn?.Map.GetCachedMapComponent<VehiclePositionManager>().ClaimedBy(dest.Cell) is VehiclePawn vehicle &&
-				vehicle.VehicleDef.passability != Traversability.Standable)
-			{
-				__result = false;
-				return false;
-			}
-			return true;
-		}
+          for (int j = i; j < instructionList.Count; j++)
+          {
+            CodeInstruction instruction2 = instructionList[j];
+            if (instruction2.opcode == OpCodes.Brfalse || instruction2.opcode == OpCodes.Brfalse_S)
+            {
+              instruction2.labels.Add(vehicleLabel);
+              break;
+            }
+          }
 
-		private static void ImpassableThroughVehicle(IntVec3 c, Map map, ref bool __result)
-		{
-			if (!__result && !PathingHelper.RegionWorking(map))
-			{
-				__result = PathingHelper.VehicleImpassableInCell(map, c);
-			}
-		}
+          instruction.labels.Add(label);
 
-		private static void WalkableThroughVehicle(IntVec3 loc, ref bool __result, Map ___map)
-		{
-			if (__result && !PathingHelper.RegionWorking(___map))
-			{
-				__result = !PathingHelper.VehicleImpassableInCell(___map, loc);
-			}
-		}
+        }
+        yield return instruction;
+      }
+    }
 
-		private static void WalkableFastThroughVehicleIntVec3(IntVec3 loc, ref bool __result, Map ___map)
-		{
-			if (__result && !PathingHelper.RegionWorking(___map))
-			{
-				__result = !PathingHelper.VehicleImpassableInCell(___map, loc);
-			}
-		}
+    /// <summary>
+    /// Modify CanReach result if position is claimed by Vehicle in PositionManager
+    /// </summary>
+    /// <param name="start"></param>
+    /// <param name="dest"></param>
+    /// <param name="peMode"></param>
+    /// <param name="traverseParams"></param>
+    /// <param name="__result"></param>
+    private static bool CanReachVehiclePosition(IntVec3 start, LocalTargetInfo dest, PathEndMode peMode, TraverseParms traverseParams, ref bool __result)
+    {
+      if (peMode == PathEndMode.OnCell && !(traverseParams.pawn is VehiclePawn) && traverseParams.pawn?.Map.GetCachedMapComponent<VehiclePositionManager>().ClaimedBy(dest.Cell) is VehiclePawn vehicle &&
+        vehicle.VehicleDef.passability != Traversability.Standable)
+      {
+        __result = false;
+        return false;
+      }
+      return true;
+    }
 
-		private static void WalkableFastThroughVehicleInt2(int x, int z, ref bool __result, Map ___map)
-		{
-			if (__result && !PathingHelper.RegionWorking(___map))
-			{
-				__result = !PathingHelper.VehicleImpassableInCell(___map, new IntVec3(x, 0, z));
-			}
-		}
+    private static void ImpassableThroughVehicle(IntVec3 c, Map map, ref bool __result)
+    {
+      if (!__result && !PathingHelper.RegionWorking(map))
+      {
+        __result = PathingHelper.VehicleImpassableInCell(map, c);
+      }
+    }
 
-		private static void WalkableFastThroughVehicleInt(int index, ref bool __result, Map ___map)
-		{
-			if (__result && !PathingHelper.RegionWorking(___map))
-			{
-				__result = !PathingHelper.VehicleImpassableInCell(___map, ___map.cellIndices.IndexToCell(index));
-			}
-		}
+    private static void WalkableThroughVehicle(IntVec3 loc, ref bool __result, Map ___map)
+    {
+      if (__result && !PathingHelper.RegionWorking(___map))
+      {
+        __result = !PathingHelper.VehicleImpassableInCell(___map, loc);
+      }
+    }
 
-		private static bool OccupiedRectVehicles(Thing t, ref CellRect __result)
-		{
-			if (t is VehiclePawn vehicle)
-			{
-				__result = vehicle.VehicleRect();
-				return false;
-			}
-			return true;
-		}
+    private static void WalkableFastThroughVehicleIntVec3(IntVec3 loc, ref bool __result, Map ___map)
+    {
+      if (__result && !PathingHelper.RegionWorking(___map))
+      {
+        __result = !PathingHelper.VehicleImpassableInCell(___map, loc);
+      }
+    }
 
-		private static void RecalculateAllPerceivedPathCostForVehicle(PathingContext ___normal)
-		{
-			PathingHelper.RecalculateAllPerceivedPathCosts(___normal.map);
-		}
+    private static void WalkableFastThroughVehicleInt2(int x, int z, ref bool __result, Map ___map)
+    {
+      if (__result && !PathingHelper.RegionWorking(___map))
+      {
+        __result = !PathingHelper.VehicleImpassableInCell(___map, new IntVec3(x, 0, z));
+      }
+    }
 
-		private static void RecalculatePerceivedPathCostForVehicle(IntVec3 c, PathingContext ___normal)
-		{
-			PathingHelper.RecalculatePerceivedPathCostAt(c, ___normal.map);
-		}
+    private static void WalkableFastThroughVehicleInt(int index, ref bool __result, Map ___map)
+    {
+      if (__result && !PathingHelper.RegionWorking(___map))
+      {
+        __result = !PathingHelper.VehicleImpassableInCell(___map, ___map.cellIndices.IndexToCell(index));
+      }
+    }
 
-		/// <summary>
-		/// Pass <paramref name="c"/> by reference to allow Harmony to skip prefix method when MapPreview skips it during preview generation
-		/// </summary>
-		/// <param name="c"></param>
-		/// <param name="___map"></param>
-		private static void SetTerrainAndUpdateVehiclePathCosts(ref IntVec3 c, Map ___map)
-		{
-			if (Current.ProgramState == ProgramState.Playing)
-			{
-				PathingHelper.RecalculatePerceivedPathCostAt(c, ___map);
-			}
-		}
+    private static bool OccupiedRectVehicles(Thing t, ref CellRect __result)
+    {
+      if (t is VehiclePawn vehicle)
+      {
+        __result = vehicle.VehicleRect();
+        return false;
+      }
+      return true;
+    }
 
-		private static IEnumerable<CodeInstruction> DeSpawnAndUpdateVehicleRegionsTranspiler(IEnumerable<CodeInstruction> instructions)
-		{
-			List<CodeInstruction> instructionList = instructions.ToList();
+    private static void RecalculateAllPerceivedPathCostForVehicle(PathingContext ___normal)
+    {
+      PathingHelper.RecalculateAllPerceivedPathCosts(___normal.map);
+    }
 
-			MethodInfo coverGridDeregisterMethod = AccessTools.Method(typeof(TickManager), nameof(TickManager.DeRegisterAllTickabilityFor));
-			for (int i = 0; i < instructionList.Count; i++)
-			{
-				CodeInstruction instruction = instructionList[i];
+    private static void RecalculatePerceivedPathCostForVehicle(IntVec3 c, PathingContext ___normal)
+    {
+      PathingHelper.RecalculatePerceivedPathCostAt(c, ___normal.map);
+    }
 
-				if (instruction.Calls(coverGridDeregisterMethod))
-				{
-					yield return instruction;
-					instruction = instructionList[++i];
+    /// <summary>
+    /// Pass <paramref name="c"/> by reference to allow Harmony to skip prefix method when MapPreview skips it during preview generation
+    /// </summary>
+    /// <param name="c"></param>
+    /// <param name="___map"></param>
+    private static void SetTerrainAndUpdateVehiclePathCosts(ref IntVec3 c, Map ___map)
+    {
+      if (Current.ProgramState == ProgramState.Playing)
+      {
+        PathingHelper.RecalculatePerceivedPathCostAt(c, ___map);
+      }
+    }
 
-					yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
-					yield return new CodeInstruction(opcode: OpCodes.Ldloc_0);
-					yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(VehiclePathing), nameof(VehiclePathing.DeSpawnAndNotifyVehicleRegions)));
-				}
+    private static IEnumerable<CodeInstruction> DeSpawnAndUpdateVehicleRegionsTranspiler(IEnumerable<CodeInstruction> instructions)
+    {
+      List<CodeInstruction> instructionList = instructions.ToList();
 
-				yield return instruction;
-			}
-		}
+      MethodInfo coverGridDeregisterMethod = AccessTools.Method(typeof(TickManager), nameof(TickManager.DeRegisterAllTickabilityFor));
+      for (int i = 0; i < instructionList.Count; i++)
+      {
+        CodeInstruction instruction = instructionList[i];
 
-		private static IEnumerable<CodeInstruction> SpawnAndUpdateVehicleRegionsTranspiler(IEnumerable<CodeInstruction> instructions)
-		{
-			List<CodeInstruction> instructionList = instructions.ToList();
+        if (instruction.Calls(coverGridDeregisterMethod))
+        {
+          yield return instruction;
+          instruction = instructionList[++i];
 
-			MethodInfo coverGridDeregisterMethod = AccessTools.Method(typeof(CoverGrid), nameof(CoverGrid.Register));
-			for (int i = 0; i < instructionList.Count; i++)
-			{
-				CodeInstruction instruction = instructionList[i];
+          yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
+          yield return new CodeInstruction(opcode: OpCodes.Ldloc_0);
+          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(VehiclePathing), nameof(VehiclePathing.DeSpawnAndNotifyVehicleRegions)));
+        }
 
-				if (instruction.Calls(coverGridDeregisterMethod))
-				{
-					yield return instruction;
-					instruction = instructionList[++i];
+        yield return instruction;
+      }
+    }
 
-					yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
-					yield return new CodeInstruction(opcode: OpCodes.Ldarg_1);
-					yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(VehiclePathing), nameof(VehiclePathing.SpawnAndNotifyVehicleRegions)));
-				}
+    private static IEnumerable<CodeInstruction> SpawnAndUpdateVehicleRegionsTranspiler(IEnumerable<CodeInstruction> instructions)
+    {
+      List<CodeInstruction> instructionList = instructions.ToList();
 
-				yield return instruction;
-			}
-		}
+      MethodInfo coverGridDeregisterMethod = AccessTools.Method(typeof(CoverGrid), nameof(CoverGrid.Register));
+      for (int i = 0; i < instructionList.Count; i++)
+      {
+        CodeInstruction instruction = instructionList[i];
 
-		private static void SetPositionAndUpdateVehicleRegions(Thing __instance)
-		{
-			if (__instance.Spawned)
-			{
-				PathingHelper.ThingAffectingRegionsOrientationChanged(__instance, __instance.Map);
-			}
-		}
+        if (instruction.Calls(coverGridDeregisterMethod))
+        {
+          yield return instruction;
+          instruction = instructionList[++i];
 
-		private static bool SetRotationAndUpdateVehicleRegionsClipping(Thing __instance, Rot4 value)
-		{
-			if (__instance is VehiclePawn vehicle && vehicle.Spawned)
-			{
-				if (!vehicle.OccupiedRectShifted(IntVec2.Zero, value).InBounds(vehicle.Map))
-				{
-					return false;
-				}
-				hitboxUpdateCells.Clear();
-				hitboxUpdateCells.AddRange(vehicle.OccupiedRectShifted(IntVec2.Zero, Rot4.East));
-				hitboxUpdateCells.AddRange(vehicle.OccupiedRectShifted(IntVec2.Zero, Rot4.North));
+          yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
+          yield return new CodeInstruction(opcode: OpCodes.Ldarg_1);
+          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(VehiclePathing), nameof(VehiclePathing.SpawnAndNotifyVehicleRegions)));
+        }
 
-				foreach (IntVec3 cell in hitboxUpdateCells)
-				{
-					vehicle.Map.pathing.RecalculatePerceivedPathCostAt(cell);
-				}
+        yield return instruction;
+      }
+    }
 
-				hitboxUpdateCells.Clear();
-			}
-			return true;
-		}
+    private static void SetPositionAndUpdateVehicleRegions(Thing __instance, IntVec3 value)
+    {
+      if (__instance.Spawned)
+      {
+        if (__instance is VehiclePawn vehicle)
+        {
+          vehicle.ReclaimPosition();
+        }
+        PathingHelper.ThingAffectingRegionsOrientationChanged(__instance, __instance.Map);
+      }
+    }
 
-		private static void SetRotationAndUpdateVehicleRegions(Thing __instance)
-		{
-			if (__instance.Spawned && (__instance.def.size.x != 1 || __instance.def.size.z != 1))
-			{
-				PathingHelper.ThingAffectingRegionsOrientationChanged(__instance, __instance.Map);
-			}
-		}
+    private static bool SetRotationAndUpdateVehicleRegionsClipping(Thing __instance, Rot4 value, ref Rot4 ___rotationInt)
+    {
+      if (__instance is VehiclePawn vehicle)
+      {
+        vehicle.SetRotationInt(value, ref ___rotationInt);
+        return false;
+      }
+      return true;
+    }
 
-		private static void DisableRegionUpdatingRockGen(Map map)
-		{
-			if (!map.TileInfo.WaterCovered)
-			{
-				PathingHelper.DisableAllRegionUpdaters(map);
-			}
-		}
+    private static void SetRotationAndUpdateVehicleRegions(Thing __instance)
+    {
+      if (__instance.Spawned && (__instance.def.size.x != 1 || __instance.def.size.z != 1))
+      {
+        PathingHelper.ThingAffectingRegionsOrientationChanged(__instance, __instance.Map);
+      }
+    }
 
-		private static void Notify_ThingAffectingVehicleRegionsSpawned(Thing b)
-		{
-			//Some mods patch the SpawnSetup method and despawn the object immediately. Extra check is necessary
-			if (b.Spawned)
-			{
-				PathingHelper.ThingAffectingRegionsStateChange(b, b.Map, true);
-			}
-		}
+    private static void MonitorThingGridRegisterStart(ThingGrid __instance)
+    {
+      Monitor.Enter(__instance);
+    }
 
-		private static void Notify_ThingAffectingVehicleRegionsDespawned(Thing b)
-		{
-			//Some mods patch the SpawnSetup method and despawn the object immediately. Extra check is necessary
-			if (b.Spawned)
-			{
-				PathingHelper.ThingAffectingRegionsStateChange(b, b.Map, false);
-			}
-		}
+    private static void MonitorThingGridRegisterEnd(ThingGrid __instance)
+    {
+      Monitor.Exit(__instance);
+    }
 
-		/* ---- Helper Methods related to patches ---- */
+    private static void MonitorThingGridDeregisterStart(ThingGrid __instance)
+    {
+      Monitor.Enter(__instance);
+    }
 
-		private static void SpawnAndNotifyVehicleRegions(Thing thing, Map map)
-		{
-			RegisterInVehicleRegions(thing, map);
-			PathingHelper.ThingAffectingRegionsStateChange(thing, map, true);
-		}
+    private static void MonitorThingGridDeregisterEnd(ThingGrid __instance)
+    {
+      Monitor.Exit(__instance);
+    }
 
-		private static void DeSpawnAndNotifyVehicleRegions(Thing thing, Map map)
-		{
-			DeregisterInVehicleRegions(thing, map);
-			PathingHelper.ThingAffectingRegionsStateChange(thing, map, false);
-		}
+    private static void DisableRegionUpdatingRockGen(Map map)
+    {
+      if (!map.TileInfo.WaterCovered)
+      {
+        map.GetCachedMapComponent<VehicleMapping>().DisableAllRegionUpdaters();
+      }
+    }
 
-		private static void RegisterInVehicleRegions(Thing thing, Map map)
-		{
-			if (MapGenerator.mapBeingGenerated != null)
-			{
-				return; //Map is being generated, there will be a full region rebuild post-init
-			}
-			VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-			if (!mapping.RegionsInitialized)
-			{
-				return; //Map hasn't finished building regions, there will be a full region rebuild post-init
-			}
-			if (mapping.ThreadAvailable)
-			{
-				AsyncRegionRegisterAction asyncAction = AsyncPool<AsyncRegionRegisterAction>.Get();
-				asyncAction.Set(mapping, thing, true);
-				mapping.dedicatedThread.Queue(asyncAction);
-			}
-			else
-			{
-				RegisterInRegions(thing, mapping);
-			}
-		}
+    /* ---- Helper Methods related to patches ---- */
 
-		private static void DeregisterInVehicleRegions(Thing thing, Map map)
-		{
-			VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-			if (mapping.ThreadAvailable)
-			{
-				AsyncRegionRegisterAction asyncAction = AsyncPool<AsyncRegionRegisterAction>.Get();
-				asyncAction.Set(mapping, thing, false);
-				mapping.dedicatedThread.Queue(asyncAction);
-			}
-			else
-			{
-				DeregisterInRegions(thing, mapping);
-			}
-		}
+    private static void SpawnAndNotifyVehicleRegions(Thing thing, Map map)
+    {
+      PathingHelper.ThingAffectingRegionsStateChange(thing, map, true);
+    }
 
-		internal static void RegisterInRegions(Thing thing, VehicleMapping mapping)
-		{
-			foreach (VehicleDef vehicleDef in mapping.Owners)
-			{
-				VehicleRegionListersUpdater.RegisterInRegions(thing, mapping, vehicleDef);
-			}
-		}
-
-		internal static void DeregisterInRegions(Thing thing, VehicleMapping mapping)
-		{
-			foreach (VehicleDef vehicleDef in mapping.Owners)
-			{
-				VehicleRegionListersUpdater.DeregisterInRegions(thing, mapping, vehicleDef);
-			}
-		}
-	}
+    private static void DeSpawnAndNotifyVehicleRegions(Thing thing, Map map)
+    {
+      PathingHelper.ThingAffectingRegionsStateChange(thing, map, false);
+    }
+  }
 }

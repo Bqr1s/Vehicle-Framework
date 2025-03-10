@@ -7,64 +7,79 @@ using UnityEngine;
 
 namespace Vehicles
 {
-	public static class ThingDefGenerator_Buildables
-	{
-		//They removed the DefOf for this, and I can't be bothered to add it myself. Just doing a def lookup
-		private const string DefaultDesignationCategoryDefName = "Structure";
+  // TODO 1.6 - rename
+  public static class ThingDefGenerator_Buildables
+  {
+    // They removed the DefOf for this, and I can't be bothered to add it myself.
+    // We're just doing a def lookup for a default designation category.
+    private const string DefaultDesignationCategoryDefName = "Structure";
 
-		public static bool GenerateImpliedBuildDef(VehicleDef vehicleDef, out VehicleBuildDef impliedBuildDef)
-		{
-			impliedBuildDef = null;
-			if (vehicleDef.buildDef is null)
-			{
-				Log.Warning($"[{vehicleDef}] Implied generation for vehicles is incomplete. Please define the VehicleBuildDef separately to avoid improper vehicle generation.");
-				impliedBuildDef = new VehicleBuildDef
-				{
-					defName = $"{vehicleDef.defName}_Blueprint",
-					label = vehicleDef.label,
-					description = vehicleDef.description,
+    public static bool GenerateImpliedBuildDef(VehicleDef vehicleDef,
+      out VehicleBuildDef impliedBuildDef, bool hotReload)
+    {
+      impliedBuildDef = null;
+      if (vehicleDef.buildDef is null)
+      {
+        Log.Warning(
+          $"[{vehicleDef}] Implied generation for vehicles is incomplete. Please define the VehicleBuildDef separately to avoid improper vehicle generation.");
+        string defName = $"{vehicleDef.defName}_Blueprint";
+        impliedBuildDef = !hotReload ?
+                            new VehicleBuildDef() :
+                            DefDatabase<VehicleBuildDef>.GetNamed(defName, false) ??
+                            new VehicleBuildDef();
+        impliedBuildDef.defName = defName;
+        impliedBuildDef.label = vehicleDef.label;
+        impliedBuildDef.description = vehicleDef.description;
+        impliedBuildDef.modContentPack = vehicleDef.modContentPack;
 
-					thingClass = typeof(VehicleBuilding),
-					thingToSpawn = vehicleDef,
-					selectable = vehicleDef.selectable,
-					altitudeLayer = vehicleDef.altitudeLayer,
-					terrainAffordanceNeeded = vehicleDef.terrainAffordanceNeeded,
-					constructEffect = vehicleDef.constructEffect ?? EffecterDefOf.ConstructMetal,
-					leaveResourcesWhenKilled = vehicleDef.leaveResourcesWhenKilled,
-					passability = vehicleDef.passability,
-					fillPercent = vehicleDef.fillPercent,
-					neverMultiSelect = true,
-					designationCategory = vehicleDef.designationCategory ?? DefDatabase<DesignationCategoryDef>.GetNamed(DefaultDesignationCategoryDefName),
-					clearBuildingArea = true,
-					category = ThingCategory.Building,
-					blockWind = vehicleDef.blockWind,
-					useHitPoints = true,
+        impliedBuildDef.thingClass = typeof(VehicleBuilding);
+        impliedBuildDef.thingToSpawn = vehicleDef;
+        impliedBuildDef.selectable = vehicleDef.selectable;
+        impliedBuildDef.altitudeLayer = vehicleDef.altitudeLayer;
+        impliedBuildDef.terrainAffordanceNeeded = vehicleDef.terrainAffordanceNeeded;
+        impliedBuildDef.constructEffect =
+          vehicleDef.constructEffect ?? EffecterDefOf.ConstructMetal;
+        impliedBuildDef.leaveResourcesWhenKilled = vehicleDef.leaveResourcesWhenKilled;
+        impliedBuildDef.passability = vehicleDef.passability;
+        impliedBuildDef.fillPercent = vehicleDef.fillPercent;
+        impliedBuildDef.neverMultiSelect = true;
+        impliedBuildDef.designationCategory = vehicleDef.designationCategory ??
+                                              DefDatabase<DesignationCategoryDef>.GetNamed(
+                                                DefaultDesignationCategoryDefName);
+        impliedBuildDef.clearBuildingArea = true;
+        impliedBuildDef.category = ThingCategory.Building;
+        impliedBuildDef.blockWind = vehicleDef.blockWind;
+        impliedBuildDef.useHitPoints = true;
 
-					rotatable = vehicleDef.rotatable,
-					statBases = vehicleDef.statBases,
-					size = vehicleDef.size,
-					researchPrerequisites = vehicleDef.researchPrerequisites,
-					costList = vehicleDef.costList,
+        impliedBuildDef.rotatable = vehicleDef.rotatable;
+        impliedBuildDef.statBases = vehicleDef.statBases;
+        impliedBuildDef.size = vehicleDef.size;
+        impliedBuildDef.researchPrerequisites = vehicleDef.researchPrerequisites;
+        impliedBuildDef.costList = vehicleDef.costList;
 
-					soundImpactDefault = vehicleDef.soundImpactDefault,
-					soundBuilt = vehicleDef.soundBuilt,
+        impliedBuildDef.soundImpactDefault = vehicleDef.soundImpactDefault;
+        impliedBuildDef.soundBuilt = vehicleDef.soundBuilt;
 
-					graphicData = new GraphicData(),
+        impliedBuildDef.graphicData = new GraphicData();
 
-					building = vehicleDef.building ?? new BuildingProperties()
-					{
-						canPlaceOverImpassablePlant = false,
-						paintable = false
-					}
-				};
-				vehicleDef.designationCategory = null; //Purge designation category from non-buildable VehiclePawn
-				impliedBuildDef.graphicData.CopyFrom(vehicleDef.graphicData);
-				Type graphicClass = vehicleDef.graphicData.drawRotated ? typeof(Graphic_Multi) : typeof(Graphic_Single);
-				impliedBuildDef.graphicData.graphicClass = graphicClass;
-				vehicleDef.buildDef = impliedBuildDef;
-				return true;
-			}
-			return false;
-		}
-	}
+        impliedBuildDef.building = vehicleDef.building ?? new BuildingProperties()
+                                                          {
+                                                            canPlaceOverImpassablePlant = false,
+                                                            paintable = false
+                                                          };
+
+        // Purge designation category from non-buildable VehiclePawn
+        vehicleDef.designationCategory = null;
+        impliedBuildDef.graphicData.CopyFrom(vehicleDef.graphicData);
+        Type graphicClass = vehicleDef.graphicData.drawRotated ?
+                              typeof(Graphic_Multi) :
+                              typeof(Graphic_Single);
+        impliedBuildDef.graphicData.graphicClass = graphicClass;
+        vehicleDef.buildDef = impliedBuildDef;
+        return true;
+      }
+
+      return false;
+    }
+  }
 }

@@ -327,7 +327,7 @@ namespace Vehicles
 
 		public static IEnumerable<RenderData> RetrieveAllOverlaySettingsGraphicsProperties(Rect rect, VehiclePawn vehicle, Rot8 rot, PatternData pattern = null, List<GraphicOverlay> extraOverlays = null)
 		{
-			foreach (GraphicOverlay graphicOverlay in vehicle.graphicOverlay.Overlays)
+			foreach (GraphicOverlay graphicOverlay in vehicle.overlayRenderer.AllOverlaysListForReading)
 			{
 				if (graphicOverlay.data.renderUI)
 				{
@@ -436,7 +436,7 @@ namespace Vehicles
 							material = RGBMaterialPool.Get(turretDrawData, Rot8.North);
 							RGBMaterialPool.SetProperties(turretDrawData, patternData, turretDrawData.graphic.TexAt, turretDrawData.graphic.MaskAt);
 						}
-						yield return new RenderData(turretRect, turretDrawData.graphic.TexAt(Rot8.North), material, turretDrawData.graphicDataRGB.DrawOffsetFull(rot).y + turretRef.DrawLayerOffset, turretRef.defaultAngleRotated + rot.AsAngle);
+						yield return new RenderData(turretRect, turretDrawData.graphic.TexAt(Rot8.North), material, turretDrawData.graphicData.DrawOffsetFull(rot).y + turretRef.DrawLayerOffset, turretRef.defaultAngleRotated + rot.AsAngle);
 					}
 				}
 			}

@@ -15,9 +15,12 @@ namespace Vehicles
 	[StaticConstructorOnStartup]
 	public class CompUpgradeTree : VehicleComp, IRefundable
 	{
-		private static readonly Material UnderfieldMat = MaterialPool.MatFrom("Things/Building/BuildingFrame/Underfield", ShaderDatabase.Transparent);
-		private static readonly Texture2D CornerTex = ContentFinder<Texture2D>.Get("Things/Building/BuildingFrame/Corner", true);
-		private static readonly Texture2D TileTex = ContentFinder<Texture2D>.Get("Things/Building/BuildingFrame/Tile", true);
+		private static readonly Material UnderfieldMat = 
+			MaterialPool.MatFrom("Things/Building/BuildingFrame/Underfield", ShaderDatabase.Transparent);
+		private static readonly Texture2D CornerTex = 
+			ContentFinder<Texture2D>.Get("Things/Building/BuildingFrame/Corner", true);
+		private static readonly Texture2D TileTex = 
+			ContentFinder<Texture2D>.Get("Things/Building/BuildingFrame/Tile", true);
 
 		private static StringBuilder inspectStringBuilder = new StringBuilder();
 
@@ -32,7 +35,7 @@ namespace Vehicles
 
 		public ThingOwner<Thing> upgradeContainer = new ThingOwner<Thing>();
 
-		private Dictionary<string, List<UpgradeState>> States { get; set; } = new Dictionary<string, List<UpgradeState>>();
+		private Dictionary<string, List<UpgradeState>> States { get; set; } = [];
 
 		public CompProperties_UpgradeTree Props => (CompProperties_UpgradeTree)props;
 
@@ -125,7 +128,6 @@ namespace Vehicles
 			}
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public bool NodeUnlocked(UpgradeNode node)
 		{
 			return upgrades.Contains(node.key);

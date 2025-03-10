@@ -37,15 +37,13 @@ namespace Vehicles
 			Rect overRect = new Rect(topLeft.x, topLeft.y, GetWidth(maxWidth), 75f);
 			Find.WindowStack.ImmediateWindow(Vehicle.GetHashCode(), overRect, WindowLayer.GameUI, delegate
 			{
-				GUIState.Push();
+				using (new TextBlock(GameFont.Tiny))
 				{
 					Rect rect = overRect.AtZero().ContractedBy(6f);
 					Rect labelRect = new Rect(rect)
 					{
 						height = overRect.height / 2
 					};
-
-					Text.Font = GameFont.Tiny;
 
 					if (showLabel)
 					{
@@ -111,14 +109,13 @@ namespace Vehicles
 					float num = refuelable.TargetFuelPercent;
 					float num2 = rect.x + num * rect.width - ArrowSize / 2;
 					float num3 = rect.y - ArrowSize;
-					GUI.DrawTexture(new Rect(num2, num3, ArrowSize, ArrowSize), UIElements.TargetLevelArrow);
+					GUI.DrawTexture(new Rect(num2, num3, ArrowSize, ArrowSize), UIData.TargetLevelArrow);
 
 					Text.Font = GameFont.Small;
 					Text.Anchor = TextAnchor.MiddleCenter;
 
 					Widgets.Label(rect, refuelable.Fuel.ToString("F0") + " / " + refuelable.FuelCapacity.ToString("F0"));
 				}
-				GUIState.Pop();
 			}, true, false, 1f);
 			return new GizmoResult(GizmoState.Clear);
 		}

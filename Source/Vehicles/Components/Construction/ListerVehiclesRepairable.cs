@@ -24,13 +24,13 @@ namespace Vehicles
 			return new HashSet<VehiclePawn>();
 		}
 
-		public void Notify_VehicleSpawned(VehiclePawn vehicle)
+		public void NotifyVehicleSpawned(VehiclePawn vehicle)
 		{
-			Notify_VehicleRepaired(vehicle);
-			Notify_VehicleTookDamage(vehicle);
+			NotifyVehicleRepaired(vehicle);
+			NotifyVehicleTookDamage(vehicle);
 		}
 
-		public void Notify_VehicleDespawned(VehiclePawn vehicle)
+		public void NotifyVehicleDespawned(VehiclePawn vehicle)
 		{
 			if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
 			{
@@ -38,7 +38,7 @@ namespace Vehicles
 			}
 		}
 
-		public void Notify_VehicleTookDamage(VehiclePawn vehicle)
+		public void NotifyVehicleTookDamage(VehiclePawn vehicle)
 		{
 			if (vehicle.statHandler.NeedsRepairs && !Mathf.Approximately(vehicle.GetStatValue(VehicleStatDefOf.BodyIntegrity), 0))
 			{
@@ -61,7 +61,7 @@ namespace Vehicles
 			}
 		}
 
-		public void Notify_VehicleRepaired(VehiclePawn vehicle)
+		public void NotifyVehicleRepaired(VehiclePawn vehicle)
 		{
 			if (!vehicle.statHandler.NeedsRepairs && vehicle.Faction != null)
 			{

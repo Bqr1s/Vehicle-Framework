@@ -14,6 +14,9 @@ namespace Vehicles
 	/// </summary>
 	public class VehicleHandler : IExposable, ILoadReferenceable, IThingHolderPawnOverlayer
 	{
+		/// <summary>
+		/// innerContainer for role instance
+		/// </summary>
 		public ThingOwner<Pawn> handlers;
 
 		private string roleKey;
@@ -78,8 +81,18 @@ namespace Vehicles
 		{
 			get
 			{
-				bool reservation = vehicle.Map?.GetCachedMapComponent<VehicleReservationManager>().CanReserve<VehicleHandler, VehicleHandlerReservation>(vehicle, null, this) ?? true;
-				return role != null && reservation && handlers.Count < role.Slots;
+				return role != null && handlers.Count < role.Slots;
+			}
+		}
+
+		public bool AreSlotsAvailableAndReservable
+		{
+			get
+			{
+				if (vehicle.Map == null) return AreSlotsAvailable;
+
+				return AreSlotsAvailable && vehicle.Map.GetCachedMapComponent<VehicleReservationManager>()
+					.CanReserve<VehicleHandler, VehicleHandlerReservation>(vehicle, null, this);
 			}
 		}
 

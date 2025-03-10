@@ -9,321 +9,322 @@ using SmashTools;
 
 namespace Vehicles
 {
-	//REDO - Rivers
-	public static class WorldHelper
-	{
-		private static readonly List<Thing> inventoryItems = new List<Thing>();
+  //REDO - Rivers
+  public static class WorldHelper
+  {
+    private static readonly List<Thing> inventoryItems = new List<Thing>();
 
-		public static bool RiverIsValid(int tile, List<Pawn> vehicles) => true;
+    public static bool RiverIsValid(int tile, List<Pawn> vehicles) => true;
 
-		public static List<Thing> AllInventoryItems(AerialVehicleInFlight aerialVehicle)
-		{
-			inventoryItems.Clear();
-			List<Pawn> pawnsListForReading = aerialVehicle.vehicle.AllPawnsAboard;
-			for (int i = 0; i < pawnsListForReading.Count; i++)
-			{
-				Pawn pawn = pawnsListForReading[i];
-				inventoryItems.AddRange(pawn.inventory.innerContainer);
-			}
-			inventoryItems.AddRange(aerialVehicle.vehicle.inventory.innerContainer);
-			return inventoryItems;
-		}
+    public static List<Thing> AllInventoryItems(AerialVehicleInFlight aerialVehicle)
+    {
+      inventoryItems.Clear();
+      List<Pawn> pawnsListForReading = aerialVehicle.vehicle.AllPawnsAboard;
+      for (int i = 0; i < pawnsListForReading.Count; i++)
+      {
+        Pawn pawn = pawnsListForReading[i];
+        inventoryItems.AddRange(pawn.inventory.innerContainer);
+      }
+      inventoryItems.AddRange(aerialVehicle.vehicle.inventory.innerContainer);
+      return inventoryItems;
+    }
 
-		public static float RiverCostAt(int tile, VehiclePawn vehicle)
-		{
-			BiomeDef biome = Find.WorldGrid[tile].biome;
-			RiverDef river = Find.WorldGrid[tile].Rivers.MaxBy(r => r.river.widthOnWorld).river;
-			if (vehicle.VehicleDef.properties.customRiverCosts.TryGetValue(river, out float cost))
-			{
-				return cost;
-			}
-			return WorldVehiclePathGrid.ImpassableMovementDifficulty;
-		}
+    public static float RiverCostAt(int tile, VehiclePawn vehicle)
+    {
+      BiomeDef biome = Find.WorldGrid[tile].biome;
+      RiverDef river = Find.WorldGrid[tile].Rivers.MaxBy(r => r.river.widthOnWorld).river;
+      if (vehicle.VehicleDef.properties.customRiverCosts.TryGetValue(river, out float cost))
+      {
+        return cost;
+      }
+      return WorldVehiclePathGrid.ImpassableMovementDifficulty;
+    }
 
-		/// <summary>
-		/// Biggest river in a tile
-		/// </summary>
-		/// <param name="list"></param>
-		public static Tile.RiverLink BiggestRiverOnTile(List<Tile.RiverLink> list)
-		{
-			return list.MaxBy(riverlink => ModSettingsHelper.RiverMultiplier(riverlink.river));
-		}
+    /// <summary>
+    /// Biggest river in a tile
+    /// </summary>
+    /// <param name="list"></param>
+    public static Tile.RiverLink BiggestRiverOnTile(List<Tile.RiverLink> list)
+    {
+      return list.MaxBy(riverlink => ModSettingsHelper.RiverMultiplier(riverlink.river));
+    }
 
-		/// <summary>
-		/// Determine if <paramref name="riverDef"/> is large enough to fit vehicle
-		/// </summary>
-		public static bool VehicleBiggerThanRiver(VehicleDef vehicleDef, RiverDef riverDef)
-		{
-			if (vehicleDef.properties.customRiverCosts.NullOrEmpty())
-			{
-				return false;
-			}
-			//Multiplied by sqrt(2) to account for worst case scenario where river is diagonal
-			return ModSettingsHelper.RiverMultiplier(riverDef) / 2 < vehicleDef.Size.x;
-		}
+    /// <summary>
+    /// Determine if <paramref name="riverDef"/> is large enough to fit vehicle
+    /// </summary>
+    public static bool VehicleBiggerThanRiver(VehicleDef vehicleDef, RiverDef riverDef)
+    {
+      if (vehicleDef.properties.customRiverCosts.NullOrEmpty())
+      {
+        return false;
+      }
+      //Multiplied by sqrt(2) to account for worst case scenario where river is diagonal
+      return ModSettingsHelper.RiverMultiplier(riverDef) / 2 < vehicleDef.Size.x;
+    }
 
-		/// <summary>
-		/// Get Heading between 2 points on World
-		/// </summary>
-		/// <param name="map"></param>
-		/// <param name="target"></param>
-		public static float TryFindHeading(Vector3 source, Vector3 target)
-		{
-			float heading = Find.WorldGrid.GetHeadingFromTo(source, target);
-			return heading;
-		}
+    /// <summary>
+    /// Get Heading between 2 points on World
+    /// </summary>
+    /// <param name="map"></param>
+    /// <param name="target"></param>
+    public static float TryFindHeading(Vector3 source, Vector3 target)
+    {
+      float heading = Find.WorldGrid.GetHeadingFromTo(source, target);
+      return heading;
+    }
 
-		public static WorldObject WorldObjectAt(int tile)
-		{
-			List<WorldObject> worldObjects = Find.WorldObjects.AllWorldObjects;
-			for (int i = 0; i < worldObjects.Count; i++)
-			{
-				WorldObject worldObject = worldObjects[i];
-				if (worldObject.Tile == tile)
-				{
-					return worldObject;
-				}
-			}
-			return null;
-		}
+    public static WorldObject WorldObjectAt(int tile)
+    {
+      List<WorldObject> worldObjects = Find.WorldObjects.AllWorldObjects;
+      for (int i = 0; i < worldObjects.Count; i++)
+      {
+        WorldObject worldObject = worldObjects[i];
+        if (worldObject.Tile == tile)
+        {
+          return worldObject;
+        }
+      }
+      return null;
+    }
 
-		public static (WorldObject sourceObject, WorldObject destObject) WorldObjectsAt(int source, int destination)
-		{
-			WorldObject sourceObject = null;
-			WorldObject destObject = null;
-			List<WorldObject> worldObjects = Find.WorldObjects.AllWorldObjects;
-			for (int i = 0; i < worldObjects.Count && (sourceObject == null || destObject == null); i++)
-			{
-				WorldObject worldObject = worldObjects[i];
-				if (worldObject.Tile == source)
-				{
-					sourceObject = worldObject;
-				}
-				if (worldObject.Tile == destination)
-				{
-					destObject = worldObject;
-				}
-			}
-			return (sourceObject, destObject);
-		}
+    public static (WorldObject sourceObject, WorldObject destObject) WorldObjectsAt(int source, int destination)
+    {
+      WorldObject sourceObject = null;
+      WorldObject destObject = null;
+      List<WorldObject> worldObjects = Find.WorldObjects.AllWorldObjects;
+      for (int i = 0; i < worldObjects.Count && (sourceObject == null || destObject == null); i++)
+      {
+        WorldObject worldObject = worldObjects[i];
+        if (worldObject.Tile == source)
+        {
+          sourceObject = worldObject;
+        }
+        if (worldObject.Tile == destination)
+        {
+          destObject = worldObject;
+        }
+      }
+      return (sourceObject, destObject);
+    }
 
-		public static Vector3 GetTilePos(int tile)
-		{
-			WorldObject worldObject = WorldObjectAt(tile);
-			return GetTilePos(tile, worldObject, out _);
-		}
+    public static Vector3 GetTilePos(int tile)
+    {
+      WorldObject worldObject = WorldObjectAt(tile);
+      return GetTilePos(tile, worldObject, out _);
+    }
 
-		public static Vector3 GetTilePos(int tile, out bool spaceObject)
-		{
-			WorldObject worldObject = WorldObjectAt(tile);
-			return GetTilePos(tile, worldObject, out spaceObject);
-		}
+    public static Vector3 GetTilePos(int tile, out bool spaceObject)
+    {
+      WorldObject worldObject = WorldObjectAt(tile);
+      return GetTilePos(tile, worldObject, out spaceObject);
+    }
 
-		public static Vector3 GetTilePos(int tile, WorldObject worldObject, out bool spaceObject)
-		{
-			Vector3 pos = Find.WorldGrid.GetTileCenter(tile);
-			spaceObject = false;
-			if (worldObject != null && worldObject.def.HasModExtension<SpaceObjectDefModExtension>())
-			{
-				spaceObject = true;
-				pos = worldObject.DrawPos;
-			}
-			return pos;
-		}
+    public static Vector3 GetTilePos(int tile, WorldObject worldObject, out bool spaceObject)
+    {
+      Vector3 pos = Find.WorldGrid.GetTileCenter(tile);
+      spaceObject = false;
+      if (worldObject != null && worldObject.def.HasModExtension<SpaceObjectDefModExtension>())
+      {
+        spaceObject = true;
+        pos = worldObject.DrawPos;
+      }
+      return pos;
+    }
 
-		public static float GetTileDistance(int source, int destination)
-		{
-			(WorldObject sourceObject, WorldObject destObject) = WorldObjectsAt(source, destination);
+    public static float GetTileDistance(int source, int destination)
+    {
+      (WorldObject sourceObject, WorldObject destObject) = WorldObjectsAt(source, destination);
 
-			Vector3 sourcePos = GetTilePos(source, sourceObject, out _);
-			Vector3 destPos = GetTilePos(destination, destObject, out _);
+      Vector3 sourcePos = GetTilePos(source, sourceObject, out _);
+      Vector3 destPos = GetTilePos(destination, destObject, out _);
 
-			return Ext_Math.SphericalDistance(sourcePos, destPos);
-		}
+      return Ext_Math.SphericalDistance(sourcePos, destPos);
+    }
 
-		/// <summary>
-		/// Find best tile to snap to when ordering a caravan
-		/// </summary>
-		/// <param name="caravan"></param>
-		/// <param name="tile"></param>
-		public static int BestGotoDestForVehicle(VehicleCaravan caravan, int tile)
-		{
-			bool CaravanReachable(int t) => caravan.UniqueVehicleDefsInCaravan().All(v => WorldVehiclePathGrid.Instance.Passable(t, v)) &&
-				WorldVehicleReachability.Instance.CanReach(caravan, t);
-			if (CaravanReachable(tile))
-			{
-				return tile;
-			}
-			GenWorldClosest.TryFindClosestTile(tile, CaravanReachable, out int result, 50, true);
-			return result;
-		}
+    /// <summary>
+    /// Find best tile to snap to when ordering a caravan
+    /// </summary>
+    /// <param name="caravan"></param>
+    /// <param name="tile"></param>
+    public static int BestGotoDestForVehicle(VehicleCaravan caravan, int tile)
+    {
+      bool CaravanReachable(int t) => caravan.UniqueVehicleDefsInCaravan().All(v => WorldVehiclePathGrid.Instance.Passable(t, v)) &&
+        WorldVehicleReachability.Instance.CanReach(caravan, t);
+      if (CaravanReachable(tile))
+      {
+        return tile;
+      }
+      GenWorldClosest.TryFindClosestTile(tile, CaravanReachable, out int result, 50, true);
+      return result;
+    }
 
-		/// <summary>
-		/// Find best negotiator in VehicleCaravan for trading on the World Map
-		/// </summary>
-		/// <param name="vehicle"></param>
-		/// <param name="faction"></param>
-		/// <param name="trader"></param>
-		public static Pawn FindBestNegotiator(VehiclePawn vehicle, Faction faction = null, TraderKindDef trader = null)
-		{
-			Predicate<Pawn> pawnValidator = null;
-			if (faction != null)
-			{
-				pawnValidator = delegate (Pawn p)
-				{
-					AcceptanceReport report = p.CanTradeWith(faction, trader);
-					return report.Accepted;
-				};
-			}
-			return vehicle.FindPawnWithBestStat(StatDefOf.TradePriceImprovement, pawnValidator);
-		}
+    /// <summary>
+    /// Find best negotiator in VehicleCaravan for trading on the World Map
+    /// </summary>
+    /// <param name="vehicle"></param>
+    /// <param name="faction"></param>
+    /// <param name="trader"></param>
+    public static Pawn FindBestNegotiator(VehiclePawn vehicle, Faction faction = null, TraderKindDef trader = null)
+    {
+      Predicate<Pawn> pawnValidator = null;
+      if (faction != null)
+      {
+        pawnValidator = delegate (Pawn p)
+        {
+          AcceptanceReport report = p.CanTradeWith(faction, trader);
+          return report.Accepted;
+        };
+      }
+      return vehicle.FindPawnWithBestStat(StatDefOf.TradePriceImprovement, pawnValidator);
+    }
 
-		/// <summary>
-		/// Find best negotiator in Vehicle for trading on the World Map
-		/// </summary>
-		/// <param name="vehicle"></param>
-		/// <param name="faction"></param>
-		/// <param name="trader"></param>
-		public static Pawn FindBestNegotiator(VehicleCaravan caravan, Faction faction = null, TraderKindDef trader = null)
-		{
-			Predicate<Pawn> pawnValidator = null;
-			if (faction != null)    
-			{
-				pawnValidator = delegate (Pawn p)
-				{
-					AcceptanceReport report = p.CanTradeWith(faction, trader);
-					return report.Accepted;
-				};
-			}
-			return BestCaravanPawnUtility.FindPawnWithBestStat(caravan, StatDefOf.TradePriceImprovement, pawnValidator: pawnValidator);
-		}
+    /// <summary>
+    /// Find best negotiator in Vehicle for trading on the World Map
+    /// </summary>
+    /// <param name="vehicle"></param>
+    /// <param name="faction"></param>
+    /// <param name="trader"></param>
+    public static Pawn FindBestNegotiator(VehicleCaravan caravan, Faction faction = null, TraderKindDef trader = null)
+    {
+      Predicate<Pawn> pawnValidator = null;
+      if (faction != null)
+      {
+        pawnValidator = delegate (Pawn p)
+        {
+          AcceptanceReport report = p.CanTradeWith(faction, trader);
+          return report.Accepted;
+        };
+      }
+      return BestCaravanPawnUtility.FindPawnWithBestStat(caravan, StatDefOf.TradePriceImprovement, pawnValidator: pawnValidator);
+    }
 
-		/// <summary>
-		/// Get nearest tile id to <paramref name="worldCoord"/>
-		/// </summary>
-		/// <param name="worldCoord"></param>
-		public static int GetNearestTile(Vector3 worldCoord)
-		{
-			for (int tile = 0; tile < Find.WorldGrid.TilesCount; tile++)
-			{
-				Vector3 pos = Find.WorldGrid.GetTileCenter(tile);
-				if (Ext_Math.SphericalDistance(worldCoord, pos) <= 0.75f) //0.25 tile length margin of error for quicker calculation
-				{
-					return tile;
-				}
-			}
-			return -1;
-		}
+    /// <summary>
+    /// Get nearest tile id to <paramref name="worldCoord"/>
+    /// </summary>
+    /// <param name="worldCoord"></param>
+    public static int GetNearestTile(Vector3 worldCoord)
+    {
+      for (int tile = 0; tile < Find.WorldGrid.TilesCount; tile++)
+      {
+        Vector3 pos = Find.WorldGrid.GetTileCenter(tile);
+        if (Ext_Math.SphericalDistance(worldCoord, pos) <= 0.75f) //0.25 tile length margin of error for quicker calculation
+        {
+          return tile;
+        }
+      }
+      return -1;
+    }
 
-		/// <summary>
-		/// Change <paramref name="tile"/> if tile is within CoastRadius of a coast <see cref="VehiclesModSettings"/>
-		/// </summary>
-		/// <param name="tile"></param>
-		/// <param name="faction"></param>
-		/// <returns>new tileID if a nearby coast is found or <paramref name="tile"/> if not found</returns>
-		public static int PushSettlementToCoast(int tile, Faction faction)
-		{
-			if (VehicleMod.CoastRadius <= 0)
-			{
-				return tile;
-			}
+    /// <summary>
+    /// Change <paramref name="tile"/> if tile is within CoastRadius of a coast <see cref="VehiclesModSettings"/>
+    /// </summary>
+    /// <param name="tile"></param>
+    /// <param name="faction"></param>
+    /// <returns>new tileID if a nearby coast is found or <paramref name="tile"/> if not found</returns>
+    public static int PushSettlementToCoast(int tile, Faction faction)
+    {
+      if (VehicleMod.CoastRadius <= 0)
+      {
+        return tile;
+      }
 
-			if (Find.World.CoastDirectionAt(tile).IsValid)
-			{
-				if (Find.WorldGrid[tile].biome.canBuildBase && !(faction is null))
-				{
-					DebugHelper.tiles.Add(new Pair<int, int>(tile, 0));
-				}
-				return tile;
-			}
+      if (Find.World.CoastDirectionAt(tile).IsValid)
+      {
+        if (Find.WorldGrid[tile].biome.canBuildBase && !(faction is null))
+        {
+          DebugHelper.tiles.Add(new Pair<int, int>(tile, 0));
+        }
+        return tile;
+      }
 
-			List<int> neighbors = new List<int>();
-			return Ext_World.BFS(tile, neighbors, VehicleMod.CoastRadius, result: delegate (int currentTile, int currentRadius)
-			{
-				if (Find.World.CoastDirectionAt(currentTile).IsValid)
-				{
-					if (Find.WorldGrid[currentTile].biome.canBuildBase && Find.WorldGrid[currentTile].biome.implemented && Find.WorldGrid[currentTile].hilliness != Hilliness.Impassable)
-					{
-						if (DebugProperties.debug && !(faction is null))
-						{
-							DebugHelper.DebugDrawSettlement(tile, currentTile);
-						}
-						if (faction != null)
-						{
-							DebugHelper.tiles.Add(new Pair<int, int>(currentTile, currentRadius));
-						}
-						return true;
-					}
-				}
-				return false;
-			});
-		}
+      List<int> neighbors = new List<int>();
+      return Ext_World.BFS(tile, neighbors, VehicleMod.CoastRadius, result: delegate (int currentTile, int currentRadius)
+      {
+        if (Find.World.CoastDirectionAt(currentTile).IsValid)
+        {
+          if (Find.WorldGrid[currentTile].biome.canBuildBase && Find.WorldGrid[currentTile].biome.implemented &&
+            Find.WorldGrid[currentTile].hilliness != Hilliness.Impassable)
+          {
+            if (DebugProperties.debug && faction is not null)
+            {
+              DebugHelper.DebugDrawSettlement(tile, currentTile);
+            }
+            if (faction != null)
+            {
+              DebugHelper.tiles.Add(new Pair<int, int>(currentTile, currentRadius));
+            }
+            return true;
+          }
+        }
+        return false;
+      });
+    }
 
-		/// <summary>
-		/// Convert <paramref name="pos"/> to matrix in World space
-		/// </summary>
-		/// <param name="pos"></param>
-		/// <param name="size"></param>
-		/// <param name="altOffset"></param>
-		/// <param name="counterClockwise"></param>
-		public static Matrix4x4 GetWorldQuadAt(Vector3 pos, float size, float altOffset, bool counterClockwise = false)
-		{
-			Vector3 normalized = pos.normalized;
-			Vector3 vector;
-			if (counterClockwise)
-			{
-				vector = -normalized;
-			}
-			else
-			{
-				vector = normalized;
-			}
-			Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector);
-			Vector3 s = new Vector3(size, 1f, size);
-			Matrix4x4 matrix = default(Matrix4x4);
-			matrix.SetTRS(pos + normalized * altOffset, q, s);
-			return matrix;
-		}
+    /// <summary>
+    /// Convert <paramref name="pos"/> to matrix in World space
+    /// </summary>
+    /// <param name="pos"></param>
+    /// <param name="size"></param>
+    /// <param name="altOffset"></param>
+    /// <param name="counterClockwise"></param>
+    public static Matrix4x4 GetWorldQuadAt(Vector3 pos, float size, float altOffset, bool counterClockwise = false)
+    {
+      Vector3 normalized = pos.normalized;
+      Vector3 vector;
+      if (counterClockwise)
+      {
+        vector = -normalized;
+      }
+      else
+      {
+        vector = normalized;
+      }
+      Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector);
+      Vector3 s = new Vector3(size, 1f, size);
+      Matrix4x4 matrix = default(Matrix4x4);
+      matrix.SetTRS(pos + normalized * altOffset, q, s);
+      return matrix;
+    }
 
-		/// <summary>
-		/// Alternative to <see cref="WorldRendererUtility.DrawQuadTangentialToPlanet(Vector3, float, float, Material, bool, bool, MaterialPropertyBlock)"/> that rotates by -90 degrees for vehicle icons
-		/// </summary>
-		/// <param name="pos"></param>
-		/// <param name="size"></param>
-		/// <param name="altOffset"></param>
-		/// <param name="material"></param>
-		/// <param name="counterClockwise"></param>
-		/// <param name="useSkyboxLayer"></param>
-		/// <param name="propertyBlock"></param>
-		public static void DrawQuadTangentialToPlanet(Vector3 pos, float size, float altOffset, Material material, bool counterClockwise = false, bool useSkyboxLayer = false, MaterialPropertyBlock propertyBlock = null)
-		{
-			if (material == null)
-			{
-				Log.Warning("Tried to draw quad with null material.");
-				return;
-			}
-			Vector3 normalized = pos.normalized;
-			Vector3 vector;
+    /// <summary>
+    /// Alternative to <see cref="WorldRendererUtility.DrawQuadTangentialToPlanet(Vector3, float, float, Material, bool, bool, MaterialPropertyBlock)"/> that rotates by -90 degrees for vehicle icons
+    /// </summary>
+    /// <param name="pos"></param>
+    /// <param name="size"></param>
+    /// <param name="altOffset"></param>
+    /// <param name="material"></param>
+    /// <param name="counterClockwise"></param>
+    /// <param name="useSkyboxLayer"></param>
+    /// <param name="propertyBlock"></param>
+    public static void DrawQuadTangentialToPlanet(Vector3 pos, float size, float altOffset, Material material, bool counterClockwise = false, bool useSkyboxLayer = false, MaterialPropertyBlock propertyBlock = null)
+    {
+      if (material == null)
+      {
+        Log.Warning("Tried to draw quad with null material.");
+        return;
+      }
+      Vector3 normalized = pos.normalized;
+      Vector3 vector;
 
-			if (counterClockwise)
-			{
-				vector = -normalized;
-			}
-			else
-			{
-				vector = normalized;
-			}
-			Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) * Quaternion.Euler(0, -90f, 0);
-			Vector3 s = new Vector3(size, 1f, size);
-			Matrix4x4 matrix = default;
-			matrix.SetTRS(pos + normalized * altOffset, q, s);
-			int layer = useSkyboxLayer ? WorldCameraManager.WorldSkyboxLayer : WorldCameraManager.WorldLayer;
-			if (propertyBlock != null)
-			{
-				Graphics.DrawMesh(MeshPool.plane10, matrix, material, layer, null, 0, propertyBlock);
-				return;
-			}
-			Graphics.DrawMesh(MeshPool.plane10, matrix, material, layer);
-		}
-	}
+      if (counterClockwise)
+      {
+        vector = -normalized;
+      }
+      else
+      {
+        vector = normalized;
+      }
+      Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) * Quaternion.Euler(0, -90f, 0);
+      Vector3 s = new Vector3(size, 1f, size);
+      Matrix4x4 matrix = default;
+      matrix.SetTRS(pos + normalized * altOffset, q, s);
+      int layer = useSkyboxLayer ? WorldCameraManager.WorldSkyboxLayer : WorldCameraManager.WorldLayer;
+      if (propertyBlock != null)
+      {
+        Graphics.DrawMesh(MeshPool.plane10, matrix, material, layer, null, 0, propertyBlock);
+        return;
+      }
+      Graphics.DrawMesh(MeshPool.plane10, matrix, material, layer);
+    }
+  }
 }

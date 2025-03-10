@@ -9,11 +9,8 @@ using RimWorld;
 using RimWorld.Planet;
 using Verse;
 using Verse.Sound;
-using Verse.AI;
-using Verse.AI.Group;
 using SmashTools;
 using SmashTools.Animations;
-using System.Reflection;
 
 namespace Vehicles
 {
@@ -27,47 +24,6 @@ namespace Vehicles
 
 		public VehiclePawn()
 		{
-		}
-
-		public new IThingHolder ParentHolder
-		{
-			get
-			{
-				if (this.GetAerialVehicle() is AerialVehicleInFlight aerialVehicle)
-				{
-					return aerialVehicle;
-				}
-				return holdingOwner?.Owner;
-			}
-		}
-
-		public Rot8 FullRotation
-		{
-			get
-			{
-				if (!VehicleDef.graphicData.drawRotated)
-				{
-					return Rot8.North;
-				}
-				return new Rot8(Rotation, Angle);
-			}
-			set
-			{
-				if (value == FullRotation)
-				{
-					return;
-				}
-				Rotation = value;
-				Angle = 0;
-				if (value == Rot8.NorthEast || value == Rot8.SouthWest)
-				{
-					Angle = -45;
-				}
-				else if (value == Rot8.SouthEast || value == Rot8.NorthWest)
-				{
-					Angle = 45;
-				}
-			}
 		}
 
 		public Pawn FindPawnWithBestStat(StatDef stat, Predicate<Pawn> pawnValidator = null)
@@ -147,7 +103,6 @@ namespace Vehicles
 			ageTracker.BirthAbsTicks = 0;
 			health.Reset();
 			statHandler.InitializeComponents();
-
 			if (Faction != Faction.OfPlayer && VehicleDef.npcProperties != null)
 			{
 				GenerateInventory();
@@ -162,9 +117,9 @@ namespace Vehicles
 
 		private void GenerateInventory()
 		{
-			if (VehicleDef.npcProperties?.raidParamsDef?.inventory != null)
+			if (VehicleDef.npcProperties?.raidParams?.inventory != null)
 			{
-				foreach (PawnInventoryOption inventoryOption in VehicleDef.npcProperties.raidParamsDef.inventory)
+				foreach (PawnInventoryOption inventoryOption in VehicleDef.npcProperties.raidParams.inventory)
 				{
 					foreach (Thing thing in inventoryOption.GenerateThings())
 					{
@@ -184,7 +139,9 @@ namespace Vehicles
 			RegenerateUnsavedComponents();
 			RecacheComponents();
 			RecachePawnCount();
-			foreach (VehicleComp comp in AllComps.Where(t => t is VehicleComp))
+      animator?.PostLoad();
+
+      foreach (VehicleComp comp in AllComps.Where(t => t is VehicleComp))
 			{
 				comp.PostLoad();
 			}
@@ -193,8 +150,8 @@ namespace Vehicles
 		protected virtual void RegenerateUnsavedComponents()
 		{
 			vehicleAI = new VehicleAI(this);
-			vDrawer = new Vehicle_DrawTracker(this);
-			graphicOverlay = new VehicleGraphicOverlay(this);
+			vDrawer = new VehicleDrawTracker(this);
+			overlayRenderer = new GraphicOverlayRenderer(this);
 			sustainers ??= new VehicleSustainers(this);
 		}
 
@@ -202,24 +159,29 @@ namespace Vehicles
 		{
 			this.RegisterEvents(); //Must register before comps call SpawnSetup to allow comps to access Registry
 			base.SpawnSetup(map, respawningAfterLoad);
-
+			
 			if (!UnityData.IsInMainThread)
 			{
-				LongEventHandler.ExecuteWhenFinished(delegate ()
-				{
-					graphicOverlay.Init();
-				});
+				LongEventHandler.ExecuteWhenFinished(overlayRenderer.Init);
 			}
 			else
 			{
-				graphicOverlay.Init();
+				overlayRenderer.Init();
 			}
-
-			ReleaseSustainerTarget(); //Ensure SustainerTarget and sustainer manager is given a clean slate to work with
+			if (VehicleDef.drawProperties.controller != null)
+			{
+				animator ??= new AnimationManager(this, VehicleDef.drawProperties.controller);
+        animator.SetBool(PropertyIds.Disabled, CanMove);
+        animator.PostLoad();
+      }
+      // Ensure SustainerTarget and sustainer manager is given a clean slate to work with
+      ReleaseSustainerTarget();
 			EventRegistry[VehicleEventDefOf.Spawned].ExecuteEvents();
 			if (Drafted)
 			{
-				EventRegistry[VehicleEventDefOf.IgnitionOn].ExecuteEvents(); //Retrigger draft event if spawned with draft status = on (important for sustainers, tick requests, etc.)
+        // Trigger draft event if spawned with draft status On
+				// This is important for sustainers and tick requests.
+        EventRegistry[VehicleEventDefOf.IgnitionOn].ExecuteEvents(); 
 			}
 
 			sharedJob ??= new SharedJob();
@@ -263,9 +225,9 @@ namespace Vehicles
 
 			Drawer.Notify_Spawned();
 			InitializeHitbox();
-			Map.GetCachedMapComponent<VehiclePositionManager>().ClaimPosition(this);
-			//Map.GetCachedMapComponent<VehicleRegionUpdateCatalog>().Notify_VehicleSpawned(this);
-			Map.GetCachedMapComponent<ListerVehiclesRepairable>().Notify_VehicleSpawned(this);
+			Map.GetCachedMapComponent<VehicleMapping>().VehicleSpawned(this);
+			ReclaimPosition();
+      Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleSpawned(this);
 			ResetRenderStatus();
 
 			Initialized = true;
@@ -274,7 +236,7 @@ namespace Vehicles
 		public override void ExposeData()
 		{
 			base.ExposeData();
-
+			
 			Scribe_Collections.Look(ref activatableComps, nameof(activatableComps), lookMode: LookMode.Deep);
 			activatableComps ??= new List<ActivatableThingComp>();
 			if (Scribe.mode == LoadSaveMode.LoadingVars)
@@ -290,12 +252,14 @@ namespace Vehicles
 				}
 			}
 
-			Scribe_Deep.Look(ref vehiclePather, nameof(vehiclePather), new object[] { this });
-			Scribe_Deep.Look(ref ignition, nameof(ignition), new object[] { this });
-			Scribe_Deep.Look(ref statHandler, nameof(statHandler), new object[] { this });
+			Scribe_Deep.Look(ref vehiclePather, nameof(vehiclePather), [this]);
+			Scribe_Deep.Look(ref ignition, nameof(ignition), [this]);
+			Scribe_Deep.Look(ref statHandler, nameof(statHandler), [this]);
 			Scribe_Deep.Look(ref sharedJob, nameof(sharedJob));
+			Scribe_Deep.Look(ref animator, nameof(animator), [this, VehicleDef.drawProperties.controller]);
 
 			Scribe_Values.Look(ref angle, nameof(angle));
+			Scribe_Values.Look(ref reverse, nameof(reverse));
 			Scribe_Values.Look(ref crashLanded, nameof(crashLanded));
 
 			Scribe_Deep.Look(ref patternData, nameof(patternData));
@@ -304,7 +268,10 @@ namespace Vehicles
 
 			if (!VehicleMod.settings.main.useCustomShaders)
 			{
-				patternData = new PatternData(VehicleDef.graphicData.color, VehicleDef.graphicData.colorTwo, VehicleDef.graphicData.colorThree, PatternDefOf.Default, Vector2.zero, 0);
+				patternData = new PatternData(VehicleDef.graphicData.color, 
+											  VehicleDef.graphicData.colorTwo, 
+											  VehicleDef.graphicData.colorThree,
+											  PatternDefOf.Default, Vector2.zero, 0);
 				retextureDef = null;
 				patternToPaint = null;
 			}

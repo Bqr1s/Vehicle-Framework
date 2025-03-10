@@ -1,653 +1,689 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Runtime.CompilerServices;
+using System.Threading;
+using SmashTools;
+using SmashTools.Performance;
 using UnityEngine;
 using Verse;
-using RimWorld;
-using SmashTools;
 
 namespace Vehicles
 {
-	/// <summary>
-	/// Vehicle specific region for improved pathing
-	/// </summary>
-	public sealed class VehicleRegion
-	{
-		public const int GridSize = 12;
+  /// <summary>
+  /// Vehicle specific region for improved pathing
+  /// </summary>
+  public sealed class VehicleRegion : IPoolable
+  {
+    public const int GridSize = 12;
 
-		public RegionType type = RegionType.Normal;
+    public RegionType type = RegionType.Normal;
 
-		public int id = -1;
-		public sbyte mapIndex = -1;
-		private static int nextId = 1;
+    private int id = -1;
+    private VehicleDef vehicleDef;
+    private int referenceCount;
+    private int cellCount;
 
-		public int mark;
+    private VehicleRoom room;
 
-		private readonly VehicleDef vehicleDef;
+    private sbyte mapIndex = -1;
+    private Map map;
+    private VehicleMapping mapping;
+    private VehicleRegionMaker regionMaker;
 
-		private VehicleRoom room;
-		public Building_Door door;
+    private readonly List<VehicleRegionLink> links = [];
+    private readonly object linksLock = new();
 
-		public ConcurrentSet<VehicleRegionLink> links = new ConcurrentSet<VehicleRegionLink>();
-		private Dictionary<int, Weight> weights = new Dictionary<int, Weight>();
-
-		private readonly ConcurrentDictionary<Pawn, Danger> cachedDangers = new ConcurrentDictionary<Pawn, Danger>();
-
-		public uint[] closedIndex = new uint[VehicleRegionTraverser.WorkerCount];
-
-		private readonly ConcurrentListerThings listerThings = new ConcurrentListerThings(ListerThingsUse.Region);
-
-		public CellRect extentsClose;
-		public CellRect extentsLimit;
-
-		private int precalculatedHashCode;
-		private int cachedCellCount = -1;
-
-		public bool touchesMapEdge;
-		public bool valid = true;
-
-		public uint reachedIndex;
-		public int newRegionGroupIndex = -1;
-
-		private int cachedDangersForFrame;
-
-		private int debug_makeTick = -1000;
-		private int debug_lastTraverseTick = -1000;
-
-		private object weightLock = new object();
-		//private object linkLock = new object();
-
-		private VehicleRegion(VehicleDef vehicleDef) 
-		{
-			this.vehicleDef = vehicleDef;
-		}
-
-		/// <summary>
-		/// Map getter with fallback
-		/// </summary>
-		public Map Map => (mapIndex >= 0) ? Find.Maps[mapIndex] : null;
-
-		/// <summary>
-		/// Concurrent lister things for thread safe caching
-		/// </summary>
-		public ConcurrentListerThings ListerThings => listerThings;
-
-		/// <summary>
-		/// Yield all cells in the region
-		/// </summary>
-		public IEnumerable<IntVec3> Cells
-		{
-			get
-			{
-				VehicleRegionGrid regions = Map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionGrid;
-				for (int z = extentsClose.minZ; z <= extentsClose.maxZ; z++)
-				{
-					for (int x = extentsClose.minX; x <= extentsClose.maxX; x++)
-					{
-						IntVec3 cell = new IntVec3(x, 0, z);
-						if (regions.GetRegionAt_NoRebuild_InvalidAllowed(cell) == this)
-						{
-							yield return cell;
-						}
-					}
-				}
-				yield break;
-			}
-		}
-
-		/// <summary>
-		/// Get total cached cell count in this region
-		/// </summary>
-		public int CellCount
-		{
-			get
-			{
-				if (cachedCellCount == -1)
-				{
-					cachedCellCount = Cells.Count();
-				}
-				return cachedCellCount;
-			}
-		}
-
-		/// <summary>
-		/// Get neighboring regions
-		/// </summary>
-		public IEnumerable<VehicleRegion> Neighbors
-		{
-			get
-			{
-				foreach (VehicleRegionLink link in links.Keys)
-				{
-					for (int i = 0; i < 2; i++)
-					{
-						if (link.regions[i] != null && link.regions[i] != this && link.regions[i].valid)
-						{
-							yield return link.regions[i];
-						}
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Get neighboring regions of the same region type
-		/// </summary>
-		public IEnumerable<VehicleRegion> NeighborsOfSameType
-		{
-			get
-			{
-				foreach (VehicleRegionLink link in links.Keys)
-				{
-					for (int i = 0; i < 2; i++)
-					{
-						if (link.regions[i] != null && link.regions[i] != this && link.regions[i].type == type && link.regions[i].valid)
-						{
-							yield return link.regions[i];
-						}
-					}
-				}
-				yield break;
-			}
-		}
-
-		/// <summary>
-		/// Get room associated with this region
-		/// </summary>
-		public VehicleRoom Room
-		{
-			get
-			{
-				return room;
-			}
-			set
-			{
-				if (value == room) return;
-
-				if (room != null)
-				{
-					room.RemoveRegion(this);
-				}
-				room = value;
-				if (room != null)
-				{
-					room.AddRegion(this);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Get random cell in this region
-		/// </summary>
-		public IntVec3 RandomCell
-		{
-			get
-			{
-				Map map = Map;
-				CellIndices cellIndices = map.cellIndices;
-				VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionGrid.DirectGrid;
-				for (int i = 0; i < 1000; i++)
-				{
-					IntVec3 randomCell = extentsClose.RandomCell;
-					if (directGrid[cellIndices.CellToIndex(randomCell)] == this)
-					{
-						return randomCell;
-					}
-				}
-				return AnyCell;
-			}
-		}
-
-		/// <summary>
-		/// Get any cell in this region
-		/// </summary>
-		public IntVec3 AnyCell
-		{
-			get
-			{
-				Map map = Map;
-				CellIndices cellIndices = map.cellIndices;
-				VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionGrid.DirectGrid;
-				foreach (IntVec3 intVec in extentsClose)
-				{
-					if (directGrid[cellIndices.CellToIndex(intVec)] == this)
-					{
-						return intVec;
-					}
-				}
-				Log.Error("Couldn't find any cell in region " + ToString());
-				return extentsClose.RandomCell;
-			}
-		}
-
-		/// <summary>
-		/// Output debug string for region and region link debugging
-		/// </summary>
-		public string DebugString
-		{
-			get
-			{
-				StringBuilder stringBuilder = new StringBuilder();
-				stringBuilder.AppendLine("id: " + id);
-				stringBuilder.AppendLine("mapIndex: " + mapIndex);
-				stringBuilder.AppendLine("links count: " + links.Count);
-				foreach (VehicleRegionLink regionLink in links.Keys)
-				{
-					stringBuilder.AppendLine("  --" + regionLink.ToString());
-				}
-				stringBuilder.AppendLine("valid: " + valid.ToString());
-				stringBuilder.AppendLine("makeTick: " + debug_makeTick);
-				stringBuilder.AppendLine("extentsClose: " + extentsClose);
-				stringBuilder.AppendLine("extentsLimit: " + extentsLimit);
-				stringBuilder.AppendLine("ListerThings:");
-				if (listerThings.AllThings != null)
-				{
-					foreach (Thing thing in ListerThings.AllThings)
-					{
-						stringBuilder.AppendLine($"  --{thing}");
-					}
-				}
-				return stringBuilder.ToString();
-			}
-		}
-
-		/// <summary>
-		/// Debug draw is < 1 second old
-		/// </summary>
-		public bool DebugIsNew
-		{
-			get
-			{
-				return debug_makeTick > Find.TickManager.TicksGame - 60;
-			}
-		}
-
-		/// <summary>
-		/// Door is valid
-		/// </summary>
-		public bool IsDoorway
-		{
-			get
-			{
-				return door != null;
-			}
-		}
-
-		public void AddLink(VehicleRegionLink regionLink)
-		{
-			links.Add(regionLink);
-#if !DISABLE_WEIGHTS
-			RecalculateWeights();
+#if REGION_WEIGHTS
+    private Dictionary<int, Weight> weights = [];
 #endif
-		}
 
-		public Weight WeightBetween(VehicleRegionLink linkA, VehicleRegionLink linkB)
-		{
-			int hash = HashBetween(linkA, linkB);
-			lock (weightLock)
-			{
-				if (weights.TryGetValue(hash, out Weight weight))
-				{
-					return weight;
-				}
-			}
-			Log.Error($"Unable to pull weight between {linkA.anchor} and {linkB.anchor}");
-			return new Weight(linkA, linkB, 999);
-		}
+    public ThreadLocal<uint[]>
+      closedIndex = new(() => new uint[VehicleRegionTraverser.WorkerCount]);
 
-		public void ClearWeights()
-		{
-#if !DISABLE_WEIGHTS
-			lock (weightLock)
-			{
-				weights.Clear();
-			}
+    public CellRect extentsClose;
+    public CellRect extentsLimit;
+
+    public bool touchesMapEdge;
+    public bool valid = true;
+
+    public uint reachedIndex;
+    public int newRegionGroupIndex = -1;
+    public int mark;
+
+    private int precalculatedHashCode;
+    private int debugMakeTick = -1000;
+
+    public VehicleRegion()
+    {
+      ObjectCounter.Increment<VehicleRegion>();
+    }
+
+    public int ID => id;
+
+    /// <summary>
+    /// Region is currently inside the object pool and should not be referenced unless
+    /// in the context of fetching this region from the object pool for renewal.
+    /// </summary>
+    public bool InPool { get; set; }
+
+    // Only used for seed generation, doesn't matter if list count is stale at time of
+    // reading. No need for a lock here since List<T>::_size does not access the
+    // internal array.
+    public int LinksCount => links.Count;
+
+    /// <summary>
+    /// Fetch a pooled List object and copy all link references over to the list snapshot.
+    /// <para/>
+    /// Allows for thread-safe enumeration of a region's links without interrupting region
+    /// updating.
+    /// <para/>
+    /// Should be used with RAII pattern to allow for List object to be returned
+    /// to async object pool after ListSnapshot goes out of scope.
+    /// </summary>
+    internal ListSnapshot<VehicleRegionLink> Links
+    {
+      get
+      {
+        lock (linksLock)
+        {
+          return new ListSnapshot<VehicleRegionLink>(links);
+        }
+      }
+    }
+
+    /// <summary>
+    /// Map this region belongs to. Setter will cache various map components on new map references.
+    /// </summary>
+    public Map Map
+    {
+      get { return map; }
+      internal set
+      {
+        if (map == value) return;
+
+        map = value;
+        if (map == null)
+        {
+          mapIndex = -1;
+          mapping = null;
+          regionMaker = null;
+          return;
+        }
+
+        mapIndex = (sbyte)map.Index;
+        mapping = map.GetCachedMapComponent<VehicleMapping>();
+        regionMaker = mapping[vehicleDef].VehicleRegionMaker;
+      }
+    }
+
+    public int ReferenceCount => referenceCount;
+
+    public int CellCount
+    {
+      get
+      {
+        if (cellCount < 0)
+        {
+          VehicleRegionGrid regionGrid = mapping[vehicleDef].VehicleRegionGrid;
+          for (int z = extentsClose.minZ; z <= extentsClose.maxZ; z++)
+          {
+            for (int x = extentsClose.minX; x <= extentsClose.maxX; x++)
+            {
+              IntVec3 cell = new IntVec3(x, 0, z);
+              if (regionGrid.GetRegionAt(cell) == this)
+              {
+                Interlocked.Increment(ref cellCount);
+              }
+            }
+          }
+        }
+
+        return cellCount;
+      }
+    }
+
+    /// <summary>
+    /// Yield all cells in the region
+    /// </summary>
+    public IEnumerable<IntVec3> Cells
+    {
+      get
+      {
+        if (InPool)
+        {
+          yield break;
+        }
+
+        VehicleRegionGrid regions = mapping[vehicleDef].VehicleRegionGrid;
+        for (int z = extentsClose.minZ; z <= extentsClose.maxZ; z++)
+        {
+          for (int x = extentsClose.minX; x <= extentsClose.maxX; x++)
+          {
+            IntVec3 cell = new(x, 0, z);
+            if (regions.GetRegionAt(cell) == this)
+            {
+              yield return cell;
+            }
+          }
+        }
+
+        yield break;
+      }
+    }
+
+    /// <summary>
+    /// Get neighboring regions
+    /// </summary>
+    public IEnumerable<VehicleRegion> Neighbors
+    {
+      get
+      {
+        lock (linksLock)
+        {
+          for (int i = 0; i < links.Count; i++)
+          {
+            VehicleRegionLink link = links[i];
+            if (link.regionA != null && link.regionA != this && link.regionA.valid)
+            {
+              yield return link.regionA;
+            }
+
+            if (link.regionB != null && link.regionB != this && link.regionB.valid)
+            {
+              yield return link.regionB;
+            }
+          }
+        }
+      }
+    }
+
+    /// <summary>
+    /// Get neighboring regions of the same region type
+    /// </summary>
+    internal IEnumerable<VehicleRegion> NeighborsOfSameType
+    {
+      get
+      {
+        // This should only ever be accessed within the thread regions are
+        // being updated from. Doing so means we can avoid a lock here.
+        Assert.IsTrue(Thread.CurrentThread.ManagedThreadId ==
+          mapping[vehicleDef].VehicleRegionAndRoomUpdater.UpdatingFromThreadId);
+
+        for (int i = 0; i < links.Count; i++)
+        {
+          VehicleRegionLink link = links[i];
+          if (link.regionA != null && link.regionA != this && link.regionA.type == type &&
+            link.regionA.valid)
+          {
+            yield return link.regionA;
+          }
+
+          if (link.regionB != null && link.regionB != this && link.regionB.type == type &&
+            link.regionB.valid)
+          {
+            yield return link.regionB;
+          }
+        }
+      }
+    }
+
+    /// <summary>
+    /// Get room associated with this region
+    /// </summary>
+    public VehicleRoom Room
+    {
+      get { return room; }
+      set
+      {
+        if (value == room) return;
+
+        room?.RemoveRegion(this);
+        room = value;
+        room?.AddRegion(this);
+      }
+    }
+
+    /// <summary>
+    /// Get random cell in this region
+    /// </summary>
+    public IntVec3 RandomCell
+    {
+      get
+      {
+        Map map = Map;
+        CellIndices cellIndices = map.cellIndices;
+        VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef]
+         .VehicleRegionGrid.DirectGrid;
+        for (int i = 0; i < 1000; i++)
+        {
+          IntVec3 randomCell = extentsClose.RandomCell;
+          if (directGrid[cellIndices.CellToIndex(randomCell)] == this)
+          {
+            return randomCell;
+          }
+        }
+
+        return AnyCell;
+      }
+    }
+
+    /// <summary>
+    /// Get any cell in this region
+    /// </summary>
+    public IntVec3 AnyCell
+    {
+      get
+      {
+        Map map = Map;
+        CellIndices cellIndices = map.cellIndices;
+        VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef]
+         .VehicleRegionGrid.DirectGrid;
+        foreach (IntVec3 intVec in extentsClose)
+        {
+          if (directGrid[cellIndices.CellToIndex(intVec)] == this)
+          {
+            return intVec;
+          }
+        }
+
+        Log.Error("Couldn't find any cell in region " + ToString());
+        return extentsClose.RandomCell;
+      }
+    }
+
+    /// <summary>
+    /// Debug draw is < 1 second old
+    /// </summary>
+    public bool DebugIsNew
+    {
+      get { return debugMakeTick > Find.TickManager.TicksGame - 60; }
+    }
+
+    public void Init(VehicleDef vehicleDef, int id)
+    {
+      this.vehicleDef = vehicleDef;
+      this.id = id;
+      cellCount = -1;
+      precalculatedHashCode = Gen.HashCombineInt(id, vehicleDef.GetHashCode());
+      debugMakeTick = Find.TickManager.TicksGame;
+
+      type = RegionType.Normal;
+      extentsClose = CellRect.Empty;
+      extentsLimit = CellRect.Empty;
+
+      touchesMapEdge = false;
+      valid = true;
+
+      reachedIndex = 0;
+      newRegionGroupIndex = -1;
+    }
+
+    public void IncrementRefCount()
+    {
+      Interlocked.Increment(ref referenceCount);
+    }
+
+    public void DecrementRefCount()
+    {
+      Interlocked.Decrement(ref referenceCount);
+      if (ReferenceCount == 0)
+      {
+        regionMaker.Return(this);
+      }
+    }
+
+    public void AddLink(VehicleRegionLink regionLink)
+    {
+      lock (linksLock)
+      {
+        links.Add(regionLink);
+      }
+#if REGION_WEIGHTS
+      RecalculateWeights();
 #endif
-		}
+    }
 
-		public void RecalculateWeights()
-		{
-#if !DISABLE_WEIGHTS
-			lock (weightLock)
-			{
-				weights.Clear();
-				foreach (VehicleRegionLink regionLink in links.Keys)
-				{
-					foreach (VehicleRegionLink connectingToLink in links.Keys)
-					{
-						if (regionLink == connectingToLink) continue; //Skip matching link
-
-						int weight = EuclideanDistance(regionLink.anchor, connectingToLink);
-						weights[HashBetween(regionLink, connectingToLink)] = new Weight(regionLink, connectingToLink, weight);
-						weights[HashBetween(connectingToLink, regionLink)] = new Weight(connectingToLink, regionLink, weight);
-					}
-				}
-			}
+    public Weight WeightBetween(VehicleRegionLink linkA, VehicleRegionLink linkB)
+    {
+#if REGION_WEIGHTS
+      int hash = HashBetween(linkA, linkB);
+      lock (weights)
+      {
+        if (weights.TryGetValue(hash, out Weight weight))
+        {
+          return weight;
+        }
+      }
 #endif
-		}
+      Log.Error($"Unable to pull weight between {linkA.anchor} and {linkB.anchor}");
+      return new Weight(linkA, linkB, 999);
+    }
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int HashBetween(VehicleRegionLink linkA, VehicleRegionLink linkB)
-		{
-			return Gen.HashCombine(linkA.anchor.GetHashCode(), linkB.anchor);
-		}
-
-		/// <summary>
-		/// Doesn't take movement ticks into account
-		/// </summary>
-		/// <param name="cell"></param>
-		/// <param name="link"></param>
-		public static int EuclideanDistance(IntVec3 cell, VehicleRegionLink link)
-		{
-			IntVec3 diff = cell - link.anchor;
-			return Mathf.RoundToInt(Mathf.Sqrt(Mathf.Pow(diff.x, 2) + Mathf.Pow(diff.z, 2)));
-		}
-
-		/// <summary>
-		/// Create new region for <paramref name="vehicleDef"/>
-		/// </summary>
-		/// <param name="root"></param>
-		/// <param name="map"></param>
-		/// <param name="vehicleDef"></param>
-		public static VehicleRegion MakeNewUnfilled(IntVec3 root, Map map, VehicleDef vehicleDef)
-		{
-			VehicleRegion region = new VehicleRegion(vehicleDef)
-			{
-				debug_makeTick = Find.TickManager.TicksGame,
-				id = nextId,
-				mapIndex = (sbyte)map.Index,
-				precalculatedHashCode = Gen.HashCombineInt(nextId, vehicleDef.GetHashCode()),
-				extentsClose = new CellRect()
-				{
-					minX = root.x,
-					maxX = root.x,
-					minZ = root.z,
-					maxZ = root.z
-				},
-				extentsLimit = new CellRect()
-				{
-					minX = root.x - root.x % GridSize,
-					maxX = root.x + GridSize - (root.x + GridSize) % GridSize - 1,
-					minZ = root.z - root.z % GridSize,
-					maxZ = root.z + GridSize - (root.z + GridSize) % GridSize - 1
-				}.ClipInsideMap(map),
-			};
-			nextId++;
-			return region;
-		}
-
-		/// <summary>
-		/// <paramref name="traverseParms"/> allows this region
-		/// </summary>
-		/// <param name="traverseParms"></param>
-		/// <param name="isDestination"></param>
-		public bool Allows(TraverseParms traverseParms, bool isDestination)
-		{
-			if (traverseParms.mode != TraverseMode.PassAllDestroyableThings && traverseParms.mode != TraverseMode.PassAllDestroyableThingsNotWater && !type.Passable())
-			{
-				return false;
-			}
-			if (traverseParms.maxDanger < Danger.Deadly && traverseParms.pawn is VehiclePawn vehicle)
-			{
-				Danger danger = DangerFor(traverseParms.pawn);
-				if (isDestination || danger == Danger.Deadly)
-				{
-					VehicleRegion region = VehicleRegionAndRoomQuery.GetRegion(traverseParms.pawn, vehicle.VehicleDef, RegionType.Set_All);
-					if ((region == null || danger > region.DangerFor(traverseParms.pawn)) && danger > traverseParms.maxDanger)
-					{
-						return false;
-					}
-				}
-			}
-			switch (traverseParms.mode)
-			{
-				case TraverseMode.ByPawn:
-					return door is null; //Vehicles cannot path through doors for now
-				case TraverseMode.PassDoors:
-					return true;
-				case TraverseMode.NoPassClosedDoorsOrWater:
-				case TraverseMode.NoPassClosedDoors:
-					return door is null;
-				case TraverseMode.PassAllDestroyableThings:
-					return true;
-				case TraverseMode.PassAllDestroyableThingsNotWater:
-					return true;
-				default:
-					throw new NotImplementedException();
-			}
-		}
-
-		/// <summary>
-		/// Danger path constraint for <paramref name="pawn"/>
-		/// </summary>
-		/// <param name="pawn"></param>
-		public Danger DangerFor(Pawn pawn)
-		{
-			if (Current.ProgramState == ProgramState.Playing)
-			{
-				if (cachedDangersForFrame != Time.frameCount)
-				{
-					cachedDangers.Clear();
-					cachedDangersForFrame = Time.frameCount;
-				}
-				else
-				{
-					foreach ((Pawn cachedFor, Danger danger) in cachedDangers)
-					{
-						if (cachedFor == pawn)
-						{
-							return danger;
-						}
-					}
-				}
-			}
-			return Danger.None; //TODO - Vehicles don't need danger detection right now, but may need for Goto jobs
-		}
-
-		/// <summary>
-		/// Decrement map index when other map has been removed
-		/// </summary>
-		public void DecrementMapIndex()
-		{
-			if (mapIndex <= 0)
-			{
-				Log.Warning($"Tried to decrement map index for vehicle region {id} but mapIndex={mapIndex}");
-				return;
-			}
-			mapIndex = (sbyte)(mapIndex - 1);
-		}
-
-		/// <summary>
-		/// Clean up data after map has been removed
-		/// </summary>
-		public void Notify_MyMapRemoved()
-		{
-			listerThings.Clear();
-			mapIndex = -1;
-		}
-
-		/// <summary>
-		/// String output
-		/// </summary>
-		public override string ToString()
-		{
-			string portal = door != null ? door.ToString() : "Null";
-			return $"VehicleRegion[id={id} mapIndex={mapIndex} center={extentsClose.CenterCell} links={links.Count} cells={CellCount} portal={portal}]";
-		}
-
-		/// <summary>
-		/// Debug draw field edges of this region
-		/// </summary>
-		public void DebugDraw()
-		{
-			GenDraw.DrawFieldEdges(Cells.ToList(), new Color(0f, 0f, 1f, 0.5f));
-		}
-
-		/// <summary>
-		/// Debug draw region when mouse is over
-		/// </summary>
-		public void DebugDrawMouseover(DebugRegionType debugRegionType)
-		{
-			Color color;
-			if (!valid)
-			{
-				color = Color.red;
-			}
-			else if (DebugIsNew)
-			{
-				color = Color.yellow;
-			}
-			else if (!type.Passable())
-			{
-				color = ColorLibrary.Orange;
-			}
-			else
-			{
-				color = Color.green;
-			}
-			if (debugRegionType.HasFlag(DebugRegionType.Regions))
-			{
-				GenDraw.DrawFieldEdges(Cells.ToList(), color);
-				foreach (VehicleRegion region in Neighbors)
-				{
-					GenDraw.DrawFieldEdges(region.Cells.ToList(), Color.grey);
-				}
-			}
-			if (debugRegionType.HasFlag(DebugRegionType.Links))
-			{
-				foreach (VehicleRegionLink regionLink in links.Keys)
-				{
-					//Flash every other second
-					if (Mathf.RoundToInt(Time.realtimeSinceStartup * 2f) % 2 == 1)
-					{
-						foreach (IntVec3 c in regionLink.Span.Cells)
-						{
-							CellRenderer.RenderCell(c, DebugSolidColorMats.MaterialOf(Color.magenta));
-						}
-					}
-				}
-			}
-			if (debugRegionType.HasFlag(DebugRegionType.Weights))
-			{
-#if !DISABLE_WEIGHTS
-				DrawWeights();
+    public void Reset()
+    {
+      // Even though RegionMaker and its regions are per-map, we still need to clear
+      // the map and vehicleDef references. This may have gone to buffer and be picked
+      // up for a different vehicle on a different map.
+      valid = false;
+      Room = null;
+      cellCount = 0;
+      referenceCount = 0;
+      extentsClose = CellRect.Empty;
+      extentsLimit = CellRect.Empty;
+      ClearLinks();
+#if REGION_WEIGHTS
+      ClearWeights();
 #endif
-			}
-			if (debugRegionType.HasFlag(DebugRegionType.Things))
-			{
-				foreach (Thing thing in listerThings.AllThings)
-				{
-					CellRenderer.RenderSpot(thing.TrueCenter(), (thing.thingIDNumber % 256) / 256f, 0.15f);
-				}
-			}
-		}
+    }
 
-		private void DrawWeights()
-		{
-#if !DISABLE_WEIGHTS
-			lock (weightLock)
-			{
-				foreach (VehicleRegionLink regionLink in links.Keys)
-				{
-					foreach (VehicleRegionLink toRegionLink in links.Keys)
-					{
-						if (regionLink == toRegionLink) continue;
+    public void ClearLinks()
+    {
+      lock (linksLock)
+      {
+        links.Clear();
+      }
+    }
 
-						float weight = weights[HashBetween(regionLink, toRegionLink)].cost;
-						Vector3 from = regionLink.anchor.ToVector3();
-						from.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
-						Vector3 to = toRegionLink.anchor.ToVector3();
-						to.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
-						GenDraw.DrawLineBetween(from, to, VehicleRegionLink.WeightColor(weight));
-					}
-				}
+#if REGION_WEIGHTS
+    public void ClearWeights()
+    {
 
-				foreach (VehicleRegion region in Neighbors)
-				{
-					foreach (VehicleRegionLink regionLink in links.Keys)
-					{
-						foreach (VehicleRegionLink toRegionLink in region.links.Keys)
-						{
-							if (regionLink == toRegionLink) continue;
-							if (regionLink.RegionA != this && regionLink.RegionB != this) continue;
+      lock (weights)
+      {
+        weights.Clear();
+      }
+    }
 
-							float weight = region.weights[HashBetween(regionLink, toRegionLink)].cost;
-							Vector3 from = regionLink.anchor.ToVector3();
-							from.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
-							Vector3 to = toRegionLink.anchor.ToVector3();
-							to.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
-							GenDraw.DrawLineBetween(from, to, VehicleRegionLink.WeightColor(weight));
-						}
-					}
-				}
-			}
+    public void RecalculateWeights()
+    {
+
+      lock (weights)
+      {
+        weights.Clear();
+        foreach (VehicleRegionLink regionLink in Links)
+        {
+          foreach (VehicleRegionLink connectingToLink in Links)
+          {
+            if (regionLink == connectingToLink) continue; //Skip matching link
+
+            int weight = EuclideanDistance(regionLink.anchor, connectingToLink);
+            weights[HashBetween(regionLink, connectingToLink)] =
+ new Weight(regionLink, connectingToLink, weight);
+            weights[HashBetween(connectingToLink, regionLink)] =
+ new Weight(connectingToLink, regionLink, weight);
+          }
+        }
+      }
+    }
 #endif
-		}
 
-		/// <summary>
-		/// Debug draw region path costs when mouse is over
-		/// </summary>
-		public void DebugOnGUIMouseover(DebugRegionType debugRegionType)
-		{
-			if ((debugRegionType & DebugRegionType.PathCosts) == DebugRegionType.PathCosts)
-			{
-				if (Find.CameraDriver.CurrentZoom <= CameraZoomRange.Close)
-				{
-					foreach (IntVec3 intVec in Cells)
-					{
-						Vector2 vector = intVec.ToUIPosition();
-						Rect rect = new Rect(vector.x - 20f, vector.y - 20f, 40f, 40f);
-						if (new Rect(0f, 0f, UI.screenWidth, UI.screenHeight).Overlaps(rect))
-						{
-							Widgets.Label(rect, Map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehiclePathGrid.PerceivedPathCostAt(intVec).ToString());
-						}
-					}
-				}
-			}
-		}
+    public static int HashBetween(VehicleRegionLink linkA, VehicleRegionLink linkB)
+    {
+      return Gen.HashCombine(linkA.anchor.GetHashCode(), linkB.anchor);
+    }
 
-		/// <summary>
-		/// Set last traversal tick
-		/// </summary>
-		public void Debug_Notify_Traversed()
-		{
-			debug_lastTraverseTick = Find.TickManager.TicksGame;
-		}
+    /// <summary>
+    /// Doesn't take movement ticks into account
+    /// </summary>
+    /// <param name="cell"></param>
+    /// <param name="link"></param>
+    public static int EuclideanDistance(IntVec3 cell, VehicleRegionLink link)
+    {
+      IntVec3 diff = cell - link.anchor;
+      return Mathf.RoundToInt(Mathf.Sqrt(Mathf.Pow(diff.x, 2) + Mathf.Pow(diff.z, 2)));
+    }
 
-		/// <summary>
-		/// Hashcode
-		/// </summary>
-		public override int GetHashCode()
-		{
-			return precalculatedHashCode;
-		}
+    /// <summary>
+    /// <paramref name="traverseParms"/> allows this region
+    /// </summary>
+    /// <param name="traverseParms"></param>
+    /// <param name="isDestination"></param>
+    public bool Allows(TraverseParms traverseParms, bool isDestination)
+    {
+      if (traverseParms.mode != TraverseMode.PassAllDestroyableThings &&
+        traverseParms.mode != TraverseMode.PassAllDestroyableThingsNotWater && !type.Passable())
+      {
+        return false;
+      }
 
-		/// <summary>
-		/// Equate regions by id
-		/// </summary>
-		/// <param name="obj"></param>
-		public override bool Equals(object obj)
-		{
-			return obj is VehicleRegion region && region.id == id;
-		}
+      return true;
+    }
 
-		public struct Weight
-		{
-			public VehicleRegionLink linkA;
-			public VehicleRegionLink linkB;
-			public int cost;
+    /// <summary>
+    /// Decrement map index when other map has been removed
+    /// </summary>
+    public void DecrementMapIndex()
+    {
+      if (mapIndex <= 0)
+      {
+        Log.Warning(
+          $"Tried to decrement map index for vehicle region {id} but mapIndex={mapIndex}");
+        return;
+      }
 
-			public bool IsValid => linkA != null && linkB != null;
+      mapIndex = (sbyte)(mapIndex - 1);
+    }
 
-			public Weight(VehicleRegionLink linkA, VehicleRegionLink linkB, int cost)
-			{
-				this.linkA = linkA;
-				this.linkB = linkB;
-				this.cost = cost;
-			}
-		}
-	}
+    /// <summary>
+    /// Clean up data after map has been removed
+    /// </summary>
+    public void Notify_MyMapRemoved()
+    {
+      mapIndex = -1;
+    }
+
+    /// <summary>
+    /// String output
+    /// </summary>
+    public override string ToString()
+    {
+      return $"VehicleRegion_{id}";
+    }
+
+    /// <summary>
+    /// Debug draw field edges of this region
+    /// </summary>
+    public void DebugDraw()
+    {
+      GenDraw.DrawFieldEdges(Cells.ToList(), new Color(0f, 0f, 1f, 0.5f));
+    }
+
+    /// <summary>
+    /// Debug draw region when mouse is over
+    /// </summary>
+    public void DebugDraw(DebugRegionType debugRegionType)
+    {
+      Color color;
+      if (!valid)
+      {
+        color = Color.red;
+      }
+      else if (DebugIsNew)
+      {
+        color = Color.yellow;
+      }
+      else if (!type.Passable())
+      {
+        color = ColorLibrary.Orange;
+      }
+      else
+      {
+        color = Color.green;
+      }
+
+      if (debugRegionType.HasFlag(DebugRegionType.Regions))
+      {
+        GenDraw.DrawFieldEdges(Cells.ToList(), color);
+        foreach (VehicleRegion region in Neighbors)
+        {
+          GenDraw.DrawFieldEdges(region.Cells.ToList(), Color.grey);
+        }
+      }
+
+      if (debugRegionType.HasFlag(DebugRegionType.Links))
+      {
+        foreach (VehicleRegionLink regionLink in links)
+        {
+          // Flash every other second
+          if (Mathf.RoundToInt(Time.realtimeSinceStartup * 2f) % 2 == 1)
+          {
+            foreach (IntVec3 cell in regionLink.span.Cells)
+            {
+              CellRenderer.RenderCell(cell, DebugSolidColorMats.MaterialOf(Color.magenta));
+            }
+          }
+        }
+      }
+
+      if (debugRegionType.HasFlag(DebugRegionType.Weights))
+      {
+#if REGION_WEIGHTS
+        DrawWeights();
+#endif
+      }
+    }
+
+    private void DrawWeights()
+    {
+#if REGION_WEIGHTS
+      lock (weights)
+      {
+        foreach (VehicleRegionLink regionLink in Links)
+        {
+          foreach (VehicleRegionLink toRegionLink in Links)
+          {
+            if (regionLink == toRegionLink) continue;
+
+            float weight = weights[HashBetween(regionLink, toRegionLink)].cost;
+            Vector3 from = regionLink.anchor.ToVector3();
+            from.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
+            Vector3 to = toRegionLink.anchor.ToVector3();
+            to.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
+            GenDraw.DrawLineBetween(from, to, VehicleRegionLink.WeightColor(weight));
+          }
+        }
+
+        foreach (VehicleRegion region in Neighbors)
+        {
+          foreach (VehicleRegionLink regionLink in Links)
+          {
+            foreach (VehicleRegionLink toRegionLink in region.Links)
+            {
+              if (regionLink == toRegionLink) continue;
+              if (regionLink.RegionA != this && regionLink.RegionB != this) continue;
+
+              float weight = region.weights[HashBetween(regionLink, toRegionLink)].cost;
+              Vector3 from = regionLink.anchor.ToVector3();
+              from.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
+              Vector3 to = toRegionLink.anchor.ToVector3();
+              to.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
+              GenDraw.DrawLineBetween(from, to, VehicleRegionLink.WeightColor(weight));
+            }
+          }
+        }
+      }
+#endif
+    }
+
+    /// <summary>
+    /// Debug draw region path costs when mouse is over
+    /// </summary>
+    public void DebugOnGUIMouseover(DebugRegionType debugRegionType)
+    {
+      if (debugRegionType.HasFlag(DebugRegionType.PathCosts))
+      {
+        if (Find.CameraDriver.CurrentZoom <= CameraZoomRange.Close)
+        {
+          foreach (IntVec3 intVec in Cells)
+          {
+            Vector2 vector = intVec.ToUIPosition();
+            Rect rect = new Rect(vector.x - 20f, vector.y - 20f, 40f, 40f);
+            if (new Rect(0f, 0f, UI.screenWidth, UI.screenHeight).Overlaps(rect))
+            {
+              Widgets.Label(rect,
+                Map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehiclePathGrid
+                 .PerceivedPathCostAt(intVec).ToString());
+            }
+          }
+        }
+      }
+      else if (debugRegionType.HasFlag(DebugRegionType.References))
+      {
+        if (Find.CameraDriver.CurrentZoom <= CameraZoomRange.Close)
+        {
+          IntVec3 cell = new(extentsClose.minX, 0, extentsClose.minZ);
+          Vector2 vector = cell.ToUIPosition();
+          Rect rect = new Rect(vector.x - 20f, vector.y - 20f, 40f, 40f);
+          if (new Rect(0f, 0f, UI.screenWidth, UI.screenHeight).Overlaps(rect))
+          {
+            Widgets.Label(rect, ReferenceCount.ToString());
+          }
+        }
+      }
+    }
+
+    public static CellRect ChunkAt(IntVec3 cell)
+    {
+      return new CellRect
+      {
+        minX = cell.x - cell.x % GridSize,
+        maxX = cell.x + GridSize - (cell.x + GridSize) % GridSize - 1,
+        minZ = cell.z - cell.z % GridSize,
+        maxZ = cell.z + GridSize - (cell.z + GridSize) % GridSize - 1
+      };
+    }
+
+    /// <summary>
+    /// Hashcode
+    /// </summary>
+    public override int GetHashCode()
+    {
+      return precalculatedHashCode;
+    }
+
+    /// <summary>
+    /// Equate regions by id
+    /// </summary>
+    /// <param name="obj"></param>
+    public override bool Equals(object obj)
+    {
+      return obj is VehicleRegion region && Equals(region);
+    }
+
+    public bool Equals(VehicleRegion region)
+    {
+      return region?.id == id;
+    }
+
+    public static bool operator ==(VehicleRegion lhs, VehicleRegion rhs)
+    {
+      if (lhs is null)
+      {
+        return rhs is null;
+      }
+
+      return lhs.Equals(rhs);
+    }
+
+    public static bool operator !=(VehicleRegion lhs, VehicleRegion rhs)
+    {
+      return !(lhs == rhs);
+    }
+
+    // TODO - should be made readonly
+    public struct Weight
+    {
+      public VehicleRegionLink linkA;
+      public VehicleRegionLink linkB;
+      public int cost;
+
+      public readonly bool IsValid => linkA != null && linkB != null;
+
+      public Weight(VehicleRegionLink linkA, VehicleRegionLink linkB, int cost)
+      {
+        this.linkA = linkA;
+        this.linkB = linkB;
+        this.cost = cost;
+      }
+    }
+  }
 }

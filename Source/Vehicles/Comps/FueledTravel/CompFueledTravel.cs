@@ -1,15 +1,14 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using UnityEngine;
+using System.Text;
 using HarmonyLib;
+using RimWorld;
+using SmashTools;
+using UnityEngine;
 using Verse;
 using Verse.AI;
-using RimWorld;
-using RimWorld.Planet;
-using SmashTools;
-using System.Text;
 
 namespace Vehicles
 {
@@ -21,6 +20,7 @@ namespace Vehicles
 		public const float MaxTicksPerLeak = 400;
 
 		public const float EfficiencyTickMultiplier = 1f / GenDate.TicksPerDay;
+		public const float EfficiencyIdleMultiplier = 0.5f;
 		public const float CellOffsetIntVec3ToVector3 = 0.5f;
 		public const float TicksToCharge = 120;
 
@@ -261,11 +261,13 @@ namespace Vehicles
 
 		public virtual void ConsumeFuelWorld()
 		{
-			if (fuel <= 0f)
-			{
-				return;
-			}
-			fuel -= ConsumptionRatePerTick * Props.fuelConsumptionWorldMultiplier;
+			if (fuel <= 0f) return;
+
+			float fuelToConsume = ConsumptionRatePerTick * Props.fuelConsumptionWorldMultiplier;
+			VehicleCaravan caravan = Vehicle.GetVehicleCaravan();
+			if (!caravan.vehiclePather.Moving) fuelToConsume *= EfficiencyIdleMultiplier;
+
+			fuel -= fuelToConsume;
 			if (fuel <= 0f)
 			{
 				fuel = 0f;
@@ -427,7 +429,10 @@ namespace Vehicles
 
 		public override void CompTick()
 		{
-			ConsumeFuel(ConsumptionRatePerTick);
+			float fuelToConsume = ConsumptionRatePerTick;
+			if (!Vehicle.vehiclePather.Moving) fuelToConsume *= EfficiencyIdleMultiplier;
+			ConsumeFuel(fuelToConsume);
+
 			if (!terminateMotes && !Props.motesGenerated.NullOrEmpty())
 			{
 				if (Find.TickManager.TicksGame % Props.ticksToSpawnMote == 0)
@@ -600,6 +605,8 @@ namespace Vehicles
 		public override void PostGeneration()
 		{
 			base.PostGeneration();
+			targetFuelLevel = FuelCapacity;
+			targetFuelPercent = 1;
 			if (Vehicle.Faction != Faction.OfPlayer)
 			{
 				Refuel(FuelCapacity * Rand.Range(0.45f, 0.85f));
@@ -609,11 +616,6 @@ namespace Vehicles
 		public override void PostSpawnSetup(bool respawningAfterLoad)
 		{
 			base.PostSpawnSetup(respawningAfterLoad);
-			if (!respawningAfterLoad)
-			{
-				targetFuelLevel = FuelCapacity;
-				targetFuelPercent = 1;
-			}
 
 			RevalidateConsumptionStatus();
 

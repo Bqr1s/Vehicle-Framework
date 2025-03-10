@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Verse;
 using RimWorld;
 using SmashTools;
+using SmashTools.Performance;
+using Verse;
+using Verse.AI;
 
 namespace Vehicles
 {
@@ -11,6 +13,7 @@ namespace Vehicles
 	{
 		private static List<IntVec3> mapEdgeCells;
 		private static IntVec3 mapEdgeCellsSize;
+		private static List<VehicleRegion> workingRegions = new List<VehicleRegion>();
 
 		public static bool TryFindRandomEdgeCell(Rot4 dir, Map map, Predicate<IntVec3> validator, int offset, out IntVec3 result)
 		{
@@ -135,16 +138,80 @@ namespace Vehicles
 			return pawn.ClampToMap(CellFinder.RandomEdgeCell(dir, map), map, padding);
 		}
 
-		public static bool TryFindRandomReachableCellNear(IntVec3 root, Map map, VehicleDef vehicleDef, float radius, TraverseParms traverseParms, Predicate<IntVec3> validator, Predicate<VehicleRegion> regionValidator, out IntVec3 result)
+		public static bool TryFindRandomReachableCellNear(IntVec3 root, Map map, VehicleDef vehicleDef, float radius, TraverseParms traverseParms, 
+			Predicate<IntVec3> extraValidator, Predicate<VehicleRegion> regionValidator, out IntVec3 result, int maxRegions = 999999)
 		{
 			if (map is null)
 			{
-				Log.ErrorOnce("Tried to find reachable cell using SPExtended in a null map", 61037855);
+				Log.Error("Tried to find reachable cell using a null map");
 				result = IntVec3.Invalid;
 				return false;
 			}
-			Rot4 dir = Find.World.CoastDirectionAt(map.Tile).IsValid ? Find.World.CoastDirectionAt(map.Tile) : !Find.WorldGrid[map.Tile].Rivers.NullOrEmpty() ? Ext_Map.RiverDirection(map) : Rot4.Invalid;
-			return TryFindRandomEdgeCell(dir, map, (IntVec3 c) => GenGridVehicles.Standable(c, vehicleDef, map) && !c.Fogged(map), 0, out result);
+			//return TryFindRandomEdgeCell(Rot4.Invalid, map, (IntVec3 c) => GenGridVehicles.Standable(c, vehicleDef, map) && !c.Fogged(map), 0, out result);
+
+			VehicleRegion region = VehicleRegionAndRoomQuery.RegionAt(root, map, vehicleDef, RegionType.Set_Passable);
+			if (region == null)
+			{
+				result = IntVec3.Invalid;
+				return false;
+			}
+			workingRegions.Clear();
+			float radSquared = radius * radius;
+			VehicleRegionTraverser.BreadthFirstTraverse(root, map, vehicleDef,
+				(VehicleRegion from, VehicleRegion to) => to.Allows(traverseParms, true) 
+				&& (radius > 1000f || to.extentsClose.ClosestDistSquaredTo(root) <= radSquared)
+				&& (regionValidator == null || regionValidator(to)), 
+				delegate (VehicleRegion region)
+			{
+				workingRegions.Add(region);
+				return false;
+			}, maxRegions, RegionType.Set_Passable);
+			
+			while (workingRegions.Count > 0)
+			{
+				VehicleRegion currentRegion = workingRegions.RandomElementByWeight((VehicleRegion region) => region.CellCount);
+				if (currentRegion.TryFindRandomCellInRegion(Validator, out result))
+				{
+					workingRegions.Clear();
+					return true;
+				}
+				workingRegions.Remove(currentRegion);
+			}
+			result = IntVec3.Invalid;
+			workingRegions.Clear();
+			return false;
+
+			bool Validator(IntVec3 cell)
+			{
+				return (cell - root).LengthHorizontalSquared <= radSquared && (extraValidator == null || extraValidator(cell));
+			}
+		}
+
+		public static bool TryFindRandomCellInRegion(this VehicleRegion region, Predicate<IntVec3> validator, out IntVec3 result)
+		{
+			for (int i = 0; i < 10; i++)
+			{
+				result = region.RandomCell;
+				if (validator == null || validator(result))
+				{
+					return true;
+				}
+			}
+			List<IntVec3> cells = AsyncPool<List<IntVec3>>.Get();
+			cells.AddRange(region.Cells);
+			cells.Shuffle();
+			for (int j = 0; j < cells.Count; j++)
+			{
+				result = cells[j];
+				if (validator == null || validator(result))
+				{
+					return true;
+				}
+			}
+			result = region.RandomCell;
+			cells.Clear();
+			AsyncPool<List<IntVec3>>.Return(cells);
+			return false;
 		}
 
 		public static IntVec3 RandomClosewalkCellNear(IntVec3 root, Map map, VehicleDef vehicleDef, int radius, Predicate<IntVec3> validator = null)
@@ -272,6 +339,124 @@ namespace Vehicles
 
 			result = IntVec3.Invalid;
 			return false;
+		}
+
+		public static bool TryFindRandomExitSpot(VehiclePawn vehicle, out IntVec3 dest, TraverseMode mode = TraverseMode.ByPawn)
+		{
+			Assert.IsTrue(vehicle.Spawned, "Trying to find exit spot for despawned vehicle.");
+
+			Map map = vehicle.Map;
+			VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+			VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
+
+			Danger maxDanger = Danger.Some;
+			IntVec3 cell;
+			for (int i = 0; i < 40; i++)
+			{
+				// Increase danger tolerance in hopes of finding any spot to exit
+				if (i > 15)
+				{
+					maxDanger = Danger.Deadly;
+				}
+				// NOTE - It's faster to just pull a random cell + random direction and then adjust to the edge,
+				// than it is to fetch a random cell from the list of edge cells. Needing padding won't change that
+				cell = CellFinder.RandomCell(map);
+				int dir = Rand.RangeInclusive(0, 3); // Just use int instead of casting back and forth from Rot4.Random
+				switch (dir)
+				{
+					case 0:
+						cell.x = 0;
+						break;
+					case 1:
+						cell.x = map.Size.x - 1;
+						break;
+					case 2:
+						cell.z = 0;
+						break;
+					case 3:
+						cell.z = map.Size.z - 1;
+						break;
+				}
+				cell = cell.PadForHitbox(map, vehicle.VehicleDef);
+				if (Validator(cell))
+				{
+					dest = cell;
+					return true;
+				}
+			}
+			dest = vehicle.Position;
+			return false;
+
+			bool Validator(IntVec3 cell)
+			{
+				IntVec3 paddedCell = cell.PadForHitbox(map, vehicle);
+				return pathData.VehicleReachability.CanReachVehicle(vehicle.Position, paddedCell,
+					PathEndMode.OnCell, mode, maxDanger);
+			}
+		}
+
+		public static bool TryFindBestExitSpot(VehiclePawn vehicle, out IntVec3 cell, TraverseMode mode = TraverseMode.ByPawn)
+		{
+			Assert.IsTrue(vehicle.Spawned, "Trying to find exit spot for despawned vehicle.");
+
+			cell = IntVec3.Invalid;
+			Map map = vehicle.Map;
+			VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+			VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
+			if (!pathData.VehicleReachability.CanReachMapEdge(vehicle.Position, TraverseParms.For(vehicle)))
+			{
+				return false;
+			}
+			// More attempts allowed than vanilla since failing to find an exit location for vehicles would mean
+			// ditching. This may have a non-negligeable impact on game balance for maps with narrow map edges.
+			int sqrRadius = 0;
+			for (int i = 0; i < 100; i++)
+			{
+				sqrRadius += 4;
+				if (!CellFinder.TryFindRandomCellNear(vehicle.Position, map, sqrRadius, null, out IntVec3 searchCell))
+				{
+					continue;
+				}
+				int x = searchCell.x;
+				cell = new IntVec3(0, 0, searchCell.z).PadForHitbox(map, vehicle.VehicleDef);
+				if (vehicle.Map.Size.z - searchCell.z < x)
+				{
+					x = map.Size.z - searchCell.z;
+					cell = new IntVec3(searchCell.x, 0, map.Size.z - 1).PadForHitbox(map, vehicle.VehicleDef);
+				}
+				if (map.Size.x - searchCell.x < x)
+				{
+					x = map.Size.x - searchCell.x;
+					cell = new IntVec3(map.Size.x - 1, 0, searchCell.z).PadForHitbox(map, vehicle.VehicleDef);
+				}
+				if (searchCell.z < x)
+				{
+					cell = new IntVec3(searchCell.x, 0, 0).PadForHitbox(map, vehicle.VehicleDef);
+				}
+				if (cell.Standable(vehicle, map) &&
+					pathData.VehicleReachability.CanReachVehicle(vehicle.Position, cell, PathEndMode.OnCell, mode, Danger.Deadly))
+				{
+					return true;
+				}
+			}
+
+			// Last attempt to find any exit location before giving up and ditching vehicle
+			for (int i = 0; i < Rot4.RotationCount; i++)
+			{
+				if (CellFinderExtended.TryFindRandomEdgeCellWith(Validator, map, new Rot4(i), vehicle.VehicleDef, 0, out cell))
+				{
+					return true;
+				}
+			}
+			cell = IntVec3.Invalid;
+			return false;
+
+			bool Validator(IntVec3 cell)
+			{
+				IntVec3 paddedCell = cell.PadForHitbox(map, vehicle);
+				return pathData.VehicleReachability.CanReachVehicle(vehicle.Position, paddedCell,
+					PathEndMode.OnCell, TraverseParms.For(vehicle));
+			}
 		}
 
 		public static bool TryRadialSearchForCell(IntVec3 cell, Map map, float radius, Predicate<IntVec3> validator, out IntVec3 result)

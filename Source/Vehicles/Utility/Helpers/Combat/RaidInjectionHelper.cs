@@ -38,16 +38,17 @@ namespace Vehicles
 			{
 				return false;
 			}
-			if (!vehicleDef.enabled.HasFlag(VehicleEnabledFor.Raiders))
+			if (!vehicleDef.enabled.HasFlag(VehicleEnabled.For.Raiders))
 			{
 				return false;
 			}
-			if (vehicleDef.npcProperties?.raidParamsDef != null)
+			if (vehicleDef.npcProperties == null)
 			{
-				if (!vehicleDef.npcProperties.raidParamsDef.Allows(faction, arrivalModeDef))
-				{
-					return false;
-				}
+				return false;
+			}
+			if (vehicleDef.npcProperties.raidParams != null && !vehicleDef.npcProperties.raidParams.Allows(faction, arrivalModeDef))
+			{
+				return false;
 			}
 			return true;
 		}

@@ -11,7 +11,7 @@ namespace Vehicles
 	[HeaderTitle(Label = "VF_Properties", Translate = true)]
 	public class VehicleProperties
 	{
-#if !FISHING_DISABLED
+#if FISHING
 		[PostToSettings(Label = "VF_FishingEnabled", Tooltip = "VF_FishingEnabledTooltip", Translate = true, UISettingsType = UISettingsType.Checkbox, VehicleType = VehicleType.Sea)]
 		[DisableSettingConditional(MayRequireAny = new string[] { CompatibilityPackageIds.VE_Fishing })]
 #endif
@@ -26,11 +26,23 @@ namespace Vehicles
 		[SliderValues(MinValue = 0, MaxValue = 2, Increment = 0.05f, RoundDecimalPlaces = 2)]
 		public float pawnCollisionRecoilMultiplier = 0.5f;
 
-		public List<VehicleJobLimitations> vehicleJobLimitations = new List<VehicleJobLimitations>();
+		public List<VehicleJobLimitations> vehicleJobLimitations = [];
 
 		public bool diagonalRotation = true;
 		[PostToSettings(Label = "VF_ManhunterTargetsVehicle", Tooltip = "VF_ManhunterTargetsVehicleTooltip", Translate = true, UISettingsType = UISettingsType.Checkbox)]
 		public bool manhunterTargetsVehicle = false;
+		[PostToSettings(Label = "VF_CanAdaptToEMP", Tooltip = "VF_CanAdaptToEMPTooltip", Translate = true, UISettingsType = UISettingsType.Checkbox)]
+		[DisableSettingConditional(MemberType = typeof(VehicleDef), Property = nameof(VehicleDef.CanDisableEMPSetting), DisableIfEqualTo = true, DisableReason = "VF_VehicleCannotStun")]
+		public bool canAdaptToEMP = false;
+
+		/// <summary>
+		/// Player-facing only, allowing players to disable emp stuns for a vehicle without having to modify components via patches.
+		/// Only enabled if any component within the vehicle has an emp severity > None.
+		/// </summary>
+		[Unsaved]
+		[PostToSettings(Label = "VF_EMPStuns", Tooltip = "VF_EMPStunsTooltip", Translate = true, UISettingsType = UISettingsType.Checkbox)]
+		[DisableSettingConditional(MemberType = typeof(VehicleDef), Property = nameof(VehicleDef.CanDisableEMPSetting), DisableIfEqualTo = true, DisableReason = "VF_VehicleCannotStun")]
+		public bool empStuns = false;
 
 		public string iconTexPath;
 		public bool generateThingIcon = true;
@@ -101,7 +113,7 @@ namespace Vehicles
 			customTerrainCosts ??= new SimpleDictionary<TerrainDef, int>();
 			customThingCosts ??= new SimpleDictionary<ThingDef, int>();
 			customSnowCategoryTicks ??= new SimpleDictionary<SnowCategory, int>();
-			
+
 			if (riverCost > 0)
 			{
 				float minWidth = vehicleDef.Size.x * Ext_Math.Sqrt2;
@@ -121,6 +133,8 @@ namespace Vehicles
 					role.ResolveReferences(vehicleDef);
 				}
 			}
+			empStuns = SettingsCache.TryGetValue(vehicleDef, typeof(VehicleProperties), nameof(empStuns), 
+				fallback: vehicleDef.components.NotNullAndAny(props => props.empSeverity > VehicleEMPSeverity.None));
 		}
 
 		public void PostDefDatabase(VehicleDef vehicleDef)

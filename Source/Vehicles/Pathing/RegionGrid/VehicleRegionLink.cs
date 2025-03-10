@@ -1,207 +1,149 @@
-﻿using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Collections.Generic;
-using Verse;
-using UnityEngine;
+﻿using System;
 using SmashTools;
-using System.Threading;
+using SmashTools.Performance;
+using UnityEngine;
+using Verse;
 
 namespace Vehicles
 {
-	/// <summary>
-	/// Link between regions for reachability determination
-	/// </summary>
-	[StaticConstructorOnStartup] //Necessary for initializing static data before being accessed from outside main thread
-	public class VehicleRegionLink
-	{
-		private const float WeightColorCeiling = 30;
+  /// <summary>
+  /// Link between regions for reachability determination
+  /// </summary>
+  public class VehicleRegionLink : IPoolable
+  {
+    private const float WeightColorCeiling = 30;
 
-		public VehicleRegion[] regions = new VehicleRegion[2];
+    public VehicleRegion regionA;
+    public VehicleRegion regionB;
 
-		private EdgeSpan span;
+    public EdgeSpan span;
+    public IntVec3 anchor;
 
-		public IntVec3 anchor;
+    // RegionLink color weights
+    internal static readonly LinearPool<SimpleColor> colorWeights = new LinearPool<SimpleColor>
+    {
+      range = new FloatRange(0, WeightColorCeiling),
+      items =
+      [
+        SimpleColor.White,
+        SimpleColor.Green,
+        SimpleColor.Yellow,
+        SimpleColor.Orange,
+        SimpleColor.Red,
+        SimpleColor.Magenta
+      ]
+    };
 
-		private static readonly LinearPool<SimpleColor> colorWeights = new LinearPool<SimpleColor>
-		{
-			range = new FloatRange(0, WeightColorCeiling),
-			items = new List<SimpleColor>()
-			{
-				SimpleColor.White,
-				SimpleColor.Green,
-				SimpleColor.Yellow,
-				SimpleColor.Orange,
-				SimpleColor.Red,
-				SimpleColor.Magenta
-			}
-		};
+    public VehicleRegionLink()
+    {
+      ObjectCounter.Increment<VehicleRegionLink>();
+    }
 
-		/// <summary>
-		/// Region A of link
-		/// </summary>
-		public VehicleRegion RegionA
-		{
-			get
-			{
-				return regions[0];
-			}
-			set
-			{
-				regions[0] = value;
-			}
-		}
+    public bool InPool { get; set; }
 
-		/// <summary>
-		/// Region B of link
-		/// </summary>
-		public VehicleRegion RegionB
-		{
-			get
-			{
-				return regions[1];
-			}
-			set
-			{
-				regions[1] = value;
-			}
-		}
+    // If only 1 is null, the span should be registered in VehicleRegionLinkDatabase
+    // as a half link, and not registered in a region as a full link. It will still be
+    // invalid for reachability checks.
+    public bool IsValid => regionA != null || regionB != null;
 
-		public EdgeSpan Span
-		{
-			get
-			{
-				return span;
-			}
-			set
-			{
-				span = value;
-				ResetAnchors();
-			}
-		}
+    public void SetNew(EdgeSpan span)
+    {
+      Reset();
+      this.span = span;
+      this.anchor = VehicleRegionCostCalculator.RegionLinkCenter(this);
+    }
 
-		/// <summary>
-		/// Register region for region linking
-		/// </summary>
-		/// <param name="reg"></param>
-		public void Register(VehicleRegion reg)
-		{
-			if (regions[0] == reg || regions[1] == reg)
-			{
-				Log.Error($"Tried to double-register vehicle region {reg} in {this}.");
-				return;
-			}
-			if (RegionA is null || !RegionA.valid)
-			{
-				RegionA = reg;	
-			}
-			else if (RegionB is null || !RegionB.valid)
-			{
-				RegionB = reg;
-			}
-		}
+    public void Reset()
+    {
+      regionA = null;
+      regionB = null;
+    }
 
-		/// <summary>
-		/// Deregister and recache region for region linking
-		/// </summary>
-		/// <param name="reg"></param>
-		public VehicleRegion Deregister(VehicleRegion region, VehicleDef vehicleDef)
-		{
-			if (RegionA == region)
-			{
-				RegionA = null;
-				if (RegionB is null)
-				{
-					VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(region.Map);
-					mapping?[vehicleDef].VehicleRegionLinkDatabase.Notify_LinkHasNoRegions(this);
-				}
-				else
-				{
-					return RegionB;
-				}
-			}
-			else if (RegionB == region)
-			{
-				RegionB = null;
-				if (RegionA is null)
-				{
-					VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(region.Map);
-					mapping?[vehicleDef].VehicleRegionLinkDatabase.Notify_LinkHasNoRegions(this);
-				}
-				else
-				{
-					return RegionA;
-				}
-			}
-			return null;
-		}
+    public void Register(VehicleRegion region)
+    {
+      // RegionLinks can double register if the same region is used
+      // and the links remained the same
+      if (regionA == region || regionB == region) return;
 
-		public void ResetAnchors()
-		{
-			anchor = VehicleRegionCostCalculator.RegionLinkCenter(this);
-		}
+      if (regionA is null || !regionA.valid)
+      {
+        regionA = region;
+      }
+      else if (regionB is null || !regionB.valid)
+      {
+        regionB = region;
+      }
+    }
 
-		/// <summary>
-		/// Draws <paramref name="weight"/> on map from this link to <paramref name="regionLink"/>
-		/// </summary>
-		/// <param name="map"></param>
-		/// <param name="regionLink"></param>
-		/// <param name="weight"></param>
-		public void DrawWeight(Map map, VehicleRegionLink regionLink, float weight, int duration = 50)
-		{
-			Vector3 from = anchor.ToVector3();
-			from.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
-			Vector3 to = regionLink.anchor.ToVector3();
-			to.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
-			map.DrawLine_ThreadSafe(from, to, color: WeightColor(weight), duration: duration);
-		}
+    /// <returns>Link is invalid and can be removed from cache</returns>
+    public void Deregister(VehicleRegion region)
+    {
+      if (regionA == region)
+      {
+        regionA = null;
+      }
+      else if (regionB == region)
+      {
+        regionB = null;
+      }
+    }
 
-		private static IntVec3 CellInSpan(EdgeSpan span, int length)
-		{
-			if (span.dir == SpanDirection.North)
-			{
-				return new IntVec3(span.root.x, 0, span.root.z + length);
-			}
-			return new IntVec3(span.root.x + length, 0, span.root.z);
-		}
+    public bool LinksRegions(VehicleRegion regionA, VehicleRegion regionB)
+    {
+      return (this.regionA == regionA && this.regionB == regionB) ||
+        (this.regionA == regionB && this.regionB == regionA);
+    }
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static SimpleColor WeightColor(float weight)
-		{
-			return colorWeights.Evaluate(weight);
-		}
+    /// <summary>
+    /// Draws <paramref name="weight"/> on map from this link to <paramref name="regionLink"/>
+    /// </summary>
+    public void DrawWeight(Map map, in VehicleRegionLink regionLink, float weight,
+      int duration = 50)
+    {
+      Vector3 from = anchor.ToVector3();
+      from.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
+      Vector3 to = regionLink.anchor.ToVector3();
+      to.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
+      map.DrawLine_ThreadSafe(from, to, color: WeightColor(weight), duration: duration);
+    }
 
-		/// <summary>
-		/// Get opposite region linking to <paramref name="region"/>
-		/// </summary>
-		/// <param name="reg"></param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public VehicleRegion GetOtherRegion(VehicleRegion region)
-		{
-			return (region != RegionA) ? RegionA : RegionB;
-		}
+    /// <summary>
+    /// Get opposite region linking to <paramref name="region"/>
+    /// </summary>
+    public VehicleRegion GetOtherRegion(VehicleRegion region)
+    {
+      return (region != regionA) ? regionA : regionB;
+    }
 
-		public VehicleRegion GetInFacingRegion(VehicleRegionLink regionLink)
-		{
-			if (RegionA == regionLink.RegionA || RegionA == regionLink.RegionB) return RegionA;
-			if (RegionB == regionLink.RegionB || RegionB == regionLink.RegionA) return RegionB;
-			Log.Warning($"Attempting to fetch region between links {anchor} and {regionLink.anchor}, but they do not share a region.\n--- Regions ---\n{RegionA}\n{RegionB}\n{regionLink.RegionA}\n{regionLink.RegionB}\n");
-			return null;
-		}
+    public VehicleRegion GetInFacingRegion(VehicleRegionLink regionLink)
+    {
+      if (regionA == regionLink.regionA || regionA == regionLink.regionB) return regionA;
+      if (regionB == regionLink.regionB || regionB == regionLink.regionA) return regionB;
+      Log.Warning($"Attempting to fetch region between links {anchor} and {regionLink.anchor}, " +
+        $"but they do not share a region.\n--- Regions ---\n{regionA}\n{regionB}\n" +
+        $"{regionLink.regionA}\n{regionLink.regionB}\n");
+      return null;
+    }
 
-		/// <summary>
-		/// Hashcode for cache data
-		/// </summary>
-		public ulong UniqueHashCode()
-		{
-			return span.UniqueHashCode();
-		}
+    /// <summary>
+    /// Hashcode for cache data
+    /// </summary>
+    public ulong UniqueHashCode()
+    {
+      return span.UniqueHashCode();
+    }
 
-		/// <summary>
-		/// String output with data
-		/// </summary>
-		public override string ToString()
-		{
-			return $"({regions.Where(region => region != null).Select(region => region.id.ToString()).ToCommaList(false)}, regions=[spawn={span}, hash={UniqueHashCode()}])";
-		}
-	}
+    /// <summary>
+    /// String output with data
+    /// </summary>
+    public override string ToString()
+    {
+      return $"({regionA.ID},{regionB.ID}, regions=[spawn={span}, hash={UniqueHashCode()}])";
+    }
+
+    public static SimpleColor WeightColor(float weight)
+    {
+      return colorWeights.Evaluate(weight);
+    }
+  }
 }

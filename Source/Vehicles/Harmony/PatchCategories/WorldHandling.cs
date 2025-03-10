@@ -47,12 +47,14 @@ namespace Vehicles
 			VehicleHarmony.Patch(original: AccessTools.Method(typeof(MainButtonWorker_ToggleWorld), nameof(MainButtonWorker_ToggleWorld.Activate)),
 				prefix: new HarmonyMethod(typeof(WorldHandling),
 				nameof(ForcedTargetingDontToggleWorld)));
-			VehicleHarmony.Patch(original: AccessTools.Constructor(typeof(Dialog_Trade), parameters: new Type[] { typeof(Pawn), typeof(ITrader), typeof(bool) }),
-				postfix: new HarmonyMethod(typeof(WorldHandling),
-				nameof(SetupPlayerAerialVehicleVariables)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Dialog_Trade), nameof(Dialog_Trade.DoWindowContents)),
-				prefix: new HarmonyMethod(typeof(WorldHandling),
-				nameof(DrawAerialVehicleInfo)));
+
+			// TODO - REMOVE AFTER TESTING
+			//VehicleHarmony.Patch(original: AccessTools.Constructor(typeof(Dialog_Trade), parameters: new Type[] { typeof(Pawn), typeof(ITrader), typeof(bool) }),
+			//	postfix: new HarmonyMethod(typeof(WorldHandling),
+			//	nameof(SetupPlayerAerialVehicleVariables)));
+			//VehicleHarmony.Patch(original: AccessTools.Method(typeof(Dialog_Trade), nameof(Dialog_Trade.DoWindowContents)),
+			//	prefix: new HarmonyMethod(typeof(WorldHandling),
+			//	nameof(DrawAerialVehicleInfo)));
 
 			/* World Targeter Event Handling */
 			VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldTargeter), nameof(WorldTargeter.TargeterUpdate)),
@@ -64,9 +66,6 @@ namespace Vehicles
 			VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldTargeter), nameof(WorldTargeter.ProcessInputEvents)),
 				postfix: new HarmonyMethod(typeof(WorldHandling),
 				nameof(WorldTargeterProcessInputEvents)));
-			VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldTargeter), nameof(WorldTargeter.StopTargeting)),
-				postfix: new HarmonyMethod(typeof(WorldHandling),
-				nameof(WorldTargeterStop)));
 		}
 
 		/// <summary>
@@ -202,6 +201,10 @@ namespace Vehicles
 
 		public static void AllAerialVehicles_AliveOrDead(ref List<Pawn> __result)
 		{
+			if (VehicleWorldObjectsHolder.Instance == null)
+			{
+				return;
+			}
 			foreach (AerialVehicleInFlight aerialVehicle in VehicleWorldObjectsHolder.Instance.AerialVehicles)
 			{
 				__result.AddRange(aerialVehicle.vehicle.AllPawnsAboard);
@@ -300,26 +303,23 @@ namespace Vehicles
 			}
 		}
 
-		/* -------------------- Launch Targeter -------------------- */
+		/* -------------------- World Targeter -------------------- */
+
 		public static void WorldTargeterUpdate()
 		{
-			Targeters.UpdateWorldTargeters();
+			Targeters.UpdateWorldTargeter();
 		}
 
 		public static void WorldTargeterOnGUI()
 		{
-			Targeters.OnGUIWorldTargeters();
+			Targeters.OnGUIWorldTargeter();
 		}
 
 		public static void WorldTargeterProcessInputEvents()
 		{
-			Targeters.ProcessWorldTargeterInputEvents();
+			Targeters.ProcessWorldTargeterInputEvent();
 		}
 
-		public static void WorldTargeterStop()
-		{
-			Targeters.StopAllWorldTargeters();
-		}
 		/* --------------------------------------------------------- */
 	}
 }

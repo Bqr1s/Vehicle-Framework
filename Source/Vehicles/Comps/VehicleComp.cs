@@ -6,6 +6,7 @@ using Verse;
 using Verse.AI;
 using SmashTools;
 using UnityEngine;
+using SmashTools.Animations;
 
 namespace Vehicles
 {
@@ -42,7 +43,12 @@ namespace Vehicles
 		{
 		}
 
+		[Obsolete]
 		public virtual void PostDrawUnspawned(Vector3 drawLoc, Rot8 rot, float rotation)
+		{
+		}
+
+		public virtual void PostDrawUnspawned(ref readonly TransformData transform)
 		{
 		}
 

@@ -34,6 +34,9 @@ namespace Vehicles
 			VehicleHarmony.Patch(original: AccessTools.Method(typeof(BuildCopyCommandUtility), nameof(BuildCopyCommandUtility.BuildCopyCommand)),
 				prefix: new HarmonyMethod(typeof(Gizmos),
 				nameof(VehicleMaterialOnCopyBuildGizmo)));
+			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.GetGizmos)), prefix: null,
+				postfix: new HarmonyMethod(typeof(Gizmos),
+				nameof(ThingTransferToVehicleGizmo)));
 
 			VehicleHarmony.Patch(original: AccessTools.Method(typeof(Dialog_InfoCard), nameof(Dialog_InfoCard.DoWindowContents)),
 				prefix: new HarmonyMethod(typeof(Gizmos),
@@ -294,24 +297,45 @@ namespace Vehicles
 			return true;
 		}
 
-		public static bool VehicleInfoCardOverride(Rect inRect, Thing ___thing, ThingDef ___def)
+		public static bool VehicleInfoCardOverride(Rect inRect, Dialog_InfoCard __instance, Thing ___thing, ThingDef ___def, 
+			Dialog_InfoCard.InfoCardTab ___tab)
 		{
 			if (___def is VehicleBuildDef buildDef)
 			{
-				VehicleInfoCard.DrawFor(inRect, buildDef.thingToSpawn);
+				VehicleInfoCard.DrawFor(inRect, buildDef.thingToSpawn, __instance, ___tab);
 				return false;
 			}
 			else if (___thing is VehicleBuilding building)
 			{
-				VehicleInfoCard.DrawFor(inRect, building.VehicleDef);
+				VehicleInfoCard.DrawFor(inRect, building.VehicleDef, __instance, ___tab);
 				return false;
 			}
 			else if (___thing is VehiclePawn vehicle)
 			{
-				VehicleInfoCard.DrawFor(inRect, vehicle);
+				VehicleInfoCard.DrawFor(inRect, vehicle, __instance, ___tab);
 				return false;
 			}
 			return true;
+		}
+
+		public static IEnumerable<Gizmo> ThingTransferToVehicleGizmo(IEnumerable<Gizmo> __result, Thing __instance)
+		{
+			IEnumerator<Gizmo> enumerator = __result.GetEnumerator();
+
+			while (enumerator.MoveNext())
+			{
+				yield return enumerator.Current;
+			}
+
+			if (__instance.CanBeTransferredToVehiclesCargo())
+			{
+				yield return Command_TransferToVehicle_Order.Instance;
+
+				if (__instance.IsOrderedToBeTransferredToAnyVehicle())
+				{
+					yield return Command_TransferToVehicle_Cancel.Instance;
+				}
+			}
 		}
 	}
 }

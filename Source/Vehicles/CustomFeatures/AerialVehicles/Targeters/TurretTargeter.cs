@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 using Verse.Sound;
 using RimWorld;
 using SmashTools;
@@ -51,6 +52,7 @@ namespace Vehicles
 			Instance.mouseAttachment = mouseAttachment;
 			Instance.map = turret.vehicle.Map;
 
+			Instance.OnStart();
 			Turret.StartTicking();
 		}
 
@@ -91,7 +93,7 @@ namespace Vehicles
 					if (action != null)
 					{                      
 						LocalTargetInfo obj = CurrentTargetUnderMouse();
-						if (obj.Cell.InBounds(map) && TargetMeetsRequirements(Turret, obj))
+						if (obj.Cell.InBounds(map) && TargetingHelper.TargetMeetsRequirements(Turret, obj))
 						{
 							action(obj);
 							SoundDefOf.Tick_High.PlayOneShotOnCamera(null);
@@ -117,7 +119,7 @@ namespace Vehicles
 		{
 			if (action != null)
 			{
-				if (TargetMeetsRequirements(Turret, CurrentTargetUnderMouse()))
+				if (TargetingHelper.TargetMeetsRequirements(Turret, CurrentTargetUnderMouse()))
 				{
 					Texture2D icon = mouseAttachment ?? TexCommand.Attack;
 					GenUI.DrawMouseAttachment(icon);
@@ -130,7 +132,7 @@ namespace Vehicles
 			if (IsTargeting)
 			{
 				LocalTargetInfo mouseTarget = CurrentTargetUnderMouse();
-				if (TargetMeetsRequirements(Turret, mouseTarget))
+				if (TargetingHelper.TargetMeetsRequirements(Turret, mouseTarget))
 				{
 					GenDraw.DrawTargetHighlight(mouseTarget);
 					if (Turret.CurrentFireMode.spreadRadius > 1)
@@ -153,41 +155,6 @@ namespace Vehicles
 				return LocalTargetInfo.Invalid;
 			}
 			return GenUI.TargetsAtMouse(targetParams).FirstOrFallback(LocalTargetInfo.Invalid);
-		}
-
-		public static bool TargetMeetsRequirements(VehicleTurret turret, LocalTargetInfo target)
-		{
-			if (!turret.InRange(target))
-			{
-				return false;
-			}
-			if (!turret.AngleBetween(target.CenterVector3))
-			{
-				return false;
-			}
-			if (target == turret.vehicle)
-			{
-				return false;
-			}
-			ThingDef projectileDef = turret.ProjectileDef;
-			if (projectileDef.projectile.flyOverhead)
-			{
-				return true; //Skip LOS check
-			}
-			bool los = false;
-			if (target.HasThing)
-			{
-				if (!target.Thing.Spawned || target.Thing.Destroyed)
-				{
-					return false;
-				}
-				los = GenSight.LineOfSightToThing(turret.TurretLocation.ToIntVec3(), target.Thing, turret.vehicle.Map);
-			}
-			else
-			{
-				los = GenSight.LineOfSight(turret.TurretLocation.ToIntVec3(), target.Cell, turret.vehicle.Map);
-			}
-			return los;
 		}
 
 		public override void PostInit()

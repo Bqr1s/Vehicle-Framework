@@ -4,6 +4,8 @@ using System.Linq;
 using UnityEngine;
 using Verse;
 using SmashTools;
+using System.Threading;
+using SmashTools.Performance;
 
 namespace Vehicles
 {
@@ -15,7 +17,7 @@ namespace Vehicles
 		private static int nextRoomID;
 
 		public sbyte mapIndex = -1;
-		public int ID = -16161616;
+		public int id = -1;
 
 		private readonly VehicleDef vehicleDef;
 
@@ -25,6 +27,7 @@ namespace Vehicles
 		public VehicleRoom(VehicleDef vehicleDef)
 		{
 			this.vehicleDef = vehicleDef;
+			ObjectCounter.Increment<VehicleRoom>();
 		}
 
 		/// <summary>
@@ -51,7 +54,21 @@ namespace Vehicles
 		/// Room touches map edge
 		/// </summary>
 		public bool TouchesMapEdge => numRegionsTouchingMapEdge > 0;
-		
+
+		private IEnumerable<IntVec3> Cells
+		{
+			get
+			{
+				foreach (VehicleRegion region in Regions.Keys)
+				{
+					foreach (IntVec3 cell in region.Cells)
+					{
+						yield return cell;
+					}
+				}
+			}
+		}
+
 		/// <summary>
 		/// Create new room for <paramref name="vehicleDef"/>
 		/// </summary>
@@ -59,12 +76,13 @@ namespace Vehicles
 		/// <param name="vehicleDef"></param>
 		public static VehicleRoom MakeNew(Map map, VehicleDef vehicleDef)
 		{
+			int id = Interlocked.CompareExchange(ref nextRoomID, 0, 0);
 			VehicleRoom room = new VehicleRoom(vehicleDef)
 			{
 				mapIndex = (sbyte)map.Index,
-				ID = nextRoomID
+				id = id
 			};
-			nextRoomID++;
+			Interlocked.Increment(ref nextRoomID);
 			return room;
 		}
 
@@ -116,13 +134,25 @@ namespace Vehicles
 			}
 		}
 
+		internal void DebugDraw(DebugRegionType debugRegionType)
+		{
+			if (debugRegionType.HasFlag(DebugRegionType.Rooms))
+			{
+				float color = Rand.ValueSeeded(GetHashCode());
+				foreach (IntVec3 cell in Cells)
+				{
+					CellRenderer.RenderCell(cell, color);
+				}
+			}
+		}
+
 		/// <summary>
 		/// ID based hashcode
 		/// </summary>
 		/// <returns></returns>
 		public override int GetHashCode()
 		{
-			return Gen.HashCombineInt(ID, vehicleDef.GetHashCode());
+			return Gen.HashCombineInt(id, vehicleDef.GetHashCode());
 		}
 	}
 }

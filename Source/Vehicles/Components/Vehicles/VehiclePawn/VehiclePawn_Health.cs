@@ -82,7 +82,8 @@ namespace Vehicles
 		{
 			if (Spawned)
 			{
-				Map.GetCachedMapComponent<ListerVehiclesRepairable>().Notify_VehicleTookDamage(this);
+				animator?.SetBool(PropertyIds.Disabled, CanMove);
+				Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleTookDamage(this);
 			}
 		}
 
@@ -149,12 +150,11 @@ namespace Vehicles
 				vehiclePather.StopDead();
 			}
 			Map.GetCachedMapComponent<VehiclePositionManager>().ReleaseClaimed(this);
-			//Map.GetCachedMapComponent<VehicleRegionUpdateCatalog>().Notify_VehicleDespawned(this);
 			VehicleReservationManager reservationManager = Map.GetCachedMapComponent<VehicleReservationManager>();
 			reservationManager.ClearReservedFor(this);
 			reservationManager.RemoveAllListerFor(this);
 			cargoToLoad.Clear(); //Clear cargo when leaving map, otherwise pawns may attempt to access those items from another map
-			Map.GetCachedMapComponent<ListerVehiclesRepairable>().Notify_VehicleDespawned(this);
+			Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleDespawned(this);
 			EventRegistry[VehicleEventDefOf.Despawned].ExecuteEvents();
 			base.DeSpawn(mode);
 			SoundCleanup();
@@ -185,6 +185,31 @@ namespace Vehicles
 			}
 
 			base.Destroy(mode);
+		}
+
+		public virtual void DestroyPawns(DestroyMode mode = DestroyMode.Vanish)
+		{
+			for (int i = AllPawnsAboard.Count - 1; i >= 0; i--)
+			{
+				Pawn pawn = AllPawnsAboard[i];
+				AllPawnsAboard.RemoveAt(i);
+				pawn.Destroy(mode);
+			}
+			for (int i = inventory.innerContainer.Count - 1; i >= 0; i--)
+			{
+				Thing thing = inventory.innerContainer[i];
+				if (thing is Pawn pawn)
+				{
+					inventory.innerContainer.RemoveAt(i);
+					pawn.Destroy(mode);
+				}
+			}
+		}
+
+		public virtual void DestroyVehicleAndPawns(DestroyMode mode = DestroyMode.Vanish)
+		{
+			DestroyPawns(mode);
+			Destroy(mode);
 		}
 
 		public override void Kill(DamageInfo? dinfo, Hediff exactCulprit = null)
@@ -247,7 +272,7 @@ namespace Vehicles
 					bool pawnsLostAtSea = false;
 					foreach (Pawn pawn in AllPawnsAboard)
 					{
-						if (HediffHelper.AttemptToDrown(pawn))
+						if (HealthHelper.AttemptToDrown(pawn))
 						{
 							pawnsLostAtSea = true;
 							downWithShipString.AppendLine(pawn.LabelCap);
@@ -309,6 +334,11 @@ namespace Vehicles
 					case VehicleComponent.Penetration.Penetrated:
 						{
 							effecterDef = VehicleDef.BodyType.damageEffecter;
+						}
+						break;
+					case VehicleComponent.Penetration.Electrified:
+						{
+							effecterDef = VehicleDef.BodyType.electrifiedEffect;
 						}
 						break;
 					default:

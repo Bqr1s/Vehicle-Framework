@@ -201,7 +201,8 @@ namespace Vehicles
 			}
 			result.drawPos.y = AltitudeLayer.Skyfaller.AltitudeFor();
 			Rot8 rot = CurAnimationProperties.forcedRotation ?? vehicle.Rotation;
-			vehicle.DrawAt(result.drawPos, rot, result.rotation);
+			TransformData transform = new TransformData(result.drawPos, rot, result.rotation);
+			vehicle.DrawAt(in transform);
 			(DrawPos, Angle) = result;
 			if (VehicleMod.settings.main.aerialVehicleEffects)
 			{
@@ -268,7 +269,7 @@ namespace Vehicles
 		}
 
 		/// <summary>
-		/// Tick method for <see cref="AnimationManager"/> with total ticks passed since start.
+		/// Tick method for <see cref="AnimationSimulator"/> with total ticks passed since start.
 		/// </summary>
 		/// <param name="ticksPassed"></param>
 		protected virtual int AnimationEditorTick_Landing(int ticksPassed)

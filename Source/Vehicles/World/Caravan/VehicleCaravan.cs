@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using UnityEngine;
 using RimWorld;
 using RimWorld.Planet;
-using Verse;
 using SmashTools;
+using UnityEngine;
+using Verse;
 
 namespace Vehicles
 {
@@ -114,21 +114,6 @@ namespace Vehicles
 			}
 		}
 
-		public bool CanLaunch
-		{
-			get
-			{
-				foreach (VehiclePawn vehicle in vehicles)
-				{
-					if (vehicle.CompVehicleLauncher == null)
-					{
-						return false;
-					}
-				}
-				return true;
-			}
-		}
-
 		public bool OutOfFuel
 		{
 			get
@@ -141,6 +126,14 @@ namespace Vehicles
 					}
 				}
 				return false;
+			}
+		}
+
+		public bool VehicleCantMove
+		{
+			get
+			{
+				return VehiclesListForReading.Any(vehicle => !vehicle.CanMoveFinal);
 			}
 		}
 
@@ -272,9 +265,24 @@ namespace Vehicles
 						alsoClickIfOtherInGroupClicked = false,
 						action = delegate ()
 						{
-							LaunchTargeter.BeginTargeting(vehicle, (GlobalTargetInfo target, float fuelCost) => AerialVehicleLaunchHelper.ChoseTargetOnMap(vehicle, Tile, target, fuelCost), Tile, 
+							void LaunchAction() => LaunchTargeter.BeginTargeting(vehicle, (GlobalTargetInfo target, float fuelCost) =>
+								AerialVehicleLaunchHelper.ChoseTargetOnMap(vehicle, Tile, target, fuelCost), Tile,
 								true, VehicleTex.TargeterMouseAttachment, closeWorldTabWhenFinished: false, onUpdate: null,
-								extraLabelGetter: (GlobalTargetInfo target, List<FlightNode> path, float fuelCost) => vehicle.CompVehicleLauncher.launchProtocol.TargetingLabelGetter(target, Tile, path, fuelCost));
+								extraLabelGetter: (GlobalTargetInfo target, List<FlightNode> path, float fuelCost) =>
+								vehicle.CompVehicleLauncher.launchProtocol.TargetingLabelGetter(target, Tile, path, fuelCost));
+
+							int pawnCount = PawnsListForReading.Count;
+							if (pawnCount > vehicle.TotalSeats)
+							{
+								Find.WindowStack.Add(new Dialog_Confirm(
+									"VF_PawnsLeftBehindConfirm".Translate(),
+									"VF_PawnsLeftBehindConfirmDesc".Translate(),
+									LaunchAction));
+							}
+							else
+							{
+								LaunchAction();
+							}
 						}
 					};
 					if (!vehicle.CompVehicleLauncher.CanLaunchWithCargoCapacity(out string disableReason))
@@ -293,7 +301,7 @@ namespace Vehicles
 						icon = TexCommand.PauseCaravan,
 						hotKey = KeyBindingDefOf.Misc1,
 						isActive = () => vehiclePather.Paused,
-						toggleAction = delegate()
+						toggleAction = delegate ()
 						{
 							if (!vehiclePather.Moving)
 							{
@@ -321,27 +329,22 @@ namespace Vehicles
 						};
 					}
 
-					//Command_Action disembark = new Command_Action();
-					//disembark.icon = VehicleTex.Anchor;
-					//disembark.defaultLabel = "VF_CommandDisembark".Translate(); //settlement != null ? "VF_CommandDockShip".Translate() : "VF_CommandDockShipDisembark".Translate();
-					//disembark.defaultDesc = "VF_CommandDisembarkDesc".Translate(); //settlement != null ? "VF_CommandDockShipDesc".Translate(settlement) : "VF_CommandDockShipObjectDesc".Translate();
-					//disembark.action = delegate ()
-					//{
-					//	CaravanHelper.StashVehicles(this);
-					//};
+					Command_Action disembark = new Command_Action();
+					disembark.icon = VehicleTex.StashVehicle;
+					disembark.defaultLabel = "VF_CommandDisembark".Translate();
+					disembark.defaultDesc = "VF_CommandDisembarkDesc".Translate();
+					disembark.action = delegate ()
+					{
+						CaravanHelper.StashVehicles(this);
+					};
 
-					//Settlement settlement = Find.WorldObjects.SettlementBaseAt(Tile);
+					// If tile is impassable, normal caravan won't be able to return
+					if (Find.World.Impassable(Tile))
+					{
+						disembark.Disable("VF_CommandDisembarkImpassableBiome".Translate());
+					}
 
-					//if (Find.World.Impassable(Tile))
-					//{
-					//	disembark.Disable("VF_CommandDisembarkImpassableBiome".Translate());
-					//}
-					//if (settlement != null)
-					//{
-					//	disembark.Disable("CommandSettleFailAlreadyHaveBase".Translate());
-					//}
-
-					//yield return disembark;
+					yield return disembark;
 				}
 				foreach (Gizmo gizmo2 in forage.GetGizmos())
 				{
@@ -452,7 +455,7 @@ namespace Vehicles
 			float average = 1;
 			if (pawnCount > 0)
 			{
-				average = total /pawnCount;
+				average = total / pawnCount;
 			}
 			ConstructionAverage = average;
 
@@ -486,7 +489,7 @@ namespace Vehicles
 				}
 			}
 		}
-		
+
 		public override string GetInspectString()
 		{
 			StringBuilder stringBuilder = new StringBuilder();
@@ -562,11 +565,32 @@ namespace Vehicles
 				}
 				stringBuilder.Append("CaravanPawnsDowned".Translate(downed));
 			}
+			VehiclePawn vehicleIncapacitated = null;
+			string vehicleIncapReason = null;
 			foreach (VehiclePawn vehicle in VehiclesListForReading)
 			{
-				foreach (VehicleComp vehicleComp in vehicle.AllComps.Where(comp => comp is VehicleComp))
+				// We only care about the first, any incap. vehicle blocks the whole caravan from moving
+				// and checking roles + stats can be expensive if uncached.
+				if (vehicleIncapacitated == null)
 				{
-					vehicleComp.CompCaravanInspectString(stringBuilder);
+					if (!vehicle.CanMove)
+					{
+						vehicleIncapacitated = vehicle;
+						vehicleIncapReason = "VF_VehicleUnableToMove".Translate(vehicle);
+					}
+					else if (!vehicle.CanMoveWithOperators)
+					{
+						vehicleIncapacitated = vehicle;
+						vehicleIncapReason = "VF_NotEnoughToOperate".Translate();
+					}
+				}
+
+				foreach (ThingComp comp in vehicle.AllComps)
+				{
+					if (comp is VehicleComp vehicleComp)
+					{
+						vehicleComp.CompCaravanInspectString(stringBuilder);
+					}
 				}
 			}
 			if (mentalState > 0 || downed > 0)
@@ -607,7 +631,12 @@ namespace Vehicles
 				stringBuilder.AppendLine();
 				stringBuilder.Append("CaravanEstimatedTimeToDestination".Translate(estimatedDaysToArrive.ToString("0.#")));
 			}
-			if (AllOwnersDowned)
+			if (vehicleIncapacitated != null)
+			{
+				stringBuilder.AppendLine();
+				stringBuilder.Append(vehicleIncapReason);
+			}
+			else if (AllOwnersDowned)
 			{
 				stringBuilder.AppendLine();
 				stringBuilder.Append("AllCaravanMembersDowned".Translate());
@@ -746,7 +775,7 @@ namespace Vehicles
 			base.SpawnSetup();
 			RecacheVehicles();
 			vehicleTweener.ResetTweenedPosToRoot();
-			
+
 			//Necessary check for post load, otherwise registry will be null until spawned on map
 			foreach (VehiclePawn vehicle in vehicles)
 			{

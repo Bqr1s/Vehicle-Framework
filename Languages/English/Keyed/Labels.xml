@@ -20,6 +20,11 @@
 	<VF_UndraftVehicleDesc>Undrafts vehicle, disabling the consumption of fuel and disallowing movement.</VF_UndraftVehicleDesc>
 	<VF_RefuelFromInventory>Refuel From Inventory</VF_RefuelFromInventory>
 	<VF_VehicleFuelCost>Fuel: {0}</VF_VehicleFuelCost>
+
+	<VF_TransferToVehicle_Order>Transfer to vehicle</VF_TransferToVehicle_Order>
+	<VF_TransferToVehicle_Order_Desc>Transfer selected thing(s) to the target vehicle's cargo.</VF_TransferToVehicle_Order_Desc>
+	<VF_TransferToVehicle_Cancel>Cancel transfer</VF_TransferToVehicle_Cancel>
+	<VF_TransferToVehicle_Cancel_Desc>Cancel transfer of selected thing(s) to any vehicle's cargo.</VF_TransferToVehicle_Cancel_Desc>
 	
 	<!-- UI / Buttons -->
 	<VF_ShowAllItemsOnMap>Show All Items On Map</VF_ShowAllItemsOnMap>
@@ -40,10 +45,19 @@
 	<VF_StatsReport_CargoWeight>Cargo: {0}</VF_StatsReport_CargoWeight>
 	<VF_StatsReport_Deployed>Deployed</VF_StatsReport_Deployed>
 
+	<!-- Info Card -->
+	<VF_CrewCount>Crew</VF_CrewCount>
+	<VF_CrewCountDesc>Number of crew and passengers that can fit inside of this vehicle.</VF_CrewCountDesc>
+	<VF_PaintableDesc>Vehicle can be painted with patterns.</VF_PaintableDesc>
+	<VF_Upgradeable>Upgradeable</VF_Upgradeable>
+	<VF_UpgradeableDesc>Vehicle can be modifed through an upgrade tree.</VF_UpgradeableDesc>
+	<VF_FuelType>Fuel Type</VF_FuelType>
+	<VF_FuelTypeDesc>What resource this vehicle consumes in order to operate.</VF_FuelTypeDesc>
+	
 	<!-- Designators -->
 	<VF_RoadZoneExpand>Road area</VF_RoadZoneExpand>
 	<VF_RoadZoneExpandDesc>Create an area where vehicles will prioritize or avoid moving through.
-	
+
 'Prioritize' areas applied on the edge of the map will designate where vehicle caravans should enter from.</VF_RoadZoneExpandDesc>
 	<VF_RoadZoneClear>Clear road area</VF_RoadZoneClear>
 	<VF_RoadZoneClearDesc>Removes road zone. Vehicles will no longer have modified movement over the area.</VF_RoadZoneClearDesc>
@@ -52,7 +66,7 @@
 	<VF_RenameVehicleTooltip>Assign or clear name.</VF_RenameVehicleTooltip>
 	<VF_RecolorTooltip>Change colors or pattern.</VF_RecolorTooltip>
 	<VF_DoubleClickShuttleTarget>Click to Confirm Destination</VF_DoubleClickShuttleTarget>
-	<VF_SwapColors>Cycle colors between each other.\nColorOne -> ColorTwo -> ColorThree</VF_SwapColors>
+	<VF_SwapColors>Cycle colors between each other.\nColorOne -&gt; ColorTwo -&gt; ColorThree</VF_SwapColors>
 	<VF_StartFishing>Fish</VF_StartFishing>
 	<VF_StartFishingDesc>Gather fish. Depth of water affects fishing chances.</VF_StartFishingDesc>
 	<VF_ExplosiveComponent>Explosive</VF_ExplosiveComponent>
@@ -98,6 +112,7 @@
 	<VF_NoFlightSpeed>Unable to launch with Flight Speed = 0.</VF_NoFlightSpeed>
 	<VF_CannotLaunchWhileMoving>Cannot launch while {0} is moving.</VF_CannotLaunchWhileMoving>
 	<VF_CannotLaunchImmobile>{0} cannot launch without being able to move.</VF_CannotLaunchImmobile>
+	<VF_CannotLaunchRotated>{0} cannot launch at an angle.</VF_CannotLaunchRotated>
 	<VF_CannotLaunchOverEncumbered>{0} cannot launch while over-encumbered.</VF_CannotLaunchOverEncumbered>
 	
 	<VF_TabCargo>Cargo</VF_TabCargo>
@@ -117,7 +132,7 @@
 	<VF_NotEnoughFuel>Out Of Range</VF_NotEnoughFuel>
 	<VF_ConfirmationCancelLanding>Cancel landing in this map? Aerial vehicle will be kicked out to the world map.</VF_ConfirmationCancelLanding>
 	
-	<!-- HeaderTitles -->
+	<!-- Header Titles -->
 	<VF_Cargo>Cargo</VF_Cargo>
 	<VF_Properties>Properties</VF_Properties>
 	<VF_LauncherProperties>Launch Properties</VF_LauncherProperties>

@@ -6,6 +6,8 @@ using UnityEngine;
 using Verse;
 using RimWorld;
 using SmashTools;
+using System.Reflection;
+using HarmonyLib;
 
 namespace Vehicles
 {
@@ -17,6 +19,11 @@ namespace Vehicles
 		private const float ChanceFallthroughHit = 1;
 		private const float ChanceMinorDeflectHit = 0.75f;
 		private const float ChanceMajorDeflectHit = 0.75f;
+
+		private static FieldInfo StunFromEMP = AccessTools.Field(typeof(StunHandler), "stunFromEMP");
+		private static FieldInfo AdaptationTicksLeft = AccessTools.Field(typeof(StunHandler), "adaptationTicksLeft");
+
+		private int adaptTicks;
 
 		//Debugging only
 		private readonly List<Pair<IntVec2, int>> debugCellHighlight = new List<Pair<IntVec2, int>>();
@@ -58,6 +65,8 @@ namespace Vehicles
 		public bool NeedsRepairs => components.Any(c => c.HealthPercent < 1);
 
 		public float HealthPercent { get; private set; }
+
+		public bool OverrideStunPatch { get; private set; }
 
 		string ITweakFields.Category => nameof(VehicleStatHandler);
 
@@ -468,6 +477,7 @@ namespace Vehicles
 			{
 				damage = 0; //Don't apply damage to vehicles if the damage def isn't supposed to harm
 			}
+			
 			try
 			{
 				report?.AppendLine("-- DAMAGE REPORT --");
@@ -509,6 +519,10 @@ namespace Vehicles
 					report?.AppendLine($"Settings Multiplier: {VehicleMod.settings.main.meleeDamageMultiplier} Result: {damage}");
 				}
 
+				if (defApplied == DamageDefOf.EMP)
+				{
+					ElectrifyAllComponents(ref dinfo);
+				}
 				if (damage <= 0)
 				{
 					report?.AppendLine($"Final Damage = {damage}. Exiting.");
@@ -609,6 +623,54 @@ namespace Vehicles
 			finally
 			{
 				RecalculateHealthPercent();
+			}
+		}
+
+		// Takes in damage def even though we know it's EMP, may need to add support for modded damage types to stun vehicles.
+		private void ElectrifyAllComponents(ref DamageInfo dinfo)
+		{
+			bool canAdapt = SettingsCache.TryGetValue(vehicle.VehicleDef, typeof(VehicleProperties),
+						nameof(VehicleProperties.canAdaptToEMP), vehicle.VehicleDef.properties.canAdaptToEMP);
+
+			// EMP Damage may stun, disable stun patch temporarily to allow for StunFor to pass through
+			OverrideStunPatch = true;
+			try
+			{
+				bool adapted = false;
+				int maxStunTicks = 0;
+				foreach (VehicleComponent component in components)
+				{
+					int stunTicks = component.ApplyEMPDamage(ref dinfo, ref adapted);
+					if (stunTicks > maxStunTicks)
+					{
+						maxStunTicks = stunTicks;
+					}
+					if (canAdapt && dinfo.Def.stunAdaptationTicks > 0)
+					{
+						Dictionary<DamageDef, int> adaptationTicks = (Dictionary<DamageDef, int>)AdaptationTicksLeft.GetValue(vehicle.stances.stunner);
+						if (adaptationTicks.TryGetValue(dinfo.Def, out int ticksLeft) && ticksLeft > 0)
+						{
+							adapted = true;
+							break;
+						}
+						adaptationTicks[dinfo.Def] = dinfo.Def.stunAdaptationTicks;
+					}
+				}
+				if (!adapted && maxStunTicks > 0)
+				{
+					StunFromEMP.SetValue(vehicle.stances.stunner, true);
+					vehicle.stances.stunner.StunFor(maxStunTicks, dinfo.Instigator);
+				}
+				if (adapted && dinfo.Def.displayAdaptedTextMote && Find.TickManager.TicksGame > adaptTicks + 60)
+				{
+					adaptTicks = Find.TickManager.TicksGame;
+					string text = dinfo.Def.adaptedText ?? "Adapted".Translate();
+					MoteMaker.ThrowText(vehicle.DrawPos, vehicle.Map, text, Color.white);
+				}
+			}
+			finally
+			{
+				OverrideStunPatch = false;
 			}
 		}
 
