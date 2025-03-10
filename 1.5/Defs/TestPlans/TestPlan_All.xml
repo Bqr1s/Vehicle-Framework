@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Defs>
+	<SmashTools.Debugging.TestPlanDef>
+		<defName>VF_TestPlan_All</defName>
+		<label>All</label>
+		<plan>
+      <li>
+        <type>MainMenu</type>
+        <tests>
+          <li>SmashTools.Debugging.UnitTestAnimationCurve</li>
+          <li>SmashTools.Debugging.UnitTestAnimDynamicMethod</li>
+          <li>SmashTools.Debugging.UnitTestCellRectUtils</li>
+          <li>SmashTools.Debugging.UnitTestObjectPool</li>
+          <li>Vehicles.Testing.UnitTestMaterialPoolDefs</li>
+        </tests>
+      </li>
+      <li>
+        <type>GameLoaded</type>
+        <tests>
+          <li>Vehicles.Testing.UnitTestVehicleHandler</li>
+          <li>Vehicles.Testing.UnitTestAerialVehicle</li>
+          <li>Vehicles.Testing.UnitTestStashedVehicle</li>
+          <li>Vehicles.Testing.UnitTestPositionManager</li>
+          <li>Vehicles.Testing.UnitTestCoverGrid</li>
+          <li>Vehicles.Testing.UnitTestGasGrid</li>
+          <li>Vehicles.Testing.UnitTestTerrainGrid</li>
+          <li>Vehicles.Testing.UnitTestThingGrid</li>
+          <li>Vehicles.Testing.UnitTestPathGrid</li>
+          <li>Vehicles.Testing.UnitTestRegions</li>
+          <li>Vehicles.Testing.UnitTestMaterialPool</li>
+          <li>Vehicles.Testing.UnitTestMapDeinit</li>
+        </tests>
+      </li>
+      <li>
+        <type>MainMenu</type>
+        <tests>
+          <li>SmashTools.Debugging.UnitTestComponentCache</li>
+        </tests>
+      </li>
+    </plan>
+	</SmashTools.Debugging.TestPlanDef>
+</Defs>

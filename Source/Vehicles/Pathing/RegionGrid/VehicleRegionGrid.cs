@@ -23,7 +23,8 @@ namespace Vehicles
 
     private VehicleRegionAndRoomUpdater regionUpdater;
 
-    public VehicleRegionGrid(VehicleMapping mapping, VehicleDef createdFor) : base(mapping, createdFor)
+    public VehicleRegionGrid(VehicleMapping mapping, VehicleDef createdFor) : base(mapping,
+      createdFor)
     {
     }
 
@@ -69,6 +70,7 @@ namespace Vehicles
           if (regionGrid[i] is VehicleRegion region && !region.valid)
             return true;
         }
+
         return false;
       }
     }
@@ -127,15 +129,18 @@ namespace Vehicles
         Log.Error($"Tried to get valid vehicle region for {createdFor} out of bounds at {cell}");
         return null;
       }
+
       if (rebuild)
       {
         if (!regionUpdater.Enabled && regionUpdater.AnythingToRebuild)
         {
-          Log.Warning($@"Trying to get valid vehicle region for {createdFor} at {cell} but RegionAndRoomUpdater
-is disabled. The result may be incorrect.");
+          Log.Warning($"Trying to get valid vehicle region for {createdFor} at {cell} but " +
+            $"RegionAndRoomUpdater is disabled. The result may be incorrect.");
         }
+
         regionUpdater.TryRebuildVehicleRegions();
       }
+
       VehicleRegion region = GetRegionAt(cell);
       return (region != null && region.valid) ? region : null;
     }
@@ -191,6 +196,7 @@ is disabled. The result may be incorrect.");
         int index = mapping.map.cellIndices.CellToIndex(cell);
         Interlocked.CompareExchange(ref regionGrid[index], null, regionGrid[index]);
       }
+
       region.Reset();
     }
 
@@ -205,12 +211,14 @@ is disabled. The result may be incorrect.");
         {
           curCleanIndex = 0;
         }
+
         VehicleRegion region = regionGrid[curCleanIndex];
         if (region != null && !region.valid)
         {
           Assert.Fail("Cleaning region which should have already been returned to pool.");
           SetRegionAt(curCleanIndex, null);
         }
+
         curCleanIndex++;
       }
     }
@@ -234,6 +242,7 @@ is disabled. The result may be incorrect.");
           debugRegion.DebugDraw(debugRegionType);
         }
       }
+
       IntVec3 intVec = UI.MouseCell();
       if (intVec.InBounds(mapping.map))
       {

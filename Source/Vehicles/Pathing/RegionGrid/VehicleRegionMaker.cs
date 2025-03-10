@@ -37,7 +37,7 @@ namespace Vehicles
 
     public VehicleRegionMaker(VehicleMapping mapping, VehicleDef createdFor) : base(mapping, createdFor)
     {
-      const float poolSize = 0.5f; // Create pool for 50% of average objects used
+      const float poolSize = 0.5f; // Create pool for 50% of average regions / links count
       float totalRegions = ((float)mapping.map.Size.x / VehicleRegion.GridSize) * 
         ((float)mapping.map.Size.z / VehicleRegion.GridSize);
       int regions = Mathf.CeilToInt(totalRegions * poolSize);

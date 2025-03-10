@@ -40,7 +40,7 @@ namespace Vehicles.Testing
 
     private UTResult TestAerialVehicleInit(AerialVehicleInFlight aerialVehicle)
     {
-      UTResult result;
+      UTResult result = new();
 
       VehiclePawn vehicle = aerialVehicle.vehicle;
       Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);

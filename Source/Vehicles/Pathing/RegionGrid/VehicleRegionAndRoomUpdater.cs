@@ -93,9 +93,11 @@ namespace Vehicles
     {
       if (!Enabled)
       {
-        Log.Warning($@"Called RebuildAllVehicleRegions but VehicleRegionAndRoomUpdater is disabled. 
-VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrace()}");
+        Log.Warning(
+          $"Called RebuildAllVehicleRegions but VehicleRegionAndRoomUpdater is disabled. " +
+          $"VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrace()}");
       }
+
       mapping[createdFor].VehicleRegionDirtyer.SetAllDirty();
       TryRebuildVehicleRegions();
     }
@@ -112,11 +114,13 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
       {
         RebuildAllVehicleRegions();
       }
+
       if (!mapping[createdFor].VehicleRegionDirtyer.AnyDirty)
       {
         UpdatingRegion = false;
         return;
       }
+
       try
       {
 #if DEBUG
@@ -147,10 +151,12 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
           Assert.Fail("Dirtied invalid cell.");
           continue;
         }
+
         VehicleRegion region = pathData.VehicleRegionGrid.GetRegionAt(cell);
 
         // ObjectPool should never hold a region which still has references in the region grid.
-        Assert.IsTrue(region == null || !region.InPool, $"{region} has been returned to pool prematurely.");
+        Assert.IsTrue(region == null || !region.InPool,
+          $"{region} has been returned to pool prematurely.");
 
         if (region == null || !region.valid)
         {
@@ -158,19 +164,19 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
           switch (result)
           {
             case RegionResult.Success:
-              {
-                newRegions.Add(region);
-              }
+            {
+              newRegions.Add(region);
+            }
               break;
             case RegionResult.NoRegion:
+            {
+              // Clean immediately rather than following RimWorld convention of delayed
+              // Update-based clean.
+              if (region != null)
               {
-                // Clean immediately rather than following RimWorld convention of delayed
-                // Update-based clean.
-                if (region != null)
-                {
-                  regionGrid.SetRegionAt(cell, null);
-                }
+                regionGrid.SetRegionAt(cell, null);
               }
+            }
               break;
           }
         }
@@ -205,6 +211,7 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
           num++;
         }
       }
+
       return num;
     }
 
@@ -224,12 +231,15 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
             currentRegionGroup.Add(newRegions[j]);
           }
         }
+
         if (!currentRegionGroup[0].type.AllowsMultipleRegionsPerDistrict())
         {
           if (currentRegionGroup.Count != 1)
           {
-            Log.Error("Region type doesn't allow multiple regions per room but there are >1 regions in this group.");
+            Log.Error(
+              "Region type doesn't allow multiple regions per room but there are >1 regions in this group.");
           }
+
           VehicleRoom room = VehicleRoom.MakeNew(mapping.map, createdFor);
           currentRegionGroup[0].Room = room;
           newRooms.Add(room);
@@ -239,7 +249,8 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
           VehicleRoom room2 = FindCurrentRegionGroupNeighborWithMostRegions(out bool flag);
           if (room2 is null)
           {
-            VehicleRoom item = VehicleRegionTraverser.FloodAndSetRooms(currentRegionGroup[0], mapping.map, createdFor, null);
+            VehicleRoom item = VehicleRegionTraverser.FloodAndSetRooms(currentRegionGroup[0],
+              mapping.map, createdFor, null);
             newRooms.Add(item);
           }
           else if (!flag)
@@ -248,11 +259,13 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
             {
               currentRegionGroup[k].Room = room2;
             }
+
             reusedOldRooms.Add(room2);
           }
           else
           {
-            VehicleRegionTraverser.FloodAndSetRooms(currentRegionGroup[0], mapping.map, createdFor, room2);
+            VehicleRegionTraverser.FloodAndSetRooms(currentRegionGroup[0], mapping.map, createdFor,
+              room2);
             reusedOldRooms.Add(room2);
           }
         }
@@ -273,6 +286,7 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
           num++;
         }
       }
+
       return num;
     }
 
@@ -280,7 +294,8 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
     /// Find neighboring region group with most regions
     /// </summary>
     /// <param name="multipleOldNeighborRooms"></param>
-    private VehicleRoom FindCurrentRegionGroupNeighborWithMostRegions(out bool multipleOldNeighborRooms)
+    private VehicleRoom FindCurrentRegionGroupNeighborWithMostRegions(
+      out bool multipleOldNeighborRooms)
     {
       multipleOldNeighborRooms = false;
       VehicleRoom room = null;
@@ -305,6 +320,7 @@ VehicleRegions won't be rebuilt. StackTrace: {StackTraceUtility.ExtractStackTrac
           }
         }
       }
+
       return room;
     }
   }

@@ -34,15 +34,17 @@ namespace Vehicles.Testing
     {
       VehicleDef vehicleDef = vehicle.VehicleDef;
       int padding = vehicleDef.SizePadding;
-      UTResult result;
+      UTResult result = new();
 
       CellRect testArea = TestArea(vehicleDef, root);
 
       ThingDef testDef = ThingDefOf.Wall;
       if (!PathingHelper.IsRegionEffector(vehicleDef, testDef))
       {
-        testDef = DefDatabase<ThingDef>.AllDefsListForReading.RandomOrDefault(def => def.building != null &&
-          def.Size == IntVec2.One && PathingHelper.IsRegionEffector(vehicleDef, def) && def is not VehicleBuildDef &&
+        testDef = DefDatabase<ThingDef>.AllDefsListForReading.RandomOrDefault(def =>
+          def.building != null &&
+          def.Size == IntVec2.One && PathingHelper.IsRegionEffector(vehicleDef, def) &&
+          def is not VehicleBuildDef &&
           PathingHelper.regionEffectors[def].Contains(vehicleDef));
       }
 
@@ -96,19 +98,20 @@ namespace Vehicles.Testing
         // If there's no padding, then test valid edge cells instead
         result.Add($"{vehicleDef} (Single Invalid)", ValidateArea(singleCell, false));
         result.Add($"{vehicleDef} (Edge Cells)", singleCell.ExpandedBy(1).EdgeCells
-          .All(cell => regionGrid.GetValidRegionAt(cell) != null));
+         .All(cell => regionGrid.GetValidRegionAt(cell) != null));
       }
       else
       {
         CellRect paddedArea = CellRect.CenteredOn(root, vehicleDef.SizePadding);
         result.Add($"{vehicleDef} (Padding)", ValidateArea(paddedArea, false));
       }
+
       result.Add($"{vehicleDef} (Invalid Regions)", !regionGrid.AnyInvalidRegions);
 
       // Region Reused
       ClearArea();
       result.Add($"{vehicleDef} (Region Reused)", region != null &&
-        region == regionGrid.GetValidRegionAt(root));
+                                                  region == regionGrid.GetValidRegionAt(root));
       result.Add($"{vehicleDef} (Region Links)", ValidateLinks(testArea));
       result.Add($"{vehicleDef} (Invalid Regions)", !regionGrid.AnyInvalidRegions);
 
@@ -123,9 +126,10 @@ namespace Vehicles.Testing
       {
         foreach (IntVec3 cell in cellRect)
         {
-          VehicleRegion region = regionGrid.GetValidRegionAt(cell);
-          if (region is not null) regions.Add(region);
+          VehicleRegion validRegion = regionGrid.GetValidRegionAt(cell);
+          if (validRegion is not null) regions.Add(validRegion);
         }
+
         int count = regions.Count;
         regions.Clear();
         return count;
@@ -135,24 +139,26 @@ namespace Vehicles.Testing
       {
         foreach (IntVec3 cell in cellRect.EdgeCells)
         {
-          VehicleRegion region = regionGrid.GetValidRegionAt(cell);
-          if (region is null) continue;
+          VehicleRegion validRegion = regionGrid.GetValidRegionAt(cell);
+          if (validRegion is null) continue;
 
           // i = 0 would start at center, we want 4 cardinal neighbors
           for (int i = 1; i <= 4; i++)
           {
             IntVec3 cardinal = cell + GenRadial.ManualRadialPattern[i];
             VehicleRegion neighbor = regionGrid.GetValidRegionAt(cell);
-            if (neighbor is null || neighbor == region) continue;
+            if (neighbor is null || neighbor == validRegion) continue;
 
-            VehicleRegionLink regionLink = region.Links.items.FirstOrDefault(link => 
-              link.LinksRegions(region, neighbor));
+            VehicleRegionLink regionLink = validRegion.Links.items.FirstOrDefault(link =>
+              link.LinksRegions(validRegion, neighbor));
             VehicleRegionLink neighborLink = neighbor.Links.items.FirstOrDefault(link =>
-              link.LinksRegions(region, neighbor));
+              link.LinksRegions(validRegion, neighbor));
 
-            if (regionLink is null || neighborLink is null || regionLink != neighborLink) return false;
+            if (regionLink is null || neighborLink is null || regionLink != neighborLink)
+              return false;
           }
         }
+
         return true;
       }
 
@@ -160,9 +166,10 @@ namespace Vehicles.Testing
       {
         foreach (IntVec3 cell in cellRect)
         {
-          VehicleRegion region = regionGrid.GetValidRegionAt(cell);
-          if ((region is not null) != expected) return false;
+          VehicleRegion validRegion = regionGrid.GetValidRegionAt(cell);
+          if (validRegion is not null != expected) return false;
         }
+
         return true;
       }
 

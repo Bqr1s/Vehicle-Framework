@@ -21,19 +21,22 @@ namespace Vehicles.Testing
       GenSpawn.Spawn(vehicle, root, TestMap);
       CameraJumper.TryJump(vehicle.Position, TestMap, mode: CameraJumper.MovementMode.Cut);
 
-      UTResult result;
+      UTResult result = new();
 
       // Colonists can board
       int total = vehicle.SeatsAvailable;
       for (int i = 0; i < total; i++)
       {
         Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
-        Assert.IsTrue(colonist != null && colonist.Faction == Faction.OfPlayer, "Unable to generate colonist");
+        Assert.IsTrue(colonist != null && colonist.Faction == Faction.OfPlayer,
+          "Unable to generate colonist");
         result.Add("ColonistRole", vehicle.TryAddPawn(colonist));
       }
+
       // Colonist cannot board full vehicle
       Pawn failColonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
-      Assert.IsTrue(failColonist != null && failColonist.Faction == Faction.OfPlayer, "Unable to generate colonist");
+      Assert.IsTrue(failColonist != null && failColonist.Faction == Faction.OfPlayer,
+        "Unable to generate colonist");
       result.Add("ColonistRole OutOfBounds", !vehicle.TryAddPawn(failColonist));
       failColonist.Destroy();
 
@@ -48,7 +51,8 @@ namespace Vehicles.Testing
       if (ModsConfig.BiotechActive)
       {
         Pawn mechanoid = PawnGenerator.GeneratePawn(PawnKindDefOf.Mech_Warqueen, Faction.OfPlayer);
-        Assert.IsTrue(mechanoid != null && mechanoid.Faction == Faction.OfPlayer, "Unable to generate mech");
+        Assert.IsTrue(mechanoid != null && mechanoid.Faction == Faction.OfPlayer,
+          "Unable to generate mech");
         result.Add("MechRole", vehicle.TryAddPawn(mechanoid));
       }
 

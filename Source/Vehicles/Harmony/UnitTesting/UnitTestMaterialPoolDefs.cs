@@ -1,11 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using LudeonTK;
-using SmashTools.Performance;
-using Vehicles;
+using SmashTools.Debugging;
 using Verse;
 
-namespace SmashTools.Debugging
+namespace Vehicles.Testing
 {
   internal class UnitTestMaterialPoolDefs : UnitTest
   {
@@ -22,16 +19,19 @@ namespace SmashTools.Debugging
       {
         yield return TestVehicleDef(vehicleDef, ref count);
       }
+
       foreach (PatternDef patternDef in DefDatabase<PatternDef>.AllDefsListForReading)
       {
         yield return TestPattern(patternDef, ref count);
       }
-      yield return UTResult.For("MaterialPool (Total Count)", count == RGBMaterialPool.TotalMaterials);
+
+      yield return UTResult.For("MaterialPool (Total Count)",
+        count == RGBMaterialPool.TotalMaterials);
     }
 
     private UTResult TestVehicleDef(VehicleDef vehicleDef, ref int count)
     {
-      UTResult result;
+      UTResult result = new();
       if (vehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
       {
         count += vehicleDef.MaterialCount;
@@ -48,26 +48,31 @@ namespace SmashTools.Debugging
           if (overlay.data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             count += overlay.MaterialCount;
-            result.Add($"MaterialPool_{overlay.Name} (Cached)", RGBMaterialPool.TargetCached(overlay));
+            result.Add($"MaterialPool_{overlay.Name} (Cached)",
+              RGBMaterialPool.TargetCached(overlay));
             result.Add($"MaterialPool_{overlay.Name} (Generated)",
               RGBMaterialPool.GetAll(overlay)?.Length == overlay.MaterialCount);
           }
         }
       }
+
       // Turrets
       if (vehicleDef.GetCompProperties<CompProperties_VehicleTurrets>() is
-        CompProperties_VehicleTurrets compTurrets && !compTurrets.turrets.NullOrEmpty())
+            CompProperties_VehicleTurrets compTurrets && !compTurrets.turrets.NullOrEmpty())
       {
         foreach (VehicleTurret turret in compTurrets.turrets)
         {
-          if (!turret.NoGraphic && turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+          if (!turret.NoGraphic &&
+              turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             count += turret.MaterialCount;
 
-            result.Add($"MaterialPool_{turret.Name} (Cached)", RGBMaterialPool.TargetCached(turret));
+            result.Add($"MaterialPool_{turret.Name} (Cached)",
+              RGBMaterialPool.TargetCached(turret));
             result.Add($"MaterialPool_{turret.Name} (Generated)",
               RGBMaterialPool.GetAll(turret)?.Length == turret.MaterialCount);
           }
+
           if (!turret.TurretGraphics.NullOrEmpty())
           {
             foreach (VehicleTurret.TurretDrawData drawData in turret.TurretGraphics)
@@ -76,7 +81,8 @@ namespace SmashTools.Debugging
               {
                 count += drawData.MaterialCount;
 
-                result.Add($"MaterialPool_{drawData.Name} (Cached)", RGBMaterialPool.TargetCached(drawData));
+                result.Add($"MaterialPool_{drawData.Name} (Cached)",
+                  RGBMaterialPool.TargetCached(drawData));
                 result.Add($"MaterialPool_{drawData.Name} (Generated)",
                   RGBMaterialPool.GetAll(drawData)?.Length == drawData.MaterialCount);
               }
@@ -84,10 +90,11 @@ namespace SmashTools.Debugging
           }
         }
       }
+
       // Upgrades
       if (vehicleDef.GetCompProperties<CompProperties_UpgradeTree>() is
-        CompProperties_UpgradeTree compUpgrade && compUpgrade.def != null &&
-        !compUpgrade.def.nodes.NullOrEmpty())
+            CompProperties_UpgradeTree compUpgrade && compUpgrade.def != null &&
+          !compUpgrade.def.nodes.NullOrEmpty())
       {
         foreach (UpgradeNode node in compUpgrade.def.nodes)
         {
@@ -108,12 +115,13 @@ namespace SmashTools.Debugging
           }
         }
       }
+
       return result;
     }
 
     private UTResult TestPattern(PatternDef patternDef, ref int count)
     {
-      UTResult result;
+      UTResult result = new();
       count += patternDef.MaterialCount;
       result.Add($"MaterialPool_{patternDef} (Cached)", RGBMaterialPool.TargetCached(patternDef));
       result.Add($"MaterialPool_{patternDef} (Generated)",

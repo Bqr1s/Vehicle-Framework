@@ -36,7 +36,8 @@ namespace Vehicles
     private Dictionary<int, Weight> weights = [];
 #endif
 
-    public ThreadLocal<uint[]> closedIndex = new(() => new uint[VehicleRegionTraverser.WorkerCount]);
+    public ThreadLocal<uint[]>
+      closedIndex = new(() => new uint[VehicleRegionTraverser.WorkerCount]);
 
     public CellRect extentsClose;
     public CellRect extentsLimit;
@@ -63,12 +64,12 @@ namespace Vehicles
     /// in the context of fetching this region from the object pool for renewal.
     /// </summary>
     public bool InPool { get; set; }
-    
+
     // Only used for seed generation, doesn't matter if list count is stale at time of
     // reading. No need for a lock here since List<T>::_size does not access the
     // internal array.
     public int LinksCount => links.Count;
-    
+
     /// <summary>
     /// Fetch a pooled List object and copy all link references over to the list snapshot.
     /// <para/>
@@ -94,10 +95,7 @@ namespace Vehicles
     /// </summary>
     public Map Map
     {
-      get
-      {
-        return map;
-      }
+      get { return map; }
       internal set
       {
         if (map == value) return;
@@ -110,6 +108,7 @@ namespace Vehicles
           regionMaker = null;
           return;
         }
+
         mapIndex = (sbyte)map.Index;
         mapping = map.GetCachedMapComponent<VehicleMapping>();
         regionMaker = mapping[vehicleDef].VehicleRegionMaker;
@@ -137,6 +136,7 @@ namespace Vehicles
             }
           }
         }
+
         return cellCount;
       }
     }
@@ -152,6 +152,7 @@ namespace Vehicles
         {
           yield break;
         }
+
         VehicleRegionGrid regions = mapping[vehicleDef].VehicleRegionGrid;
         for (int z = extentsClose.minZ; z <= extentsClose.maxZ; z++)
         {
@@ -164,6 +165,7 @@ namespace Vehicles
             }
           }
         }
+
         yield break;
       }
     }
@@ -184,6 +186,7 @@ namespace Vehicles
             {
               yield return link.regionA;
             }
+
             if (link.regionB != null && link.regionB != this && link.regionB.valid)
             {
               yield return link.regionB;
@@ -208,11 +211,14 @@ namespace Vehicles
         for (int i = 0; i < links.Count; i++)
         {
           VehicleRegionLink link = links[i];
-          if (link.regionA != null && link.regionA != this && link.regionA.type == type && link.regionA.valid)
+          if (link.regionA != null && link.regionA != this && link.regionA.type == type &&
+            link.regionA.valid)
           {
             yield return link.regionA;
           }
-          if (link.regionB != null && link.regionB != this && link.regionB.type == type && link.regionB.valid)
+
+          if (link.regionB != null && link.regionB != this && link.regionB.type == type &&
+            link.regionB.valid)
           {
             yield return link.regionB;
           }
@@ -225,10 +231,7 @@ namespace Vehicles
     /// </summary>
     public VehicleRoom Room
     {
-      get
-      {
-        return room;
-      }
+      get { return room; }
       set
       {
         if (value == room) return;
@@ -248,7 +251,8 @@ namespace Vehicles
       {
         Map map = Map;
         CellIndices cellIndices = map.cellIndices;
-        VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionGrid.DirectGrid;
+        VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef]
+         .VehicleRegionGrid.DirectGrid;
         for (int i = 0; i < 1000; i++)
         {
           IntVec3 randomCell = extentsClose.RandomCell;
@@ -257,6 +261,7 @@ namespace Vehicles
             return randomCell;
           }
         }
+
         return AnyCell;
       }
     }
@@ -270,7 +275,8 @@ namespace Vehicles
       {
         Map map = Map;
         CellIndices cellIndices = map.cellIndices;
-        VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionGrid.DirectGrid;
+        VehicleRegion[] directGrid = map.GetCachedMapComponent<VehicleMapping>()[vehicleDef]
+         .VehicleRegionGrid.DirectGrid;
         foreach (IntVec3 intVec in extentsClose)
         {
           if (directGrid[cellIndices.CellToIndex(intVec)] == this)
@@ -278,6 +284,7 @@ namespace Vehicles
             return intVec;
           }
         }
+
         Log.Error("Couldn't find any cell in region " + ToString());
         return extentsClose.RandomCell;
       }
@@ -288,10 +295,7 @@ namespace Vehicles
     /// </summary>
     public bool DebugIsNew
     {
-      get
-      {
-        return debugMakeTick > Find.TickManager.TicksGame - 60;
-      }
+      get { return debugMakeTick > Find.TickManager.TicksGame - 60; }
     }
 
     public void Init(VehicleDef vehicleDef, int id)
@@ -402,8 +406,10 @@ namespace Vehicles
             if (regionLink == connectingToLink) continue; //Skip matching link
 
             int weight = EuclideanDistance(regionLink.anchor, connectingToLink);
-            weights[HashBetween(regionLink, connectingToLink)] = new Weight(regionLink, connectingToLink, weight);
-            weights[HashBetween(connectingToLink, regionLink)] = new Weight(connectingToLink, regionLink, weight);
+            weights[HashBetween(regionLink, connectingToLink)] =
+ new Weight(regionLink, connectingToLink, weight);
+            weights[HashBetween(connectingToLink, regionLink)] =
+ new Weight(connectingToLink, regionLink, weight);
           }
         }
       }
@@ -433,10 +439,12 @@ namespace Vehicles
     /// <param name="isDestination"></param>
     public bool Allows(TraverseParms traverseParms, bool isDestination)
     {
-      if (traverseParms.mode != TraverseMode.PassAllDestroyableThings && traverseParms.mode != TraverseMode.PassAllDestroyableThingsNotWater && !type.Passable())
+      if (traverseParms.mode != TraverseMode.PassAllDestroyableThings &&
+        traverseParms.mode != TraverseMode.PassAllDestroyableThingsNotWater && !type.Passable())
       {
         return false;
       }
+
       return true;
     }
 
@@ -447,9 +455,11 @@ namespace Vehicles
     {
       if (mapIndex <= 0)
       {
-        Log.Warning($"Tried to decrement map index for vehicle region {id} but mapIndex={mapIndex}");
+        Log.Warning(
+          $"Tried to decrement map index for vehicle region {id} but mapIndex={mapIndex}");
         return;
       }
+
       mapIndex = (sbyte)(mapIndex - 1);
     }
 
@@ -466,7 +476,7 @@ namespace Vehicles
     /// </summary>
     public override string ToString()
     {
-      return $@"VehicleRegion_{id}";
+      return $"VehicleRegion_{id}";
     }
 
     /// <summary>
@@ -499,6 +509,7 @@ namespace Vehicles
       {
         color = Color.green;
       }
+
       if (debugRegionType.HasFlag(DebugRegionType.Regions))
       {
         GenDraw.DrawFieldEdges(Cells.ToList(), color);
@@ -507,6 +518,7 @@ namespace Vehicles
           GenDraw.DrawFieldEdges(region.Cells.ToList(), Color.grey);
         }
       }
+
       if (debugRegionType.HasFlag(DebugRegionType.Links))
       {
         foreach (VehicleRegionLink regionLink in links)
@@ -521,6 +533,7 @@ namespace Vehicles
           }
         }
       }
+
       if (debugRegionType.HasFlag(DebugRegionType.Weights))
       {
 #if REGION_WEIGHTS
@@ -586,7 +599,9 @@ namespace Vehicles
             Rect rect = new Rect(vector.x - 20f, vector.y - 20f, 40f, 40f);
             if (new Rect(0f, 0f, UI.screenWidth, UI.screenHeight).Overlaps(rect))
             {
-              Widgets.Label(rect, Map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehiclePathGrid.PerceivedPathCostAt(intVec).ToString());
+              Widgets.Label(rect,
+                Map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehiclePathGrid
+                 .PerceivedPathCostAt(intVec).ToString());
             }
           }
         }
@@ -645,6 +660,7 @@ namespace Vehicles
       {
         return rhs is null;
       }
+
       return lhs.Equals(rhs);
     }
 

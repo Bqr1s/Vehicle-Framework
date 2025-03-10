@@ -231,6 +231,7 @@
     <Compile Include="Harmony\PatchCategories\NPCAI.cs" />
     <Compile Include="Harmony\UnitTesting\MaterialPoolWatcher.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\RaidTesting.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTestHotReloadDefs.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestMaterialPoolDefs.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestMaterialPool.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestTerrainGrid.cs" />
@@ -483,7 +484,6 @@
     <Compile Include="Misc\Enums\Vehicle\ShuttleLaunchStatus.cs" />
     <Compile Include="Misc\Interfaces\IPatchCategory.cs" />
     <Compile Include="Misc\Enums\Animation\AnimationWrapperType.cs" />
-    <Compile Include="Misc\Enums\BiomeCategory.cs" />
     <Compile Include="Misc\Enums\Vehicle\FuelConsumptionCondition.cs" />
     <Compile Include="Misc\Enums\Vehicle\HandlingTypeFlags.cs" />
     <Compile Include="Misc\Enums\Vehicle\NavigationCategory.cs" />

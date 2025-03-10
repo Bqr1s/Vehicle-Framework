@@ -13,20 +13,19 @@ namespace Vehicles.Testing
     protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
     {
       int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
-      UTResult result;
+      UTResult result = new();
       IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
       CellRect testArea = TestArea(vehicle.VehicleDef, root);
       VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
       VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
-      bool success;
       GasGrid gasGrid = TestMap.gasGrid;
       bool blocksGas = vehicle.VehicleDef.Fillage == FillCategory.Full;
       HitboxTester<bool> gasTester = new(vehicle, TestMap, root,
-        gasGrid.AnyGasAt,
-        // Gas can only occupy if vehicle Fillage != Full
-        (bool gasAt) => gasAt == (!vehicle.Spawned || !blocksGas),
-        (_) => gasGrid.Debug_ClearAll());
+                                         gasGrid.AnyGasAt,
+                                         // Gas can only occupy if vehicle Fillage != Full
+                                         (gasAt) => gasAt == (!vehicle.Spawned || !blocksGas),
+                                         (_) => gasGrid.Debug_ClearAll());
       gasTester.Start();
 
       gasGrid.Debug_FillAll();
@@ -35,7 +34,7 @@ namespace Vehicles.Testing
       // Spawn
       GenSpawn.Spawn(vehicle, root, TestMap);
       result.Add($"{vehicle.def} Spawned", vehicle.Spawned);
-      success = blocksGas ? gasTester.Hitbox(true) : gasTester.All(true);
+      bool success = blocksGas ? gasTester.Hitbox(true) : gasTester.All(true);
       result.Add("Gas Grid (Spawn)", success);
       gasTester.Reset();
 

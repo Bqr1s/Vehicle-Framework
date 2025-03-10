@@ -41,11 +41,7 @@ namespace Vehicles
       ConstructComponents();
     }
 
-    public bool ComponentsInitialized { get; private set; } = false;
-
-    private int DayOfYearAt0Long => GenDate.DayOfYear(GenTicks.TicksAbs, 0f);
-
-    public DedicatedThread Thread => dedicatedThread;
+    private static int DayOfYearAt0Long => GenDate.DayOfYear(GenTicks.TicksAbs, 0f);
 
     /// <summary>
     /// <see cref="dedicatedThread"/> is initialized and running.
@@ -60,7 +56,8 @@ namespace Vehicles
     public bool ThreadAvailable => ThreadAlive && !dedicatedThread.Suspended;
 
     /// <summary>
-    /// Generates all path data if they haven't been already and fetches <see cref="VehiclePathData"/> for <paramref name="vehicleDef"/>.
+    /// Generates all path data if they haven't been already and fetches
+    /// <see cref="VehiclePathData"/> for <paramref name="vehicleDef"/>.
     /// </summary>
     public VehiclePathData this[VehicleDef vehicleDef]
     {
@@ -69,7 +66,7 @@ namespace Vehicles
 #if DEBUG
         if (buildingFor == vehicleDef)
         {
-          Assert.Fail($@"Trying to pull VehiclePathData by indexing when it's currently in the middle of generation. 
+          Assert.Fail(@"Trying to pull VehiclePathData by indexing when it's currently in the middle of generation. 
 Recursion is not supported here.");
           return null;
         }
@@ -84,15 +81,18 @@ Recursion is not supported here.");
       {
         ReleaseThread();
       }
+
       if (!VehicleMod.settings.debug.debugUseMultithreading)
       {
         Log.Warning($"Loading map without DedicatedThread. This will cause performance issues. Map={map}.");
         return;
       }
+
       if (map.info?.parent == null)
       {
         return; // MapParent won't have reference resolved when loading from save, GetDedicatedThread will be called a 2nd time on PostLoadInit
       }
+
       dedicatedThread = GetDedicatedThread(map);
       deferredRegionGenerator = new DeferredRegionGenerator(this);
     }
@@ -106,6 +106,7 @@ Recursion is not supported here.");
         Log.Message($"<color=orange>{VehicleHarmony.LogLabel} Creating thread (id={thread?.id})</color>");
         return thread;
       }
+
       thread = ThreadManager.GetShared(EventMapId);
       Log.Message($"<color=orange>{VehicleHarmony.LogLabel} Fetching thread from pool (id={thread?.id})</color>");
       return thread;
@@ -134,6 +135,7 @@ Recursion is not supported here.");
       {
         return owners;
       }
+
       foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
       {
         if (!GridOwners.IsOwner(vehicleDef))
@@ -145,6 +147,7 @@ Recursion is not supported here.");
           }
         }
       }
+
       return owners;
     }
 
@@ -190,10 +193,12 @@ Recursion is not supported here.");
       {
         return;
       }
+
       for (int i = 0; i < vehicleData.Length; i++)
       {
         VehiclePathData vehiclePathData = vehicleData[i];
-        LongEventHandler.SetCurrentEventText($"{"VF_GeneratingPathGrids".Translate()} {i}/{vehicleData.Length}");
+        LongEventHandler
+         .SetCurrentEventText($"{"VF_GeneratingPathGrids".Translate()} {i}/{vehicleData.Length}");
         //Needs to check validity, non-pathing vehicles are still indexed since sequential vehicles will have higher index numbers
         if (vehiclePathData.IsValid)
         {
@@ -231,7 +236,7 @@ Recursion is not supported here.");
       }
 
       DeepProfiler.Start("Vehicle Regions");
-      Parallel.ForEach(GridOwners.AllOwners, delegate (VehicleDef vehicleDef)
+      Parallel.ForEach(GridOwners.AllOwners, delegate(VehicleDef vehicleDef)
       {
         LongEventHandler.SetCurrentEventText("VF_GeneratingRegions".Translate());
         VehiclePathData vehiclePathData = this[vehicleDef];
@@ -248,8 +253,6 @@ Recursion is not supported here.");
     {
       int size = DefDatabase<VehicleDef>.DefCount;
       vehicleData = new VehiclePathData[size];
-
-      ComponentsInitialized = true;
 
       GenerateAllPathData();
       DisableAllRegionUpdaters();
@@ -285,7 +288,6 @@ Recursion is not supported here.");
 
     public override void MapRemoved()
     {
-      // TODO - Will need cancellation tokens to abort ongoing operations
       ReleaseThread();
     }
 
@@ -293,7 +295,7 @@ Recursion is not supported here.");
     {
       if (dedicatedThread == null) return false;
 
-      Log.Message($"<color=orange>Releasing thread {Thread.id}.</color>");
+      Log.Message($"<color=orange>Releasing thread {dedicatedThread.id}.</color>");
       bool released = dedicatedThread.Release();
       dedicatedThread = null;
       return released;
@@ -424,6 +426,7 @@ Recursion is not supported here.");
             pathData.VehicleRegionAndRoomUpdater.TryRebuildVehicleRegions();
           }
         }
+
         ownerCleanIndex++;
         if (ownerCleanIndex >= GridOwners.AllOwners.Count) ownerCleanIndex = 0;
       }
@@ -455,11 +458,13 @@ Recursion is not supported here.");
 
         if (isOwner)
         {
-          vehiclePathData.ReachabilityData = new VehicleReachabilitySettings(this, vehicleDef, vehiclePathData);
+          vehiclePathData.ReachabilityData =
+            new VehicleReachabilitySettings(this, vehicleDef, vehiclePathData);
         }
         else
         {
-          VehicleDef ownerDef = GridOwners.GetOwner(vehicleDef); // Will return itself if it's an owner
+          // Will return itself if it's an owner
+          VehicleDef ownerDef = GridOwners.GetOwner(vehicleDef);
           vehiclePathData.ReachabilityData = vehicleData[ownerDef.DefIndex].ReachabilityData;
         }
       }
@@ -475,7 +480,8 @@ Recursion is not supported here.");
       return vehiclePathData;
     }
 
-    [DebugOutput(VehicleHarmony.VehiclesLabel, name = "Benchmark RegionGen", onlyWhenPlaying = true)]
+    [DebugOutput(VehicleHarmony.VehiclesLabel, name = "Benchmark RegionGen",
+                 onlyWhenPlaying = true)]
     private static void BenchmarkRegionGeneration()
     {
       const int IterationsPerTest = 50;
@@ -491,16 +497,17 @@ Recursion is not supported here.");
 
       Stopwatch timeout = new();
 
-      LongEventHandler.QueueLongEvent(delegate ()
+      LongEventHandler.QueueLongEvent(delegate()
       {
-        List<VehicleDef> regionOwners = GridOwners.AllOwners.Where(PathingHelper.ShouldCreateRegions).ToList();
+        List<VehicleDef> regionOwners =
+          GridOwners.AllOwners.Where(PathingHelper.ShouldCreateRegions).ToList();
         int total = regionOwners.Count;
         // Results will be useless if we don't have at least 5 owners for varied results
         Assert.IsTrue(total > 5);
         // No need for testing more than 10 owners. Test will stall for far too long and we
         // already know that parallelization will be far superior at >10. We're just
         // benchmarking for what vehicle count is the cutoff for async performance gains.
-        total = Mathf.Min(total, 10); 
+        total = Mathf.Min(total, 10);
 
         VehicleMapping mapping = Find.CurrentMap.GetCachedMapComponent<VehicleMapping>();
 
@@ -515,22 +522,23 @@ Recursion is not supported here.");
         {
           List<VehicleDef> defsToTest = regionOwners.Take(i).ToList();
 
-          Benchmark.Results asyncResult = Benchmark.Run(IterationsPerTest, delegate ()
+          Benchmark.Results asyncResult = Benchmark.Run(IterationsPerTest, delegate()
           {
             // delegate will add a little bit of overhead from CallVirt but
             // this is how the original method is written so it's accurate.
-            Parallel.ForEach(defsToTest, delegate (VehicleDef vehicleDef)
+            Parallel.ForEach(defsToTest, delegate(VehicleDef vehicleDef)
             {
               VehiclePathData vehiclePathData = mapping[vehicleDef];
               vehiclePathData.VehicleRegionAndRoomUpdater.Init();
               vehiclePathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
 
               Interlocked.Increment(ref tested);
-              LongEventHandler.SetCurrentEventText($"Running Benchmark {tested}/{totalVehiclesTested}");
+              LongEventHandler
+               .SetCurrentEventText($"Running Benchmark {tested}/{totalVehiclesTested}");
             });
           });
 
-          Benchmark.Results syncResult = Benchmark.Run(IterationsPerTest, delegate ()
+          Benchmark.Results syncResult = Benchmark.Run(IterationsPerTest, delegate()
           {
             foreach (VehicleDef vehicleDef in defsToTest)
             {
@@ -539,13 +547,15 @@ Recursion is not supported here.");
               vehiclePathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
 
               Interlocked.Increment(ref tested);
-              LongEventHandler.SetCurrentEventText($"Running Benchmark {tested}/{totalVehiclesTested}");
+              LongEventHandler
+               .SetCurrentEventText($"Running Benchmark {tested}/{totalVehiclesTested}");
             }
           });
 
           Log.Message($"{i} | Async({asyncResult.TotalString}) Sync({syncResult.TotalString})");
           if (timeout.Elapsed.TotalMinutes >= MaxTimeForBenchmark) break;
         }
+
         timeout.Stop();
         SoundDefOf.TinyBell.PlayOneShotOnCamera();
       }, string.Empty, true, null);
@@ -585,7 +595,8 @@ Recursion is not supported here.");
 
       public VehicleRegionMaker VehicleRegionMaker => ReachabilityData.regionMaker;
 
-      public VehicleRegionAndRoomUpdater VehicleRegionAndRoomUpdater => ReachabilityData.regionAndRoomUpdater;
+      public VehicleRegionAndRoomUpdater VehicleRegionAndRoomUpdater =>
+        ReachabilityData.regionAndRoomUpdater;
 
       public VehicleRegionDirtyer VehicleRegionDirtyer => ReachabilityData.regionDirtyer;
     }
@@ -598,13 +609,15 @@ Recursion is not supported here.");
       public readonly VehicleRegionDirtyer regionDirtyer;
       public readonly VehicleReachability reachability;
 
-      public VehicleReachabilitySettings(VehicleMapping vehicleMapping, VehicleDef vehicleDef, VehiclePathData pathData)
+      public VehicleReachabilitySettings(VehicleMapping vehicleMapping, VehicleDef vehicleDef,
+        VehiclePathData pathData)
       {
         regionGrid = new VehicleRegionGrid(vehicleMapping, vehicleDef);
         regionMaker = new VehicleRegionMaker(vehicleMapping, vehicleDef);
         regionAndRoomUpdater = new VehicleRegionAndRoomUpdater(vehicleMapping, vehicleDef);
         regionDirtyer = new VehicleRegionDirtyer(vehicleMapping, vehicleDef);
-        reachability = new VehicleReachability(vehicleMapping, vehicleDef, pathData.VehiclePathGrid, regionGrid);
+        reachability =
+          new VehicleReachability(vehicleMapping, vehicleDef, pathData.VehiclePathGrid, regionGrid);
       }
 
       public void PostInit()

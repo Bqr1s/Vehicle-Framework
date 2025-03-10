@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Text;
-using UnityEngine;
-using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
-using Verse;
-using Verse.Sound;
-using Verse.AI;
-using Verse.AI.Group;
 using SmashTools;
 using SmashTools.Animations;
+using UnityEngine;
+using Verse;
+using Verse.AI;
+using Verse.AI.Group;
+using Verse.Sound;
 
 namespace Vehicles
 {
@@ -30,7 +27,7 @@ namespace Vehicles
     public PatternData patternData;
     private RetextureDef retextureDef;
 
-    private float angle = 0f; /* -45 is left, 45 is right : relative to Rot4 direction*/
+    private float angle = 0f; // -45 is left, 45 is right : relative to Rot4 direction
     private bool reverse = false;
 
     [AnimationProperty(Name = "Position")]
@@ -49,12 +46,14 @@ namespace Vehicles
 
     private List<VehicleHandler> HandlersWithPawnRenderer { get; set; }
 
-    public bool NorthSouthRotation => VehicleGraphic.EastDiagonalRotated && (FullRotation == Rot8.NorthEast || FullRotation == Rot8.SouthEast) ||
-        (VehicleGraphic.WestDiagonalRotated && (FullRotation == Rot8.NorthWest || FullRotation == Rot8.SouthWest));
+    public bool NorthSouthRotation => VehicleGraphic.EastDiagonalRotated && (FullRotation == Rot8.NorthEast || 
+      FullRotation == Rot8.SouthEast) || (VehicleGraphic.WestDiagonalRotated && (FullRotation == Rot8.NorthWest || 
+      FullRotation == Rot8.SouthWest));
 
     public bool CanPaintNow => patternToPaint != null;
 
-    public bool Nameable => SettingsCache.TryGetValue(VehicleDef, typeof(VehicleDef), nameof(VehicleDef.nameable), VehicleDef.nameable);
+    public bool Nameable => SettingsCache.TryGetValue(VehicleDef, typeof(VehicleDef), 
+      nameof(VehicleDef.nameable), VehicleDef.nameable);
 
     public override Vector3 DrawPos => Drawer.DrawPos + position;
 
@@ -249,7 +248,8 @@ namespace Vehicles
     {
       get
       {
-        return patternData.patternDef ?? VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(VehicleDef.defName, VehicleGraphic.DataRGB)?.patternDef ?? PatternDefOf.Default;
+        return patternData.patternDef ?? VehicleMod.settings.vehicles.defaultGraphics
+          .TryGetValue(VehicleDef.defName, VehicleGraphic.DataRGB)?.patternDef ?? PatternDefOf.Default;
       }
       set
       {
@@ -395,7 +395,8 @@ namespace Vehicles
     /// Draw vehicle regardless of spawn status
     /// </summary>
     [Obsolete]
-    public virtual void DrawAt(Vector3 drawLoc, Rot8 rot, float extraRotation, bool flip = false, bool compDraw = true)
+    public virtual void DrawAt(Vector3 drawLoc, Rot8 rot, float extraRotation, bool flip = false, 
+      bool compDraw = true)
     {
       DrawAt(new TransformData(drawLoc, rot, extraRotation), compDraw: compDraw);
     }
@@ -695,7 +696,8 @@ namespace Vehicles
           VehiclePositionManager positionManager = Map.GetCachedMapComponent<VehiclePositionManager>();
           foreach (IntVec3 cell2 in this.PawnOccupiedCells(cell, Rotation))
           {
-            if (!cell2.InBounds(Map) || !GenGridVehicles.Walkable(cell2, VehicleDef, Map) || positionManager.PositionClaimed(cell2))
+            if (!cell2.InBounds(Map) || !GenGridVehicles.Walkable(cell2, VehicleDef, Map) || 
+              positionManager.PositionClaimed(cell2))
             {
               return false;
             }
@@ -738,7 +740,8 @@ namespace Vehicles
         yield return loadVehicle;
       }
 
-      if (FishingCompatibility.Active && SettingsCache.TryGetValue(VehicleDef, typeof(VehicleProperties), nameof(VehicleProperties.fishing), VehicleDef.properties.fishing))
+      if (FishingCompatibility.Active && SettingsCache.TryGetValue(VehicleDef, typeof(VehicleProperties), 
+        nameof(VehicleProperties.fishing), VehicleDef.properties.fishing))
       {
         Command_Toggle fishing = new Command_Toggle
         {
@@ -780,7 +783,8 @@ namespace Vehicles
                 {
                   return false;
                 }
-                return pawn.Faction == Faction.OfPlayer || pawn.IsColonist || pawn.IsColonyMech || pawn.IsSlaveOfColony || pawn.IsPrisonerOfColony;
+                return pawn.Faction == Faction.OfPlayer || pawn.IsColonist || pawn.IsColonyMech || 
+                  pawn.IsSlaveOfColony || pawn.IsPrisonerOfColony;
               }
               return false;
             }
@@ -920,7 +924,8 @@ namespace Vehicles
             {
               options.Add(new FloatMenuOption(component.props.label, delegate ()
               {
-                component.TakeDamage(this, new DamageInfo(DamageDefOf.Vaporize, component.health * Rand.Range(0.1f, 1)), ignoreArmor: true);
+                component.TakeDamage(this, new DamageInfo(DamageDefOf.Vaporize, component.health * Rand.Range(0.1f, 1)), 
+                  ignoreArmor: true);
                 Notify_TookDamage();
               }));
             }
@@ -1104,8 +1109,10 @@ namespace Vehicles
         if (handler.AreSlotsAvailableAndReservable)
         {
           VehicleReservationManager reservationManager = Map.GetCachedMapComponent<VehicleReservationManager>();
-          FloatMenuOption opt = new FloatMenuOption("VF_EnterVehicle".Translate(LabelShort, handler.role.label, (handler.role.Slots - (handler.handlers.Count +
-            reservationManager.GetReservation<VehicleHandlerReservation>(this)?.ClaimantsOnHandler(handler) ?? 0)).ToString()), delegate ()
+          FloatMenuOption opt = new FloatMenuOption("VF_EnterVehicle".Translate(LabelShort, handler.role.label, 
+            (handler.role.Slots - (handler.handlers.Count + 
+            reservationManager.GetReservation<VehicleHandlerReservation>(this)?.ClaimantsOnHandler(handler) ?? 0)).ToString()), 
+            delegate ()
             {
               PromptToBoardVehicle(selPawn, handler);
             });
@@ -1118,7 +1125,8 @@ namespace Vehicles
     {
       if (handler == null)
       {
-        Messages.Message("VF_HandlerNotEnoughRoom".Translate(pawn, this), MessageTypeDefOf.RejectInput, historical: false);
+        Messages.Message("VF_HandlerNotEnoughRoom".Translate(pawn, this), MessageTypeDefOf.RejectInput, 
+          historical: false);
         return;
       }
       Job job = new Job(JobDefOf_Vehicles.Board, this);
@@ -1128,7 +1136,8 @@ namespace Vehicles
       {
         return;
       }
-      Map.GetCachedMapComponent<VehicleReservationManager>().Reserve<VehicleHandler, VehicleHandlerReservation>(this, pawn, pawn.CurJob, handler);
+      Map.GetCachedMapComponent<VehicleReservationManager>()
+        .Reserve<VehicleHandler, VehicleHandlerReservation>(this, pawn, pawn.CurJob, handler);
     }
 
     public bool IdeoAllowsBoarding(Pawn selPawn)
@@ -1172,7 +1181,8 @@ namespace Vehicles
 
     public void ChangeColor()
     {
-      Dialog_ColorPicker.OpenColorPicker(this, delegate (Color colorOne, Color colorTwo, Color colorThree, PatternDef patternDef, Vector2 displacement, float tiles)
+      Dialog_ColorPicker.OpenColorPicker(this, delegate (Color colorOne, Color colorTwo, Color colorThree, 
+        PatternDef patternDef, Vector2 displacement, float tiles)
       {
         patternToPaint = new PatternData(colorOne, colorTwo, colorThree, patternDef, displacement, tiles);
         if (DebugSettings.godMode)
@@ -1272,7 +1282,8 @@ namespace Vehicles
             }
             else
             {
-              Messages.Message($"{this} doesn't have any configuration options available.", MessageTypeDefOf.RejectInput, historical: false);
+              Messages.Message($"{this} doesn't have any configuration options available.", MessageTypeDefOf.RejectInput, 
+                historical: false);
             }
           }
         }

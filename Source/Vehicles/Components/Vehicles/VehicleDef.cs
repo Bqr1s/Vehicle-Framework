@@ -18,31 +18,38 @@ namespace Vehicles
     [PostToSettings]
     public VehicleEnabled.For enabled = VehicleEnabled.For.Everyone;
 
-    [PostToSettings(Label = "VF_Nameable", Translate = true, Tooltip = "VF_NameableTooltip", UISettingsType = UISettingsType.Checkbox)]
+    [PostToSettings(Label = "VF_Nameable", Translate = true, Tooltip = "VF_NameableTooltip",
+      UISettingsType = UISettingsType.Checkbox)]
     public bool nameable = true;
 
     [DisableSetting]
-    [PostToSettings(Label = "VF_CombatPower", Translate = true, Tooltip = "VF_CombatPowerTooltip", UISettingsType = UISettingsType.FloatBox)]
+    [PostToSettings(Label = "VF_CombatPower", Translate = true, Tooltip = "VF_CombatPowerTooltip",
+      UISettingsType = UISettingsType.FloatBox)]
     [NumericBoxValues(MinValue = 0, MaxValue = float.MaxValue)]
     public float combatPower = 100;
 
     //Editing in ModSettings is handled manually as StatModifier list won't serialize well to the config file in the existing setup.
     public List<VehicleStatModifier> vehicleStats;
 
-    [PostToSettings(Label = "VF_MovementPermissions", Translate = true, UISettingsType = UISettingsType.SliderEnum)]
-    [ActionOnSettingsInput(typeof(VehicleHarmony), nameof(VehicleHarmony.RecacheMoveableVehicleDefs))]
+    [PostToSettings(Label = "VF_MovementPermissions", Translate = true,
+      UISettingsType = UISettingsType.SliderEnum)]
+    [ActionOnSettingsInput(typeof(VehicleHarmony),
+      nameof(VehicleHarmony.RecacheMoveableVehicleDefs))]
     public VehiclePermissions vehicleMovementPermissions = VehiclePermissions.DriverNeeded;
 
-    [PostToSettings(Label = "VF_CanCaravan", Translate = true, Tooltip = "VF_CanCaravanTooltip", UISettingsType = UISettingsType.Checkbox)]
+    [PostToSettings(Label = "VF_CanCaravan", Translate = true, Tooltip = "VF_CanCaravanTooltip",
+      UISettingsType = UISettingsType.Checkbox)]
     public bool canCaravan = true;
 
     public VehicleCategory vehicleCategory;
     public VehicleType vehicleType = VehicleType.Land;
 
-    [PostToSettings(Label = "VF_NavigationType", Translate = true, Tooltip = "VF_NavigationTypeTooltip", UISettingsType = UISettingsType.SliderEnum)]
+    [PostToSettings(Label = "VF_NavigationType", Translate = true,
+      Tooltip = "VF_NavigationTypeTooltip", UISettingsType = UISettingsType.SliderEnum)]
     public NavigationCategory navigationCategory = NavigationCategory.Opportunistic;
 
     public VehicleBuildDef buildDef;
+
     [TweakField(SubCategory = "GraphicData")]
     public new GraphicDataRGB graphicData;
 
@@ -60,17 +67,22 @@ namespace Vehicles
     public List<StatCache.EventLister> statEvents;
 
     //Event : SoundDef
-    public List<VehicleSoundEventEntry<VehicleEventDef>> soundOneShotsOnEvent = new List<VehicleSoundEventEntry<VehicleEventDef>>();
+    public List<VehicleSoundEventEntry<VehicleEventDef>> soundOneShotsOnEvent =
+      new List<VehicleSoundEventEntry<VehicleEventDef>>();
+
     //<Start Event, Stop Event> : SoundDef
-    public List<VehicleSustainerEventEntry<VehicleEventDef>> soundSustainersOnEvent = new List<VehicleSustainerEventEntry<VehicleEventDef>>();
+    public List<VehicleSustainerEventEntry<VehicleEventDef>> soundSustainersOnEvent =
+      new List<VehicleSustainerEventEntry<VehicleEventDef>>();
 
     //TODO 1.6 - refactor to container class for cleaner xml input
-    public Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>> events = new Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>>();
+    public Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>> events =
+      new Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>>();
 
     public List<Type> designatorTypes = new List<Type>();
 
     [NoTranslate] //Should be translated in xml and parsed in appropriately
     public string draftLabel = null;
+
     public SoundDef soundBuilt;
 
     /// <summary>
@@ -83,9 +95,12 @@ namespace Vehicles
     public List<VehicleComponentProperties> components;
 
     [Unsaved]
-    private readonly SelfOrderingList<CompProperties> cachedComps = new SelfOrderingList<CompProperties>();
+    private readonly SelfOrderingList<CompProperties> cachedComps =
+      new SelfOrderingList<CompProperties>();
+
     [Unsaved]
     private Texture2D resolvedLoadCargoTexture;
+
     [Unsaved]
     private Texture2D resolvedCancelCargoTexture;
 
@@ -118,7 +133,8 @@ namespace Vehicles
     {
       get
       {
-        resolvedLoadCargoTexture ??= ContentFinder<Texture2D>.Get(drawProperties.loadCargoTexPath, false) 
+        resolvedLoadCargoTexture ??=
+          ContentFinder<Texture2D>.Get(drawProperties.loadCargoTexPath, false)
           ?? VehicleTex.PackCargoIcon[(uint)vehicleType];
         return resolvedLoadCargoTexture;
       }
@@ -131,8 +147,9 @@ namespace Vehicles
     {
       get
       {
-        resolvedCancelCargoTexture ??= ContentFinder<Texture2D>.Get(drawProperties.cancelCargoTexPath, false)
-            ?? VehicleTex.CancelPackCargoIcon[(uint)vehicleType];
+        resolvedCancelCargoTexture ??=
+          ContentFinder<Texture2D>.Get(drawProperties.cancelCargoTexPath, false)
+          ?? VehicleTex.CancelPackCargoIcon[(uint)vehicleType];
         return resolvedCancelCargoTexture;
       }
     }
@@ -144,7 +161,7 @@ namespace Vehicles
 
     public PatternDef PatternDef => PatternDefOf.Default;
 
-    public string Name => $"{modContentPack.Name}_{defName}";
+    public string Name => defName;
 
     string ITweakFields.Label => defName;
 
@@ -164,6 +181,7 @@ namespace Vehicles
             }
           }
         }
+
         return true;
       }
     }
@@ -195,6 +213,7 @@ namespace Vehicles
           component.ResolveReferences(this);
         }
       }
+
       designatorTypes ??= new List<Type>();
       drawProperties ??= new VehicleDrawProperties();
       properties ??= new VehicleProperties();
@@ -213,6 +232,7 @@ namespace Vehicles
       {
         draftLabel = "VF_draftLabel".Translate(); //Default translation for draft label
       }
+
       if (!comps.NullOrEmpty())
       {
         cachedComps.AddRange(comps);
@@ -225,20 +245,27 @@ namespace Vehicles
     public override void PostLoad()
     {
       base.graphicData = graphicData;
-      LongEventHandler.ExecuteWhenFinished(delegate ()
+      LongEventHandler.ExecuteWhenFinished(delegate()
       {
         graphicData.shaderType ??= ShaderTypeDefOf.Cutout;
         if (!VehicleMod.settings.main.useCustomShaders)
         {
-          graphicData.shaderType = graphicData.shaderType.Shader.SupportsRGBMaskTex(ignoreSettings: true) ? ShaderTypeDefOf.CutoutComplex : graphicData.shaderType;
+          graphicData.shaderType =
+            graphicData.shaderType.Shader.SupportsRGBMaskTex(ignoreSettings: true) ?
+              ShaderTypeDefOf.CutoutComplex :
+              graphicData.shaderType;
         }
+
         if (graphicData.shaderType.Shader.SupportsRGBMaskTex())
         {
           RGBMaterialPool.CacheMaterialsFor(this);
           graphicData.Init(this);
-          PatternData patternData = VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(defName, new PatternData(graphicData));
+          PatternData patternData =
+            VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(defName,
+              new PatternData(graphicData));
           patternData.ExposeDataPostDefDatabase();
-          RGBMaterialPool.SetProperties(this, patternData, graphicData.Graphic.TexAt, graphicData.Graphic.MaskAt);
+          RGBMaterialPool.SetProperties(this, patternData, graphicData.Graphic.TexAt,
+            graphicData.Graphic.MaskAt);
         }
         else
         {
@@ -286,6 +313,7 @@ namespace Vehicles
         {
           material = graphic.MatAt(defaultPlacingRot);
         }
+
         uiIcon = (Texture2D)material.mainTexture;
         uiIconColor = material.color;
       }
@@ -298,26 +326,42 @@ namespace Vehicles
     {
       foreach (string error in base.ConfigErrors())
       {
+        if (Fillage == FillCategory.Full)
+        {
+          // Vehicles can provide full cover without affecting edifice grid
+          if (error == "fillPercent is 1.00 but is not edifice") continue;
+          if (error == "gives full cover but is not a building.") continue;
+        }
+
         yield return error;
       }
+
       foreach (string error in properties.ConfigErrors(this))
       {
         yield return error;
       }
+
       if (graphicData is null)
       {
-        yield return "<field>graphicData</field> must be specified in order to properly render the vehicle.".ConvertRichText();
+        yield return
+          "<field>graphicData</field> must be specified in order to properly render the vehicle."
+           .ConvertRichText();
       }
+
       if (components.NullOrEmpty())
       {
-        yield return "<field>components</field> must include at least 1 VehicleComponent".ConvertRichText();
+        yield return "<field>components</field> must include at least 1 VehicleComponent"
+         .ConvertRichText();
       }
+
       if (!components.NullOrEmpty())
       {
         if (components.Select(c => c.key).GroupBy(s => s).Where(g => g.Count() > 1).Any())
         {
-          yield return "<field>components</field> must not contain duplicate keys".ConvertRichText();
+          yield return "<field>components</field> must not contain duplicate keys"
+           .ConvertRichText();
         }
+
         foreach (VehicleComponentProperties props in components)
         {
           foreach (string error in props.ConfigErrors())
@@ -345,10 +389,12 @@ namespace Vehicles
       {
         width = height * (drawSize.x / drawSize.y);
       }
+
       return new Vector2(width, height);
     }
 
-    public Vector2 ScaleDrawRatio(GraphicData graphicData, Rot4 rot, Vector2 size, float iconScale = 1)
+    public Vector2 ScaleDrawRatio(GraphicData graphicData, Rot4 rot, Vector2 size,
+      float iconScale = 1)
     {
       Vector2 drawSize = graphicData.drawSize;
       if (rot.IsHorizontal)
@@ -357,6 +403,7 @@ namespace Vehicles
         drawSize.x = drawSize.y;
         drawSize.y = x;
       }
+
       Vector2 scalar = drawSize / this.graphicData.drawSize;
 
       float width = size.x * uiIconScale * scalar.x * iconScale;
@@ -370,6 +417,7 @@ namespace Vehicles
       {
         width = height * (drawSize.x / drawSize.y);
       }
+
       return new Vector2(width, height);
     }
 
@@ -385,6 +433,7 @@ namespace Vehicles
           }
         }
       }
+
       return null;
     }
 
@@ -395,7 +444,9 @@ namespace Vehicles
       {
         return new VehicleRole(roleReference);
       }
-      if (GetCompProperties<CompProperties_UpgradeTree>() is CompProperties_UpgradeTree compPropertiesUpgradeTree)
+
+      if (GetCompProperties<CompProperties_UpgradeTree>() is CompProperties_UpgradeTree
+        compPropertiesUpgradeTree)
       {
         foreach (UpgradeNode node in compPropertiesUpgradeTree.def.nodes)
         {
@@ -414,10 +465,14 @@ namespace Vehicles
             }
           }
         }
-        Log.Error($"Unable to create role {key}. Matching VehicleRole not found in VehicleDef ({defName}) or UpgradeTreeDef ({compPropertiesUpgradeTree.def.defName})");
+
+        Log.Error(
+          $"Unable to create role {key}. Matching VehicleRole not found in VehicleDef ({defName}) or UpgradeTreeDef ({compPropertiesUpgradeTree.def.defName})");
         return null;
       }
-      Log.Error($"Unable to create role {key}. Matching VehicleRole not found in VehicleDef ({defName}).");
+
+      Log.Error(
+        $"Unable to create role {key}. Matching VehicleRole not found in VehicleDef ({defName}).");
       return null;
     }
 
@@ -428,9 +483,13 @@ namespace Vehicles
         yield return buildableStatEntry;
       }
 
-      (int current, int max, string explanation) health = vehicle?.GetTotalHealth() ?? this.GetTotalHealth();
-      yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasicsImportant, "HitPointsBasic".Translate().CapitalizeFirst(),
-        $"{health.current} / {health.max}", $"{"Stat_HitPoints_Desc".Translate()}{Environment.NewLine}{Environment.NewLine}{health.explanation}", 99998);
+      (int current, int max, string explanation) health =
+        vehicle?.GetTotalHealth() ?? this.GetTotalHealth();
+      yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasicsImportant,
+        "HitPointsBasic".Translate().CapitalizeFirst(),
+        $"{health.current} / {health.max}",
+        $"{"Stat_HitPoints_Desc".Translate()}{Environment.NewLine}{Environment.NewLine}{health.explanation}",
+        99998);
 
       StringBuilder crewExplanation = new StringBuilder();
       int crewCount = 0;
@@ -444,31 +503,42 @@ namespace Vehicles
           crewExplanation.AppendLine($"x{role.Slots}  {role.label}");
         }
       }
-      yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasicsImportant, "VF_CrewCount".Translate().CapitalizeFirst(),
-                crewCount.ToString(), $"{"VF_CrewCountDesc".Translate()}{Environment.NewLine}{crewExplanation}", 99995);
+
+      yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasicsImportant,
+        "VF_CrewCount".Translate().CapitalizeFirst(),
+        crewCount.ToString(),
+        $"{"VF_CrewCountDesc".Translate()}{Environment.NewLine}{crewExplanation}", 99995);
 
       if (CompPropsFueledTravel != null)
       {
         ThingDef fuelType = CompPropsFueledTravel.fuelType;
-        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable, "VF_FuelType".Translate().CapitalizeFirst(),
+        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable,
+          "VF_FuelType".Translate().CapitalizeFirst(),
           fuelType.LabelCap, "VF_FuelTypeDesc".Translate(), 4500);
-        float fuelConsumptionRate = vehicle?.CompFueledTravel.FuelEfficiency ?? CompPropsFueledTravel.fuelConsumptionRate;
-        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable, "VF_FuelConsumptionRate".Translate().CapitalizeFirst(),
+        float fuelConsumptionRate = vehicle?.CompFueledTravel.FuelEfficiency ??
+          CompPropsFueledTravel.fuelConsumptionRate;
+        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable,
+          "VF_FuelConsumptionRate".Translate().CapitalizeFirst(),
           fuelConsumptionRate.ToString("0.##"), "VF_FuelConsumptionRateTooltip".Translate(), 4501);
-        float fuelCapacity = vehicle?.CompFueledTravel.FuelCapacity ?? CompPropsFueledTravel.fuelCapacity;
-        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable, "VF_FuelCapacity".Translate().CapitalizeFirst(),
-          fuelCapacity.ToStringByStyle(ToStringStyle.Integer), "VF_FuelCapacityTooltip".Translate(), 4502);
+        float fuelCapacity = vehicle?.CompFueledTravel.FuelCapacity ??
+          CompPropsFueledTravel.fuelCapacity;
+        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable,
+          "VF_FuelCapacity".Translate().CapitalizeFirst(),
+          fuelCapacity.ToStringByStyle(ToStringStyle.Integer), "VF_FuelCapacityTooltip".Translate(),
+          4502);
       }
 
       if (CompPropsVehicleTurrets != null)
       {
-        List<VehicleTurret> turrets = vehicle?.CompVehicleTurrets.turrets ?? CompPropsVehicleTurrets.turrets;
+        List<VehicleTurret> turrets =
+          vehicle?.CompVehicleTurrets.turrets ?? CompPropsVehicleTurrets.turrets;
         if (!turrets.NullOrEmpty())
         {
           for (int i = 0; i < turrets.Count; i++)
           {
             VehicleTurret turret = turrets[i];
-            foreach (VehicleStatDrawEntry statDrawEntry in turret.turretDef.SpecialDisplayStats(VehicleStatCategoryDefOf.VehicleTurrets.displayOrder + i))
+            foreach (VehicleStatDrawEntry statDrawEntry in turret.turretDef.SpecialDisplayStats(
+              VehicleStatCategoryDefOf.VehicleTurrets.displayOrder + i))
             {
               yield return statDrawEntry;
             }
@@ -478,34 +548,43 @@ namespace Vehicles
 
       if (CompPropsVehicleLauncher != null)
       {
-        if (ModsConfig.IsActive(CompatibilityPackageIds.SOS2) || ModsConfig.IsActive(CompatibilityPackageIds.RimNauts) ||
+        if (ModsConfig.IsActive(CompatibilityPackageIds.SOS2) ||
+          ModsConfig.IsActive(CompatibilityPackageIds.RimNauts) ||
           ModsConfig.IsActive(CompatibilityPackageIds.Universum))
         {
-          bool spaceFlight = vehicle?.CompVehicleLauncher.SpaceFlight ?? CompPropsVehicleLauncher.spaceFlight;
-          yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable, "VF_SpaceFlight".Translate().CapitalizeFirst(),
+          bool spaceFlight = vehicle?.CompVehicleLauncher.SpaceFlight ??
+            CompPropsVehicleLauncher.spaceFlight;
+          yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleRefuelable,
+            "VF_SpaceFlight".Translate().CapitalizeFirst(),
             spaceFlight.ToStringYesNo(), "VF_SpaceFlightTooltip".Translate(), 1000);
         }
       }
 
       if (fillPercent > 0f)
       {
-        yield return new VehicleStatDrawEntry(StatCategoryDefOf.Building, "CoverEffectiveness".Translate(),
-          this.BaseBlockChance().ToStringPercent(), "CoverEffectivenessExplanation".Translate(), 2000);
+        yield return new VehicleStatDrawEntry(StatCategoryDefOf.Building,
+          "CoverEffectiveness".Translate(),
+          this.BaseBlockChance().ToStringPercent(), "CoverEffectivenessExplanation".Translate(),
+          2000);
       }
 
-      yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasics, "VF_Upgradeable".Translate(),
-          (CompPropsUpgradeTree != null).ToStringYesNo(), "VF_UpgradeableDesc".Translate(), 6001);
+      yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasics,
+        "VF_Upgradeable".Translate(),
+        (CompPropsUpgradeTree != null).ToStringYesNo(), "VF_UpgradeableDesc".Translate(), 6001);
       if (VehicleMod.settings.main.useCustomShaders)
       {
-        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasics, "Stat_Building_Paintable".Translate(),
-          graphicData.shaderType.Shader.SupportsRGBMaskTex().ToStringYesNo(), "VF_PaintableDesc".Translate(), 6000);
+        yield return new VehicleStatDrawEntry(VehicleStatCategoryDefOf.VehicleBasics,
+          "Stat_Building_Paintable".Translate(),
+          graphicData.shaderType.Shader.SupportsRGBMaskTex().ToStringYesNo(),
+          "VF_PaintableDesc".Translate(), 6000);
       }
 
       if (modContentPack != null && !modContentPack.IsCoreMod)
       {
-        yield return new VehicleStatDrawEntry(StatCategoryDefOf.Source, "Stat_Source_Label".Translate(), modContentPack.Name,
+        yield return new VehicleStatDrawEntry(StatCategoryDefOf.Source,
+          "Stat_Source_Label".Translate(), modContentPack.Name,
           $"{(modContentPack.IsOfficialMod ? "Stat_Source_OfficialExpansionReport".Translate() :
-          "Stat_Source_ModReport".Translate())}: {modContentPack.Name}", 90000);
+            "Stat_Source_ModReport".Translate())}: {modContentPack.Name}", 90000);
       }
     }
 
@@ -519,10 +598,12 @@ namespace Vehicles
 
       foreach (VehicleStatModifier statModifier in vehicleStats)
       {
-        if (statModifier.statDef == VehicleStatDefOf.MoveSpeed && vehicleMovementPermissions == VehiclePermissions.NotAllowed)
+        if (statModifier.statDef == VehicleStatDefOf.MoveSpeed &&
+          vehicleMovementPermissions == VehiclePermissions.NotAllowed)
         {
           continue;
         }
+
         yield return statModifier.statDef;
       }
 
@@ -550,6 +631,7 @@ namespace Vehicles
           return t;
         }
       }
+
       return default;
     }
   }

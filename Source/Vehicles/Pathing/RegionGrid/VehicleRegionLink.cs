@@ -97,7 +97,8 @@ namespace Vehicles
     /// <summary>
     /// Draws <paramref name="weight"/> on map from this link to <paramref name="regionLink"/>
     /// </summary>
-    public void DrawWeight(Map map, in VehicleRegionLink regionLink, float weight, int duration = 50)
+    public void DrawWeight(Map map, in VehicleRegionLink regionLink, float weight,
+      int duration = 50)
     {
       Vector3 from = anchor.ToVector3();
       from.y += AltitudeLayer.MapDataOverlay.AltitudeFor();
@@ -118,9 +119,9 @@ namespace Vehicles
     {
       if (regionA == regionLink.regionA || regionA == regionLink.regionB) return regionA;
       if (regionB == regionLink.regionB || regionB == regionLink.regionA) return regionB;
-      Log.Warning($@"Attempting to fetch region between links {anchor} and {regionLink.anchor}, but they do not 
-share a region.{Environment.NewLine}--- Regions ---{Environment.NewLine}{regionA}{Environment.NewLine}{regionB}
-{Environment.NewLine}{regionLink.regionA}{Environment.NewLine}{regionLink.regionB}{Environment.NewLine}");
+      Log.Warning($"Attempting to fetch region between links {anchor} and {regionLink.anchor}, " +
+        $"but they do not share a region.\n--- Regions ---\n{regionA}\n{regionB}\n" +
+        $"{regionLink.regionA}\n{regionLink.regionB}\n");
       return null;
     }
 

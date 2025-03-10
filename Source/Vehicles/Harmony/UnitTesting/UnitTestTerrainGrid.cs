@@ -17,7 +17,7 @@ namespace Vehicles.Testing
 
     protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
     {
-      UTResult result;
+      UTResult result = new();
 
       VehicleDef vehicleDef = vehicle.VehicleDef;
       VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
@@ -30,27 +30,28 @@ namespace Vehicles.Testing
 
       TerrainDef terrainOrig = TestMap.terrainGrid.TerrainAt(root);
       TerrainDef passableTerrain = DefDatabase<TerrainDef>.AllDefsListForReading
-        .FirstOrDefault(def => def != terrainOrig && VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
+       .FirstOrDefault(def =>
+          def != terrainOrig && VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
       TerrainDef impassableTerrain = DefDatabase<TerrainDef>.AllDefsListForReading
-        .FirstOrDefault(def => def != terrainOrig && !VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
+       .FirstOrDefault(def =>
+          def != terrainOrig && !VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
 
       Assert.IsNotNull(terrainOrig);
       Assert.IsNotNull(passableTerrain);
       Assert.IsNotNull(impassableTerrain);
 
-      bool success;
       // VehiclePathGrid costs should take terrain into account
       VehiclePathGrid pathGrid = pathData.VehiclePathGrid;
 
       // Terrain cost updates
       SetArea(in terrainArea, passableTerrain);
-      success = AreaCost(in terrainArea, passableTerrain);
+      bool success = AreaCost(in terrainArea, passableTerrain);
       result.Add($"TerrainGrid_{vehicleDef} (PathCost)", success);
 
       // Terrain becomes impassable
       SetArea(in terrainArea, impassableTerrain);
-      success = AreaCost(in terrainArea, impassableTerrain) && 
-        !VehiclePathGrid.PassableTerrainCost(vehicleDef, impassableTerrain, out _);
+      success = AreaCost(in terrainArea, impassableTerrain) &&
+                !VehiclePathGrid.PassableTerrainCost(vehicleDef, impassableTerrain, out _);
       result.Add($"TerrainGrid_{vehicleDef} (ImpassableCost)", success);
 
       if (PathingHelper.ShouldCreateRegions(vehicleDef) && GridOwners.IsOwner(vehicleDef))
@@ -78,6 +79,7 @@ namespace Vehicles.Testing
         {
           if (pathGrid.CalculatedCostAt(cell) != expected) return false;
         }
+
         return true;
       }
 
@@ -88,6 +90,7 @@ namespace Vehicles.Testing
           VehicleRegion region = mapping[vehicleDef].VehicleRegionGrid.GetValidRegionAt(cell);
           if ((region is not null) != valid) return false;
         }
+
         return true;
       }
     }

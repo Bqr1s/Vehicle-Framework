@@ -18,7 +18,7 @@ namespace Vehicles.Testing
 
     protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
     {
-      UTResult result;
+      UTResult result = new();
 
       // VehicleGraphic
       using MaterialPoolWatcher vehicleMats = new();
@@ -28,7 +28,7 @@ namespace Vehicles.Testing
 
       int targets = 0;
       int materialCount = 0;
-      
+
       // Turrets
       // NOTE - CompVehicleTurrets initializes all turrets and their graphics PostSpawn, so
       // material allocations will be tracked alongside main body graphic. We can still check
@@ -41,11 +41,13 @@ namespace Vehicles.Testing
           // Turret graphic is created in ctor, we need to force regenerate to
           // log results in MaterialPoolWatcher and track material lifetime.
           turret.ResolveCannonGraphics(vehicle.patternData, forceRegen: true);
-          if (!turret.NoGraphic && turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+          if (!turret.NoGraphic &&
+              turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             targets++;
             materialCount += turret.MaterialCount;
           }
+
           if (!turret.TurretGraphics.NullOrEmpty())
           {
             foreach (VehicleTurret.TurretDrawData drawData in turret.TurretGraphics)
@@ -58,8 +60,11 @@ namespace Vehicles.Testing
             }
           }
         }
-        result.Add($"MaterialPool_{vehicle.def} (Add Turret MaterialCacheTarget)", vehicleMats.CacheTargets == targets);
-        result.Add($"MaterialPool_{vehicle.def} (Add Turret Graphic)", vehicleMats.MaterialsAllocated == materialCount);
+
+        result.Add($"MaterialPool_{vehicle.def} (Add Turret MaterialCacheTarget)",
+                   vehicleMats.CacheTargets == targets);
+        result.Add($"MaterialPool_{vehicle.def} (Add Turret Graphic)",
+                   vehicleMats.MaterialsAllocated == materialCount);
       }
 
       if (vehicle.VehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
@@ -67,9 +72,12 @@ namespace Vehicles.Testing
         targets++; // Only 1 vehicle instance
         materialCount += vehicle.MaterialCount;
       }
+
       _ = vehicle.VehicleGraphic; // Force graphic to be cached before any upgrade calls
-      result.Add($"MaterialPool_{vehicle.def} (Add MaterialCacheTarget)", vehicleMats.CacheTargets == targets);
-      result.Add($"MaterialPool_{vehicle.def} (Add Graphic)", vehicleMats.MaterialsAllocated == materialCount);
+      result.Add($"MaterialPool_{vehicle.def} (Add MaterialCacheTarget)",
+                 vehicleMats.CacheTargets == targets);
+      result.Add($"MaterialPool_{vehicle.def} (Add Graphic)",
+                 vehicleMats.MaterialsAllocated == materialCount);
 
       // Overlays
       if (vehicle.overlayRenderer.Overlays.Count > 0)
@@ -84,12 +92,14 @@ namespace Vehicles.Testing
             overlayTargets++;
             overlayMaterialCount += overlay.MaterialCount;
           }
+
           _ = overlay.Graphic;
         }
+
         result.Add($"MaterialPool_{vehicle.def} Overlay (Add MaterialCacheTarget)",
-          overlayMats.CacheTargets == overlayTargets);
+                   overlayMats.CacheTargets == overlayTargets);
         result.Add($"MaterialPool_{vehicle.def} Overlay (Add Graphic)",
-          overlayMats.MaterialsAllocated == overlayMaterialCount);
+                   overlayMats.MaterialsAllocated == overlayMaterialCount);
       }
 
       // UpgradeTree
@@ -104,9 +114,10 @@ namespace Vehicles.Testing
           using MaterialPoolWatcher upgradeMats = new();
           vehicle.CompUpgradeTree.FinishUnlock(node);
           vehicle.CompUpgradeTree.ResetUnlock(node);
-          result.Add($"MaterialPool_{vehicle.def} {node.label} (Node Upgrades Destroyed)", upgradeMats.AllocationsEqualized);
+          result.Add($"MaterialPool_{vehicle.def} {node.label} (Node Upgrades Destroyed)",
+                     upgradeMats.AllocationsEqualized);
         }
-        
+
         // Unlock again so we can test cleanup with vehicle destroy
         foreach (UpgradeNode node in vehicle.CompUpgradeTree.Props.def.nodes)
         {

@@ -70,7 +70,8 @@ namespace Vehicles
       shaderParameters = null;
     }
 
-    public MaterialRequestRGB(MaterialRequest req, Texture2D patternTex, PatternProperties properties)
+    public MaterialRequestRGB(MaterialRequest req, Texture2D patternTex,
+      PatternProperties properties)
     {
       shader = req.shader;
       mainTex = req.mainTex as Texture2D;
@@ -88,18 +89,15 @@ namespace Vehicles
 
     public string BaseTexPath
     {
-      set
-      {
-        mainTex = ContentFinder<Texture2D>.Get(value, true);
-      }
+      set { mainTex = ContentFinder<Texture2D>.Get(value, true); }
     }
 
     public readonly override int GetHashCode()
     {
       return Gen.HashCombine(Gen.HashCombineInt(Gen.HashCombine(
         Gen.HashCombine(Gen.HashCombine(Gen.HashCombine(Gen.HashCombine(
-        Gen.HashCombine(Gen.HashCombine(0, displacement), tiles), color), 
-        colorTwo), colorThree), mainTex), maskTex), renderQueue), shaderParameters);
+            Gen.HashCombine(Gen.HashCombine(0, displacement), tiles), color),
+          colorTwo), colorThree), mainTex), maskTex), renderQueue), shaderParameters);
     }
 
     public override bool Equals(object obj)
@@ -109,10 +107,14 @@ namespace Vehicles
 
     public bool Equals(MaterialRequestRGB other)
     {
-      return other.shader == shader && other.mainTex == mainTex && other.properties.colorOne == properties.colorOne && 
-        other.properties.colorTwo == properties.colorTwo && other.properties.colorThree == properties.colorThree && 
-        other.maskTex == maskTex && other.patternTex == patternTex && other.renderQueue == renderQueue &&
-        other.shaderParameters == shaderParameters && other.tiles == tiles && other.displacement == displacement;
+      return other.shader == shader && other.mainTex == mainTex &&
+        other.properties.colorOne == properties.colorOne &&
+        other.properties.colorTwo == properties.colorTwo &&
+        other.properties.colorThree == properties.colorThree &&
+        other.maskTex == maskTex && other.patternTex == patternTex &&
+        other.renderQueue == renderQueue &&
+        other.shaderParameters == shaderParameters && other.tiles == tiles &&
+        other.displacement == displacement;
     }
 
     public static bool operator ==(MaterialRequestRGB lhs, MaterialRequestRGB rhs)
@@ -127,8 +129,9 @@ namespace Vehicles
 
     public override string ToString()
     {
-      return $@"MaterialRGBRequest({shader.name}, {mainTex.name}, {properties}, {maskTex}, {patternTex}, 
-{renderQueue})";
+      return
+        $"MaterialRGBRequest({shader.name}, {mainTex.name}, {properties}, {maskTex}, {patternTex}, " +
+        $"{renderQueue})";
     }
   }
 }
