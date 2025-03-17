@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace Vehicles
 {
-  public abstract class VehicleRegionManager
+  public abstract class VehicleGridManager
   {
     protected readonly VehicleMapping mapping;
     protected readonly VehicleDef createdFor;
 
-    public VehicleRegionManager(VehicleMapping mapping, VehicleDef createdFor)
+    public VehicleGridManager(VehicleMapping mapping, VehicleDef createdFor)
     {
       this.mapping = mapping;
       this.createdFor = createdFor;

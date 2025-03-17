@@ -21,22 +21,17 @@ namespace Vehicles
     [Unsaved]
     public VehicleSustainers sustainers;
 
-    private List<TimedExplosion> explosives = new List<TimedExplosion>();
+    private List<TimedExplosion> explosives = [];
 
     public override bool Suspended => false; //Vehicles are not suspendable
 
-    public TimedExplosion AddTimedExplosion(IntVec2 cell, int ticks, int radius, DamageDef damageDef, int damageAmount = -1, float armorPenetration = -1, DrawOffsets drawOffsets = null)
-    {
-      if (damageAmount < 0)
-      {
-        damageAmount = damageDef.defaultDamage;
-      }
-      if (armorPenetration < 0)
-      {
-        armorPenetration = damageDef.defaultArmorPenetration;
-      }
+    public int AttachedExplosives => explosives.Count;
 
-      TimedExplosion timedExplosion = new TimedExplosion(this, cell, ticks, radius, damageDef, damageAmount, armorPenetration: armorPenetration, drawOffsets: drawOffsets);
+    // TODO 1.6 - Rename
+    public TimedExplosion AddTimedExplosion(TimedExplosion.Data explosionData,
+      DrawOffsets drawOffsets = null)
+    {
+      TimedExplosion timedExplosion = new(this, explosionData, drawOffsets: drawOffsets);
       explosives.Add(timedExplosion);
       return timedExplosion;
     }
@@ -63,6 +58,7 @@ namespace Vehicles
         compTickers.Add(comp);
         return true;
       }
+
       return false;
     }
 
@@ -70,8 +66,10 @@ namespace Vehicles
     {
       if (!VehicleMod.settings.main.opportunisticTicking)
       {
-        return false; //If opportunistic ticking is off, disallow removal from ticker list. VehicleComp should then always tick
+        return
+          false; //If opportunistic ticking is off, disallow removal from ticker list. VehicleComp should then always tick
       }
+
       return compTickers.Remove(comp);
     }
 
@@ -94,12 +92,14 @@ namespace Vehicles
     {
       for (int i = compTickers.Count - 1; i >= 0; i--)
       {
-        compTickers[i].CompTick(); //Must run back to front in case CompTick methods trigger their own removal
+        compTickers[i]
+         .CompTick(); //Must run back to front in case CompTick methods trigger their own removal
       }
 
       if (CompFueledTravel != null)
       {
-        CompFueledTravel.LeakTick(); //Tick manually for leak checks that is separate from tick by request.
+        CompFueledTravel
+         .LeakTick(); //Tick manually for leak checks that is separate from tick by request.
       }
     }
 
@@ -127,6 +127,7 @@ namespace Vehicles
         {
           jobs.JobTrackerTick();
         }
+
         TickHandlers();
         TickExplosives();
         if (currentlyFishing && Find.TickManager.TicksGame % 240 == 0)
@@ -154,6 +155,7 @@ namespace Vehicles
       {
         //royalty?.RoyaltyTrackerTick();
       }
+
       ageTracker.AgeTick();
       records.RecordsTick();
     }

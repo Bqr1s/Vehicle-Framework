@@ -20,10 +20,11 @@ namespace Vehicles
     private static readonly Type jobDriverGotoDisplayClassType;
 
     private static readonly HashSet<IntVec3> hitboxUpdateCells = new HashSet<IntVec3>();
-    
+
     static VehiclePathing()
     {
-      jobDriverGotoDisplayClassType = typeof(JobDriver_Goto).GetNestedTypes(AccessTools.all).FirstOrDefault();
+      jobDriverGotoDisplayClassType =
+        typeof(JobDriver_Goto).GetNestedTypes(AccessTools.all).FirstOrDefault();
       Assert.IsNotNull(jobDriverGotoDisplayClassType);
     }
 
@@ -45,70 +46,90 @@ namespace Vehicles
         Assert.IsTrue(makeToilsDelegate0.Name == "<MakeNewToils>b__0");
         VehicleHarmony.Patch(original: makeToilsDelegate0,
           postfix: new HarmonyMethod(typeof(VehiclePathing),
-          nameof(GotoToilsFirstExit)));
+            nameof(GotoToilsFirstExit)));
         // <MakeNewToils>b__6
         MethodInfo makeToilsDelegate6 = gotoMethods[6];
         Assert.IsTrue(makeToilsDelegate6.Name == "<MakeNewToils>b__6");
         VehicleHarmony.Patch(original: makeToilsDelegate6,
           postfix: new HarmonyMethod(typeof(VehiclePathing),
-          nameof(GotoToilsSecondExit)));
+            nameof(GotoToilsSecondExit)));
       }
 #endif
 
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(FloatMenuMakerMap), "GotoLocationOption"),
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(FloatMenuMakerMap), "GotoLocationOption"),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(GotoLocationVehicles)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.IsCurrentJobPlayerInterruptible)),
+          nameof(GotoLocationVehicles)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(Pawn_JobTracker),
+          nameof(Pawn_JobTracker.IsCurrentJobPlayerInterruptible)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(JobInterruptibleForVehicle)));
+          nameof(JobInterruptibleForVehicle)));
       VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_PathFollower), "NeedNewPath"),
         postfix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(IsVehicleInNextCell)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn_PathFollower), nameof(Pawn_PathFollower.StartPath)),
+          nameof(IsVehicleInNextCell)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(Pawn_PathFollower),
+          nameof(Pawn_PathFollower.StartPath)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(StartVehiclePath)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.AdjacentTo8WayOrInside), parameters: [typeof(IntVec3), typeof(Thing)]),
+          nameof(StartVehiclePath)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.AdjacentTo8WayOrInside),
+          parameters: [typeof(IntVec3), typeof(Thing)]),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(AdjacentTo8WayOrInsideVehicle)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.OccupiedRect), parameters: [typeof(Thing)]),
+          nameof(AdjacentTo8WayOrInsideVehicle)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(GenAdj), nameof(GenAdj.OccupiedRect),
+          parameters: [typeof(Thing)]),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(OccupiedRectVehicles)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pathing), nameof(Pathing.RecalculateAllPerceivedPathCosts)),
+          nameof(OccupiedRectVehicles)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(Pathing),
+          nameof(Pathing.RecalculatePerceivedPathCostAt)),
         postfix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(RecalculateAllPerceivedPathCostForVehicle)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pathing), nameof(Pathing.RecalculatePerceivedPathCostAt)),
-        postfix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(RecalculatePerceivedPathCostForVehicle)));
+          nameof(RecalculatePerceivedPathCostForVehicle)));
 
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(TerrainGrid), "DoTerrainChangedEffects"),
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(TerrainGrid), "DoTerrainChangedEffects"),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(SetTerrainAndUpdateVehiclePathCosts)));
+          nameof(SetTerrainAndUpdateVehiclePathCosts)));
       VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.DeSpawn)),
         transpiler: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(DeSpawnAndUpdateVehicleRegionsTranspiler)));
+          nameof(DeSpawnAndUpdateVehicleRegionsTranspiler)));
       VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.SpawnSetup)),
         transpiler: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(SpawnAndUpdateVehicleRegionsTranspiler)));
-      VehicleHarmony.Patch(original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Position)),
+          nameof(SpawnAndUpdateVehicleRegionsTranspiler)));
+      VehicleHarmony.Patch(
+        original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Position)),
         postfix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(SetPositionAndUpdateVehicleRegions)));
-      VehicleHarmony.Patch(original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Rotation)),
+          nameof(SetPositionAndUpdateVehicleRegions)));
+      VehicleHarmony.Patch(
+        original: AccessTools.PropertySetter(typeof(Thing), nameof(Thing.Rotation)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(SetRotationAndUpdateVehicleRegionsClipping)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(ThingGrid), nameof(ThingGrid.Register)),
+          nameof(SetRotationAndUpdateVehicleRegionsClipping)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(ThingGrid), nameof(ThingGrid.Register)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(MonitorThingGridRegisterStart)),
+          nameof(MonitorThingGridRegisterStart)),
         finalizer: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(MonitorThingGridRegisterEnd)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(ThingGrid), nameof(ThingGrid.Deregister)),
+          nameof(MonitorThingGridRegisterEnd)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(ThingGrid), nameof(ThingGrid.Deregister)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(MonitorThingGridDeregisterStart)),
+          nameof(MonitorThingGridDeregisterStart)),
         finalizer: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(MonitorThingGridDeregisterEnd)));
+          nameof(MonitorThingGridDeregisterEnd)));
 
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenStep_RocksFromGrid), nameof(GenStep_RocksFromGrid.Generate)),
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(GenStep_RocksFromGrid),
+          nameof(GenStep_RocksFromGrid.Generate)),
         prefix: new HarmonyMethod(typeof(VehiclePathing),
-        nameof(DisableRegionUpdatingRockGen)));
+          nameof(DisableRegionUpdatingRockGen)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(GenStep_RocksNearEdge),
+          nameof(GenStep_RocksNearEdge.Generate)),
+        prefix: new HarmonyMethod(typeof(VehiclePathing),
+          nameof(DisableRegionUpdatingRockGen)));
     }
 
     private static void VehiclesCanTakeOrders(Pawn pawn, ref bool __result)
@@ -125,7 +146,8 @@ namespace Vehicles
     /// <param name="clickCell"></param>
     /// <param name="pawn"></param>
     /// <param name="__result"></param>
-    private static bool GotoLocationVehicles(IntVec3 clickCell, Pawn pawn, ref FloatMenuOption __result, bool suppressAutoTakeableGoto)
+    private static bool GotoLocationVehicles(IntVec3 clickCell, Pawn pawn,
+      ref FloatMenuOption __result, bool suppressAutoTakeableGoto)
     {
       if (pawn is VehiclePawn vehicle)
       {
@@ -134,16 +156,20 @@ namespace Vehicles
         {
           return false;
         }
+
         if (vehicle.Faction != Faction.OfPlayer || !vehicle.CanMoveFinal)
         {
           return false;
         }
-        if (vehicle.Deploying || (vehicle.CompVehicleTurrets != null && vehicle.CompVehicleTurrets.Deployed))
+
+        if (vehicle.Deploying ||
+          (vehicle.CompVehicleTurrets != null && vehicle.CompVehicleTurrets.Deployed))
         {
-          Messages.Message("VF_VehicleImmobileDeployed".Translate(vehicle), MessageTypeDefOf.RejectInput);
+          Messages.Message("VF_VehicleImmobileDeployed".Translate(vehicle),
+            MessageTypeDefOf.RejectInput);
           return false;
         }
-        
+
         if (vehicle.CompFueledTravel != null && vehicle.CompFueledTravel.EmptyTank)
         {
           Messages.Message("VF_OutOfFuel".Translate(vehicle), MessageTypeDefOf.RejectInput);
@@ -151,56 +177,64 @@ namespace Vehicles
         }
 
         VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(vehicle.Map);
-        
+
         if (PathingHelper.TryFindNearestStandableCell(vehicle, clickCell, out IntVec3 result))
         {
-          __result = new FloatMenuOption("GoHere".Translate(), delegate ()
-          {
-            VehicleOrientationController.StartOrienting(vehicle, result, clickCell);
-          }, MenuOptionPriority.GoHere, null, null, 0f, null, null)
+          __result = new FloatMenuOption("GoHere".Translate(),
+            delegate() { VehicleOrientationController.StartOrienting(vehicle, result, clickCell); },
+            MenuOptionPriority.GoHere, null, null, 0f, null, null)
           {
             autoTakeable = true,
             autoTakeablePriority = 10f
           };
         }
-        if (!VehicleReachabilityUtility.CanReachVehicle(vehicle, clickCell, PathEndMode.OnCell, Danger.Deadly, TraverseMode.ByPawn))
+
+        if (!VehicleReachabilityUtility.CanReachVehicle(vehicle, clickCell, PathEndMode.OnCell,
+          Danger.Deadly, TraverseMode.ByPawn))
         {
           __result = new FloatMenuOption("VF_CannotMoveToCell".Translate(vehicle.LabelCap), null);
         }
+
         return false;
       }
       else
       {
         if (PathingHelper.VehicleImpassableInCell(pawn.Map, clickCell))
         {
-          __result = new FloatMenuOption("CannotGoNoPath".Translate(), null, MenuOptionPriority.Default, null, null, 0f, null, null);
+          __result = new FloatMenuOption("CannotGoNoPath".Translate(), null,
+            MenuOptionPriority.Default, null, null, 0f, null, null);
           return false;
         }
       }
+
       return true;
     }
 
-    private static void GotoToilsFirstExit(JobDriver_Goto __instance /* JobDriver_goto::<>c__DisplayClass1_0 */)
+    private static void GotoToilsFirstExit(
+      JobDriver_Goto __instance /* JobDriver_goto::<>c__DisplayClass1_0 */)
     {
       TryExitMapForVehicle(__instance, false, true);
     }
 
-    private static void GotoToilsSecondExit(JobDriver_Goto __instance  /* JobDriver_goto::<>c__DisplayClass1_0 */)
+    private static void GotoToilsSecondExit(
+      JobDriver_Goto __instance /* JobDriver_goto::<>c__DisplayClass1_0 */)
     {
       TryExitMapForVehicle(__instance, true, true);
     }
 
-    private static void TryExitMapForVehicle(JobDriver_Goto __instance /* JobDriver_goto::<>c__DisplayClass1_0 */, 
+    private static void TryExitMapForVehicle(
+      JobDriver_Goto __instance /* JobDriver_goto::<>c__DisplayClass1_0 */,
       bool onEdge, bool onExitCell)
     {
       // Sticking with compiler generated notation here for ease of debugging
-      JobDriver_Goto __this = Traverse.Create(__instance).Field("<>4__this").GetValue<JobDriver_Goto>();
+      JobDriver_Goto __this =
+        Traverse.Create(__instance).Field("<>4__this").GetValue<JobDriver_Goto>();
       if (__this.pawn is VehiclePawn vehicle && __this.job.exitMapOnArrival && vehicle.Spawned)
       {
         Rot4 rot = CellRect.WholeMap(vehicle.Map).GetClosestEdge(vehicle.Position);
         // Only need to check 1 cell per edge, if 1 is touching then all on that edge will be.
-        if (vehicle.PawnOccupiedCells(vehicle.Position, rot).Cardinals().Any(cell =>
-          (onEdge && cell.OnEdge(vehicle.Map)) || 
+        if (vehicle.PawnOccupiedCells(vehicle.Position, rot).Corners.Any(cell =>
+          (onEdge && cell.OnEdge(vehicle.Map)) ||
           (onExitCell && vehicle.Map.exitMapGrid.IsExitCell(cell))))
         {
           PathingHelper.ExitMapForVehicle(vehicle, __this.job);
@@ -211,7 +245,8 @@ namespace Vehicles
     /// <summary>
     /// Bypass vanilla check for now, since it forces on-fire pawns to not be able to interrupt jobs which obviously shouldn't apply to vehicles.
     /// </summary>
-    private static bool JobInterruptibleForVehicle(Pawn_JobTracker __instance, Pawn ___pawn, ref bool __result)
+    private static bool JobInterruptibleForVehicle(Pawn_JobTracker __instance, Pawn ___pawn,
+      ref bool __result)
     {
       if (___pawn is VehiclePawn)
       {
@@ -227,8 +262,10 @@ namespace Vehicles
             __result = false;
           }
         }
+
         return false;
       }
+
       return true;
     }
 
@@ -238,13 +275,16 @@ namespace Vehicles
     /// <param name="__result"></param>
     /// <param name="___pawn"></param>
     /// <param name="nextCell"></param>
-    private static void IsVehicleInNextCell(ref bool __result, Pawn ___pawn, Pawn_PathFollower __instance)
+    private static void IsVehicleInNextCell(ref bool __result, Pawn ___pawn,
+      Pawn_PathFollower __instance)
     {
       if (!__result)
       {
         //Peek 2 nodes ahead to avoid collision last second
-        __result = (__instance.curPath.NodesLeftCount > 1 && PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(1))) || 
-          (__instance.curPath.NodesLeftCount > 2 && PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(2)));
+        __result = (__instance.curPath.NodesLeftCount > 1 &&
+            PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(1))) ||
+          (__instance.curPath.NodesLeftCount > 2 &&
+            PathingHelper.VehicleImpassableInCell(___pawn.Map, __instance.curPath.Peek(2)));
       }
     }
 
@@ -261,6 +301,7 @@ namespace Vehicles
         vehicle.vehiclePather.StartPath(dest, peMode);
         return false;
       }
+
       return true;
     }
 
@@ -274,6 +315,7 @@ namespace Vehicles
         __result = root.AdjacentTo8WayOrInside(vehicle.Position, rot, size);
         return false;
       }
+
       return true;
     }
 
@@ -282,13 +324,15 @@ namespace Vehicles
     /// </summary>
     /// <param name="instructions"></param>
     /// <param name="ilg"></param>
-    private static IEnumerable<CodeInstruction> PathAroundVehicles(IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
+    private static IEnumerable<CodeInstruction> PathAroundVehicles(
+      IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
-      for(int i = 0; i < instructionList.Count; i++)
+      for (int i = 0; i < instructionList.Count; i++)
       {
         CodeInstruction instruction = instructionList[i];
-        if (instruction.Calls(AccessTools.Method(typeof(CellIndices), nameof(CellIndices.CellToIndex), new Type[] { typeof(int), typeof(int) })))
+        if (instruction.Calls(AccessTools.Method(typeof(CellIndices),
+          nameof(CellIndices.CellToIndex), new Type[] { typeof(int), typeof(int) })))
         {
           Label label = ilg.DefineLabel();
           Label vehicleLabel = ilg.DefineLabel();
@@ -299,10 +343,14 @@ namespace Vehicles
           instruction = instructionList[++i];
 
           yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
-          yield return new CodeInstruction(opcode: OpCodes.Ldfld, operand: AccessTools.Field(typeof(PathFinder), "map"));
+          yield return new CodeInstruction(opcode: OpCodes.Ldfld,
+            operand: AccessTools.Field(typeof(PathFinder), "map"));
           yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, 41);
           yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, 42);
-          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(PathingHelper), nameof(PathingHelper.VehicleImpassableInCell), new Type[] { typeof(Map), typeof(int), typeof(int) }));
+          yield return new CodeInstruction(opcode: OpCodes.Call,
+            operand: AccessTools.Method(typeof(PathingHelper),
+              nameof(PathingHelper.VehicleImpassableInCell),
+              new Type[] { typeof(Map), typeof(int), typeof(int) }));
 
           yield return new CodeInstruction(opcode: OpCodes.Brfalse, label);
           yield return new CodeInstruction(opcode: OpCodes.Ldc_I4_0);
@@ -319,8 +367,8 @@ namespace Vehicles
           }
 
           instruction.labels.Add(label);
-
         }
+
         yield return instruction;
       }
     }
@@ -333,14 +381,18 @@ namespace Vehicles
     /// <param name="peMode"></param>
     /// <param name="traverseParams"></param>
     /// <param name="__result"></param>
-    private static bool CanReachVehiclePosition(IntVec3 start, LocalTargetInfo dest, PathEndMode peMode, TraverseParms traverseParams, ref bool __result)
+    private static bool CanReachVehiclePosition(IntVec3 start, LocalTargetInfo dest,
+      PathEndMode peMode, TraverseParms traverseParams, ref bool __result)
     {
-      if (peMode == PathEndMode.OnCell && !(traverseParams.pawn is VehiclePawn) && traverseParams.pawn?.Map.GetCachedMapComponent<VehiclePositionManager>().ClaimedBy(dest.Cell) is VehiclePawn vehicle &&
+      if (peMode == PathEndMode.OnCell && !(traverseParams.pawn is VehiclePawn) &&
+        traverseParams.pawn?.Map.GetCachedMapComponent<VehiclePositionManager>()
+         .ClaimedBy(dest.Cell) is VehiclePawn vehicle &&
         vehicle.VehicleDef.passability != Traversability.Standable)
       {
         __result = false;
         return false;
       }
+
       return true;
     }
 
@@ -360,7 +412,8 @@ namespace Vehicles
       }
     }
 
-    private static void WalkableFastThroughVehicleIntVec3(IntVec3 loc, ref bool __result, Map ___map)
+    private static void WalkableFastThroughVehicleIntVec3(IntVec3 loc, ref bool __result,
+      Map ___map)
     {
       if (__result && !PathingHelper.RegionWorking(___map))
       {
@@ -380,7 +433,8 @@ namespace Vehicles
     {
       if (__result && !PathingHelper.RegionWorking(___map))
       {
-        __result = !PathingHelper.VehicleImpassableInCell(___map, ___map.cellIndices.IndexToCell(index));
+        __result =
+          !PathingHelper.VehicleImpassableInCell(___map, ___map.cellIndices.IndexToCell(index));
       }
     }
 
@@ -391,12 +445,8 @@ namespace Vehicles
         __result = vehicle.VehicleRect();
         return false;
       }
-      return true;
-    }
 
-    private static void RecalculateAllPerceivedPathCostForVehicle(PathingContext ___normal)
-    {
-      PathingHelper.RecalculateAllPerceivedPathCosts(___normal.map);
+      return true;
     }
 
     private static void RecalculatePerceivedPathCostForVehicle(IntVec3 c, PathingContext ___normal)
@@ -417,11 +467,13 @@ namespace Vehicles
       }
     }
 
-    private static IEnumerable<CodeInstruction> DeSpawnAndUpdateVehicleRegionsTranspiler(IEnumerable<CodeInstruction> instructions)
+    private static IEnumerable<CodeInstruction> DeSpawnAndUpdateVehicleRegionsTranspiler(
+      IEnumerable<CodeInstruction> instructions)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
 
-      MethodInfo coverGridDeregisterMethod = AccessTools.Method(typeof(TickManager), nameof(TickManager.DeRegisterAllTickabilityFor));
+      MethodInfo coverGridDeregisterMethod = AccessTools.Method(typeof(TickManager),
+        nameof(TickManager.DeRegisterAllTickabilityFor));
       for (int i = 0; i < instructionList.Count; i++)
       {
         CodeInstruction instruction = instructionList[i];
@@ -433,18 +485,22 @@ namespace Vehicles
 
           yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
           yield return new CodeInstruction(opcode: OpCodes.Ldloc_0);
-          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(VehiclePathing), nameof(VehiclePathing.DeSpawnAndNotifyVehicleRegions)));
+          yield return new CodeInstruction(opcode: OpCodes.Call,
+            operand: AccessTools.Method(typeof(VehiclePathing),
+              nameof(VehiclePathing.DeSpawnAndNotifyVehicleRegions)));
         }
 
         yield return instruction;
       }
     }
 
-    private static IEnumerable<CodeInstruction> SpawnAndUpdateVehicleRegionsTranspiler(IEnumerable<CodeInstruction> instructions)
+    private static IEnumerable<CodeInstruction> SpawnAndUpdateVehicleRegionsTranspiler(
+      IEnumerable<CodeInstruction> instructions)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
 
-      MethodInfo coverGridDeregisterMethod = AccessTools.Method(typeof(CoverGrid), nameof(CoverGrid.Register));
+      MethodInfo coverGridDeregisterMethod =
+        AccessTools.Method(typeof(CoverGrid), nameof(CoverGrid.Register));
       for (int i = 0; i < instructionList.Count; i++)
       {
         CodeInstruction instruction = instructionList[i];
@@ -456,7 +512,9 @@ namespace Vehicles
 
           yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
           yield return new CodeInstruction(opcode: OpCodes.Ldarg_1);
-          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(VehiclePathing), nameof(VehiclePathing.SpawnAndNotifyVehicleRegions)));
+          yield return new CodeInstruction(opcode: OpCodes.Call,
+            operand: AccessTools.Method(typeof(VehiclePathing),
+              nameof(VehiclePathing.SpawnAndNotifyVehicleRegions)));
         }
 
         yield return instruction;
@@ -471,17 +529,20 @@ namespace Vehicles
         {
           vehicle.ReclaimPosition();
         }
+
         PathingHelper.ThingAffectingRegionsOrientationChanged(__instance, __instance.Map);
       }
     }
 
-    private static bool SetRotationAndUpdateVehicleRegionsClipping(Thing __instance, Rot4 value, ref Rot4 ___rotationInt)
+    private static bool SetRotationAndUpdateVehicleRegionsClipping(Thing __instance, Rot4 value,
+      ref Rot4 ___rotationInt)
     {
       if (__instance is VehiclePawn vehicle)
       {
         vehicle.SetRotationInt(value, ref ___rotationInt);
         return false;
       }
+
       return true;
     }
 

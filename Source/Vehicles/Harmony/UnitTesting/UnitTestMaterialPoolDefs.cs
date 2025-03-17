@@ -6,7 +6,7 @@ namespace Vehicles.Testing
 {
   internal class UnitTestMaterialPoolDefs : UnitTest
   {
-    public override string Name => "MaterialPool (Defs)";
+    public override string Name => "MaterialPool_Defs";
 
     public override TestType ExecuteOn => TestType.MainMenu;
 
@@ -58,12 +58,12 @@ namespace Vehicles.Testing
 
       // Turrets
       if (vehicleDef.GetCompProperties<CompProperties_VehicleTurrets>() is
-            CompProperties_VehicleTurrets compTurrets && !compTurrets.turrets.NullOrEmpty())
+          CompProperties_VehicleTurrets compTurrets && !compTurrets.turrets.NullOrEmpty())
       {
         foreach (VehicleTurret turret in compTurrets.turrets)
         {
           if (!turret.NoGraphic &&
-              turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+            turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             count += turret.MaterialCount;
 
@@ -93,8 +93,8 @@ namespace Vehicles.Testing
 
       // Upgrades
       if (vehicleDef.GetCompProperties<CompProperties_UpgradeTree>() is
-            CompProperties_UpgradeTree compUpgrade && compUpgrade.def != null &&
-          !compUpgrade.def.nodes.NullOrEmpty())
+          CompProperties_UpgradeTree compUpgrade && compUpgrade.def != null &&
+        !compUpgrade.def.nodes.NullOrEmpty())
       {
         foreach (UpgradeNode node in compUpgrade.def.nodes)
         {

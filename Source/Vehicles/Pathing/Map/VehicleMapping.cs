@@ -13,7 +13,6 @@ using SmashTools.Performance;
 using UnityEngine;
 using Verse;
 using Verse.Sound;
-using Urgency = Vehicles.DeferredRegionGenerator.Urgency;
 
 namespace Vehicles
 {
@@ -24,17 +23,19 @@ namespace Vehicles
   public sealed class VehicleMapping : MapComponent
   {
     private const int EventMapId = 0;
-    public const bool ForceGenerateAllRegions = true;
+
+    private const GridSelection DefaultGrids = GridSelection.All;
+    private const GridDeferment DefaultDeferment = GridDeferment.Lazy;
 
     private VehiclePathData[] vehicleData;
 
     private VehicleDef buildingFor;
-    private int ownerCleanIndex = 0;
+    private int ownerCleanIndex;
 
     internal DedicatedThread dedicatedThread;
-    internal DeferredRegionGenerator deferredRegionGenerator;
+    internal DeferredGridGeneration deferredGridGeneration;
 
-    private int deferredRegionsCalculatedDayOfYear;
+    private int defGridCalculatedDayOfYear;
 
     public VehicleMapping(Map map) : base(map)
     {
@@ -53,7 +54,7 @@ namespace Vehicles
     /// </summary>
     /// <remarks>Verify this is true before queueing up a method, otherwise you may just be sending it to the void 
     /// where it will never be executed.</remarks>
-    public bool ThreadAvailable => ThreadAlive && !dedicatedThread.Suspended;
+    public bool ThreadAvailable => ThreadAlive && !dedicatedThread.IsSuspended;
 
     /// <summary>
     /// Generates all path data if they haven't been already and fetches
@@ -66,8 +67,9 @@ namespace Vehicles
 #if DEBUG
         if (buildingFor == vehicleDef)
         {
-          Assert.Fail(@"Trying to pull VehiclePathData by indexing when it's currently in the middle of generation. 
-Recursion is not supported here.");
+          Assert.Fail(
+            "Trying to pull VehiclePathData by indexing when it's currently in the middle of " +
+            "generation. Recursion is not supported here.");
           return null;
         }
 #endif
@@ -79,22 +81,27 @@ Recursion is not supported here.");
     {
       if (dedicatedThread != null)
       {
+        Log.Warning(
+          $"Reinitializing dedicatedThread. It should only be done once on map generation.");
         ReleaseThread();
       }
 
       if (!VehicleMod.settings.debug.debugUseMultithreading)
       {
-        Log.Warning($"Loading map without DedicatedThread. This will cause performance issues. Map={map}.");
+        Log.Warning(
+          $"Loading map without DedicatedThread. This will cause performance issues. Map={map}.");
         return;
       }
 
       if (map.info?.parent == null)
       {
-        return; // MapParent won't have reference resolved when loading from save, GetDedicatedThread will be called a 2nd time on PostLoadInit
+        // MapParent won't have reference resolved when loading from save, GetDedicatedThread will
+        // be called a 2nd time on PostLoadInit
+        return;
       }
 
       dedicatedThread = GetDedicatedThread(map);
-      deferredRegionGenerator = new DeferredRegionGenerator(this);
+      deferredGridGeneration = new DeferredGridGeneration(this);
     }
 
     private static DedicatedThread GetDedicatedThread(Map map)
@@ -103,12 +110,14 @@ Recursion is not supported here.");
       if (map.IsPlayerHome)
       {
         thread = ThreadManager.CreateNew();
-        Log.Message($"<color=orange>{VehicleHarmony.LogLabel} Creating thread (id={thread?.id})</color>");
+        Log.Message(
+          $"<color=orange>{VehicleHarmony.LogLabel} Creating thread (id={thread?.id})</color>");
         return thread;
       }
 
       thread = ThreadManager.GetShared(EventMapId);
-      Log.Message($"<color=orange>{VehicleHarmony.LogLabel} Fetching thread from pool (id={thread?.id})</color>");
+      Log.Message(
+        $"<color=orange>{VehicleHarmony.LogLabel} Fetching thread from pool (id={thread?.id})</color>");
       return thread;
     }
 
@@ -160,28 +169,48 @@ Recursion is not supported here.");
       RegenerateGrids();
     }
 
-    public void RegenerateGrids(bool forceRegenerate = ForceGenerateAllRegions)
+    /// <summary>
+    /// Regenerate all region and path grids.
+    /// </summary>
+    public void RegenerateGrids(GridSelection grids = DefaultGrids,
+      GridDeferment deferment = DefaultDeferment)
     {
       Ext_Map.StashLongEventText();
 
-      GeneratePathGrids();
-
       if (!ThreadAlive)
       {
-        // Init dedicated thread after map generation to avoid duplicate pathgrid and region recalcs
         InitThread(map);
       }
 
-      // Unit tests need all regions generated before execution. Dedicated thread would also be getting
-      // suspended sporadically during unit testing so deferred generation will get interrupted.
-      if (deferredRegionGenerator != null && !UnitTestManager.RunningUnitTests)
+      // Unit tests need all grids generated before execution. Dedicated thread would also be
+      // getting suspended sporadically during unit testing so using deferred grid generation would
+      // lead to inconsistent results.
+      if (UnitTestManager.RunningUnitTests)
+        deferment = GridDeferment.Forced;
+
+      switch (deferment)
       {
-        if (forceRegenerate) deferredRegionGenerator.GenerateAllRegions();
-      }
-      else
-      {
-        Debug.Message($"Skipping deferred generation for regions...");
-        GenerateRegionsAsync();
+        case GridDeferment.Lazy:
+          break;
+        case GridDeferment.Deferred:
+          if (grids.HasFlag(GridSelection.PathGrids))
+          {
+            deferredGridGeneration.GenerateAllPathGrids();
+          }
+
+          if (grids.HasFlag(GridSelection.Regions))
+          {
+            deferredGridGeneration.GenerateAllRegionGrids();
+          }
+
+          break;
+        case GridDeferment.Forced:
+          Debug.Message("Forcing grid generation.");
+          GeneratePathGrids();
+          GenerateRegionsParallel();
+          break;
+        default:
+          throw new NotImplementedException();
       }
 
       Ext_Map.RevertLongEventText();
@@ -189,17 +218,15 @@ Recursion is not supported here.");
 
     private void GeneratePathGrids()
     {
-      if (vehicleData.NullOrEmpty())
-      {
-        return;
-      }
+      if (vehicleData.NullOrEmpty()) return;
 
       for (int i = 0; i < vehicleData.Length; i++)
       {
         VehiclePathData vehiclePathData = vehicleData[i];
-        LongEventHandler
-         .SetCurrentEventText($"{"VF_GeneratingPathGrids".Translate()} {i}/{vehicleData.Length}");
-        //Needs to check validity, non-pathing vehicles are still indexed since sequential vehicles will have higher index numbers
+        LongEventHandler.SetCurrentEventText(
+          $"{"VF_GeneratingPathGrids".Translate()} {i}/{vehicleData.Length}");
+        // Needs to check validity, non-pathing vehicles are still indexed since sequential
+        // vehicles will have higher index numbers
         if (vehiclePathData.IsValid)
         {
           vehiclePathData.VehiclePathGrid.RecalculateAllPerceivedPathCosts();
@@ -223,7 +250,7 @@ Recursion is not supported here.");
       }
     }
 
-    private void GenerateRegionsAsync()
+    private void GenerateRegionsParallel()
     {
       if (!GridOwners.AnyOwners) return;
 
@@ -279,11 +306,12 @@ Recursion is not supported here.");
       }
     }
 
-    public void VehicleSpawned(VehiclePawn vehicle)
+    public void NotifyVehicleSpawned(VehiclePawn vehicle)
     {
       // Try to generate regions immediately for a vehicle being spawned and cut in line
       // in front of any deferred region requests that may have just been queued.
-      deferredRegionGenerator?.GenerateRegionsFor(vehicle.VehicleDef, Urgency.Deferred);
+      deferredGridGeneration?.RequestGridsFor(vehicle.VehicleDef,
+        DeferredGridGeneration.UrgencyFor(vehicle));
     }
 
     public override void MapRemoved()
@@ -304,13 +332,13 @@ Recursion is not supported here.");
     public override void MapComponentTick()
     {
       base.MapComponentTick();
-      if (ThreadAlive && deferredRegionGenerator != null)
+      if (ThreadAlive && deferredGridGeneration != null)
       {
         int dayOfYear = DayOfYearAt0Long;
-        if (deferredRegionsCalculatedDayOfYear != dayOfYear)
+        if (defGridCalculatedDayOfYear != dayOfYear)
         {
-          deferredRegionGenerator.DoPass();
-          deferredRegionsCalculatedDayOfYear = dayOfYear;
+          deferredGridGeneration.DoPass();
+          defGridCalculatedDayOfYear = dayOfYear;
         }
       }
     }
@@ -415,7 +443,7 @@ Recursion is not supported here.");
           {
             AsyncRebuildRegionsAction action = AsyncPool<AsyncRebuildRegionsAction>.Get();
             action.Set(pathData);
-            dedicatedThread.Queue(action);
+            dedicatedThread.Enqueue(action);
           }
           else
           {
@@ -481,7 +509,7 @@ Recursion is not supported here.");
     }
 
     [DebugOutput(VehicleHarmony.VehiclesLabel, name = "Benchmark RegionGen",
-                 onlyWhenPlaying = true)]
+      onlyWhenPlaying = true)]
     private static void BenchmarkRegionGeneration()
     {
       const int IterationsPerTest = 50;
@@ -561,6 +589,31 @@ Recursion is not supported here.");
       }, string.Empty, true, null);
     }
 
+    [Flags]
+    public enum GridSelection
+    {
+      None = 0,
+      Regions = 1 << 0,
+      PathGrids = 1 << 1,
+
+      All = Regions | PathGrids,
+    }
+
+    /// <summary>
+    /// How grid generation should defer generation.
+    /// </summary>
+    /// <remarks>
+    /// Lazy: Skip grid generation and wait for spawn events to generate grids as needed.<br/>
+    /// Deferred: Send grid generation to the dedicated thread.
+    /// Forced: Generate grid immediately.
+    /// </remarks>
+    public enum GridDeferment
+    {
+      Lazy,
+      Deferred,
+      Forced,
+    }
+
     /// <summary>
     /// Container for all path related subcomponents specific to a <see cref="VehicleDef"/>.
     /// </summary>
@@ -578,7 +631,8 @@ Recursion is not supported here.");
 
       public bool IsValid => Owner != null;
 
-      // Default true, suspended indicates region grid is currently disabled.
+      // TODO 1.6 - name change or include path grids into logic
+      // Region grid is currently disabled.
       public bool Suspended { get; internal set; } = true;
 
       public VehicleDef Owner { get; }
@@ -599,6 +653,12 @@ Recursion is not supported here.");
         ReachabilityData.regionAndRoomUpdater;
 
       public VehicleRegionDirtyer VehicleRegionDirtyer => ReachabilityData.regionDirtyer;
+
+      public void PostInit()
+      {
+        VehiclePathGrid.PostInit();
+        ReachabilityData.PostInit();
+      }
     }
 
     public class VehicleReachabilitySettings

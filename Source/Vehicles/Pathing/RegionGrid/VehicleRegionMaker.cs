@@ -11,12 +11,13 @@ using Verse;
 namespace Vehicles
 {
   [StaticConstructorOnStartup]
-  public class VehicleRegionMaker : VehicleRegionManager
+  public class VehicleRegionMaker : VehicleGridManager
   {
     private VehicleRegionGrid regionGrid;
 
     // Only accessed within the same thread.
     private readonly HashSet<IntVec3> regionCells = [];
+
     private readonly HashSet<IntVec3>[] linksProcessedAt =
     [
       // 1 hashset for each cardinal direction
@@ -35,10 +36,11 @@ namespace Vehicles
 
     private int nextId = 1;
 
-    public VehicleRegionMaker(VehicleMapping mapping, VehicleDef createdFor) : base(mapping, createdFor)
+    public VehicleRegionMaker(VehicleMapping mapping, VehicleDef createdFor) : base(mapping,
+      createdFor)
     {
       const float poolSize = 0.5f; // Create pool for 50% of average regions / links count
-      float totalRegions = ((float)mapping.map.Size.x / VehicleRegion.GridSize) * 
+      float totalRegions = ((float)mapping.map.Size.x / VehicleRegion.GridSize) *
         ((float)mapping.map.Size.z / VehicleRegion.GridSize);
       int regions = Mathf.CeilToInt(totalRegions * poolSize);
       int links = Mathf.CeilToInt(regions * 4); // 4 cardinal directions are typical
@@ -60,13 +62,15 @@ namespace Vehicles
     /// <param name="root"></param>
     public RegionResult TryGenerateRegionFrom(IntVec3 root, ref VehicleRegion region)
     {
-      RegionType expectedRegionType = VehicleRegionTypeUtility.GetExpectedRegionType(root, mapping, createdFor);
+      RegionType expectedRegionType =
+        VehicleRegionTypeUtility.GetExpectedRegionType(root, mapping, createdFor);
 
       if (expectedRegionType == RegionType.None) return RegionResult.NoRegion;
 
       if (CreatingRegions)
       {
-        Log.Error("Trying to generate a new region while already in the process. Nested calls not allowed.");
+        Log.Error(
+          "Trying to generate a new region while already in the process. Nested calls not allowed.");
         return RegionResult.Failed;
       }
 
@@ -87,7 +91,8 @@ namespace Vehicles
       }
       catch (Exception ex)
       {
-        SmashLog.ErrorLabel(VehicleHarmony.LogLabel, $"Exception thrown while generating region at {root}. Exception={ex}");
+        SmashLog.ErrorLabel(VehicleHarmony.LogLabel,
+          $"Exception thrown while generating region at {root}. Exception={ex}");
         region = null;
         return RegionResult.Failed;
       }
@@ -96,6 +101,7 @@ namespace Vehicles
         CreatingRegions = false;
         regionCells.Clear();
       }
+
       return RegionResult.Success;
     }
 
@@ -123,11 +129,14 @@ namespace Vehicles
         {
           return false;
         }
+
         if (!region.extentsLimit.Contains(cell))
         {
           return false;
         }
-        return VehicleRegionTypeUtility.GetExpectedRegionType(cell, mapping, createdFor) == region.type;
+
+        return VehicleRegionTypeUtility.GetExpectedRegionType(cell, mapping, createdFor) ==
+          region.type;
       }
 
       void Processor(IntVec3 cell)
@@ -148,19 +157,26 @@ namespace Vehicles
       {
         region.extentsClose.minX = cell.x;
       }
+
       if (region.extentsClose.maxX < cell.x)
       {
         region.extentsClose.maxX = cell.x;
       }
+
       if (region.extentsClose.minZ > cell.z)
       {
         region.extentsClose.minZ = cell.z;
       }
+
       if (region.extentsClose.maxZ < cell.z)
       {
         region.extentsClose.maxZ = cell.z;
       }
-      if (cell.x == createdFor.SizePadding || cell.x == mapping.map.Size.x - 1 - createdFor.SizePadding || cell.z == createdFor.SizePadding || cell.z == mapping.map.Size.z - 1 - createdFor.SizePadding)
+
+      if (cell.x == createdFor.SizePadding ||
+        cell.x == mapping.map.Size.x - 1 - createdFor.SizePadding ||
+        cell.z == createdFor.SizePadding ||
+        cell.z == mapping.map.Size.z - 1 - createdFor.SizePadding)
       {
         region.touchesMapEdge = true;
       }
@@ -187,6 +203,7 @@ namespace Vehicles
         regionLink.SetNew(span);
         activeLinks.TryAdd(key, regionLink);
       }
+
       return regionLink;
     }
 
@@ -203,6 +220,7 @@ namespace Vehicles
         SweepInTwoDirectionsAndTryToCreateLink(region, Rot4.East, cell);
         SweepInTwoDirectionsAndTryToCreateLink(region, Rot4.West, cell);
       }
+
       ClearProcessedLinks();
     }
 
@@ -211,7 +229,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="potentialOtherRegionDir"></param>
     /// <param name="c"></param>
-    private void SweepInTwoDirectionsAndTryToCreateLink(VehicleRegion region, Rot4 potentialOtherRegionDir, IntVec3 cell)
+    private void SweepInTwoDirectionsAndTryToCreateLink(VehicleRegion region,
+      Rot4 potentialOtherRegionDir, IntVec3 cell)
     {
       if (!potentialOtherRegionDir.IsValid)
       {
@@ -230,7 +249,8 @@ namespace Vehicles
         return;
       }
 
-      RegionType expectedRegionType = VehicleRegionTypeUtility.GetExpectedRegionType(facingCell, mapping, createdFor);
+      RegionType expectedRegionType =
+        VehicleRegionTypeUtility.GetExpectedRegionType(facingCell, mapping, createdFor);
       if (expectedRegionType == RegionType.None)
       {
         return;
@@ -252,11 +272,13 @@ namespace Vehicles
           {
             break;
           }
+
           if (!linksProcessed.Add(sweepRight))
           {
             Log.Error("Attempting to process the same cell twice.");
           }
         }
+
         for (spanUp = 0; spanUp <= VehicleRegion.GridSize; spanUp++)
         {
           IntVec3 sweepUp = cell - rotClockwise.FacingCell * (spanUp + 1);
@@ -264,6 +286,7 @@ namespace Vehicles
           {
             break;
           }
+
           if (!linksProcessed.Add(sweepUp))
           {
             Log.Error("Attempting to process the same cell twice.");
@@ -296,6 +319,7 @@ namespace Vehicles
         dir = SpanDirection.North;
         root = cell - rotClockwise.FacingCell * spanUp;
       }
+
       EdgeSpan span = new(root, dir, length);
       VehicleRegionLink regionLink = LinkFrom(span);
       regionLink.Register(region);
@@ -326,6 +350,7 @@ namespace Vehicles
         SetNew(region, root);
         return region;
       }
+
       region = CreateNew(root);
       return region;
     }
@@ -341,9 +366,11 @@ namespace Vehicles
     {
       if (region == null)
       {
-        Log.Warning($"Attempting to populate null region. There should be no null regions pushed to the buffer");
+        Log.Warning(
+          $"Attempting to populate null region. There should be no null regions pushed to the buffer");
         return;
       }
+
       int id = GetRegionId();
       region.Init(createdFor, id);
       region.Map = mapping.map;
@@ -357,11 +384,13 @@ namespace Vehicles
       region.extentsLimit = VehicleRegion.ChunkAt(root).ClipInsideMap(mapping.map);
     }
 
-    private bool InvalidForLinking(VehicleRegion region, IntVec3 cell, Rot4 rot, RegionType expectedRegionType)
+    private bool InvalidForLinking(VehicleRegion region, IntVec3 cell, Rot4 rot,
+      RegionType expectedRegionType)
     {
       //Not in bounds || Region at cell != this || Region Type != expected
       return !cell.InBounds(mapping.map) || regionGrid.GetRegionAt(cell) != region ||
-            VehicleRegionTypeUtility.GetExpectedRegionType(cell + rot.FacingCell, mapping, createdFor) != expectedRegionType;
+        VehicleRegionTypeUtility.GetExpectedRegionType(cell + rot.FacingCell, mapping,
+          createdFor) != expectedRegionType;
     }
 
     private int GetRegionId()
@@ -369,7 +398,8 @@ namespace Vehicles
       return Interlocked.Increment(ref nextId);
     }
 
-    [DebugAction(VehicleHarmony.VehiclesLabel, null, allowedGameStates = AllowedGameStates.PlayingOnMap, hideInSubMenu = true)]
+    [DebugAction(VehicleHarmony.VehiclesLabel, null,
+      allowedGameStates = AllowedGameStates.PlayingOnMap, hideInSubMenu = true)]
     private static List<DebugActionNode> ForceRegenerateRegion()
     {
       List<DebugActionNode> debugActions = [];
@@ -379,7 +409,7 @@ namespace Vehicles
         {
           debugActions.Add(new DebugActionNode(vehicleDef.defName, DebugActionType.ToolMap)
           {
-            action = delegate ()
+            action = delegate()
             {
               Map map = Find.CurrentMap;
               if (map == null)
@@ -387,15 +417,18 @@ namespace Vehicles
                 Log.Error($"Attempting to use DebugRegionOptions with null map.");
                 return;
               }
+
               DebugHelper.Local.VehicleDef = vehicleDef;
               DebugHelper.Local.DebugType = DebugRegionType.Regions | DebugRegionType.Links;
 
               IntVec3 cell = UI.MouseCell();
-              map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionDirtyer.NotifyWalkabilityChanged(cell);
+              map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehicleRegionDirtyer
+               .NotifyWalkabilityChanged(cell);
             }
           });
         }
       }
+
       return debugActions;
     }
 

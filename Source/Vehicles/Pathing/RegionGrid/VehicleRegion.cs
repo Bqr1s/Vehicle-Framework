@@ -600,8 +600,8 @@ namespace Vehicles
             if (new Rect(0f, 0f, UI.screenWidth, UI.screenHeight).Overlaps(rect))
             {
               Widgets.Label(rect,
-                Map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehiclePathGrid
-                 .PerceivedPathCostAt(intVec).ToString());
+                Map.GetCachedMapComponent<VehicleMapping>()[DebugHelper.Local.VehicleDef]
+                 .VehiclePathGrid.PerceivedPathCostAt(intVec).ToString());
             }
           }
         }

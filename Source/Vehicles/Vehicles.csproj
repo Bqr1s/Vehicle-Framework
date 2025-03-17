@@ -103,7 +103,9 @@
     <Compile Include="AI\JobDrivers\JobDriver_Deploy.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_DisassembleVehicle.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_GiveItemToVehicle.cs" />
+    <Compile Include="AI\JobDrivers\JobDriver_SabotageVehicle.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_WorkVehicle.cs" />
+    <Compile Include="AI\JobGivers\ThinkNode_ExecuteAction.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_ExitMap.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_ExitMapRandom.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_ExitMapBest.cs" />
@@ -114,9 +116,9 @@
     <Compile Include="AI\JobGivers\NPC\JobGiver_SabotageVehicle.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_VehicleAI.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_AIBreachWalls.cs" />
-    <Compile Include="AI\Lords\LordJob_SabotageVehicleAndExit.cs" />
     <Compile Include="AI\Lords\LordToil_PrepareCaravan_GatherAnimalsForVehicles.cs" />
     <Compile Include="AI\ThinkNode\ThinkNode_ConditionalHasTurret.cs" />
+    <Compile Include="AI\ThinkNode\ThinkNode_ConditionalVehicleState.cs" />
     <Compile Include="AI\ThinkNode\ThinkNode_ConditionalVehicle.cs" />
     <Compile Include="AI\WorkGiver\VehicleWorkGiver.cs" />
     <Compile Include="AI\WorkGiver\WorkGiver_CarryToVehicle.cs" />
@@ -128,6 +130,7 @@
     <Compile Include="Components\Rendering\VehicleTrackMaker.cs" />
     <Compile Include="Components\Rendering\VehicleTweener.cs" />
     <Compile Include="Components\Vehicles\AI\TargetCategory.cs" />
+    <Compile Include="Components\Vehicles\AI\VehicleActions.cs" />
     <Compile Include="Components\Vehicles\Health\Reactors\IndicatorDef.cs" />
     <Compile Include="Components\Vehicles\Health\Reactors\Reactor.cs" />
     <Compile Include="Components\Vehicles\Health\Reactors\Reactor_FuelLeak.cs" />
@@ -231,9 +234,11 @@
     <Compile Include="Harmony\PatchCategories\NPCAI.cs" />
     <Compile Include="Harmony\UnitTesting\MaterialPoolWatcher.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\RaidTesting.cs" />
+    <Compile Include="Harmony\UnitTesting\ThreadEnabler.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestHotReloadDefs.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestMaterialPoolDefs.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestMaterialPool.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTestDeferredGeneration.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestTerrainGrid.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestRegions.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTestMapDeinit.cs" />
@@ -272,7 +277,7 @@
     <Compile Include="Misc\Interfaces\IMaterialCacheTarget.cs" />
     <Compile Include="Misc\Interfaces\ISustainerTarget.cs" />
     <Compile Include="Misc\Interfaces\IVehicleWorldObject.cs" />
-    <Compile Include="Pathing\Map\DeferredRegionGenerator.cs" />
+    <Compile Include="Pathing\Map\DeferredGridGeneration.cs" />
     <Compile Include="Harmony\UnitTesting\ThreadDisabler.cs" />
     <Compile Include="Pathing\RegionGrid\ChunkSet.cs" />
     <Compile Include="Pathing\RegionGrid\ConcurrentListerThings.cs" />
@@ -283,6 +288,7 @@
     <Compile Include="Turrets\Turret\TargetLock.cs" />
     <Compile Include="Turrets\Turret\TurretComponentRequirement.cs" />
     <Compile Include="CustomFeatures\Upgrades\UpgradeInProgress.cs" />
+    <Compile Include="Turrets\Turret\VehicleTurret_CombatExtended.cs" />
     <Compile Include="Utility\DesignatorCache.cs" />
     <Compile Include="AI\Incidents\IncidentWorker_ShuttleDowned.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_FollowVehicle.cs" />
@@ -293,10 +299,9 @@
     <Compile Include="AI\JobGivers\JobGiver_FollowVehicle.cs" />
     <Compile Include="AI\JobDrivers\Job_Vehicle.cs" />
     <Compile Include="AI\JobGivers\JobGiver_PrepareVehicleCaravan_RopeAnimals.cs" />
-    <Compile Include="AI\Lords\LordJob_ArmoredAssault.cs" />
+    <Compile Include="AI\Lords\Raids\LordJob_ArmoredAssault.cs" />
     <Compile Include="AI\Lords\LordJob_VehicleNPC.cs" />
-    <Compile Include="AI\Lords\LordToil_AssaultColonyArmored.cs" />
-    <Compile Include="AI\Lords\LordToil_AssaultColonyWithArmor.cs" />
+    <Compile Include="AI\Lords\Raids\LordToil_AssaultColonyArmored.cs" />
     <Compile Include="AI\Lords\LordToil_PrepareCaravan_TieAnimalsToVehicle.cs" />
     <Compile Include="AI\Lords\MemoTrigger.cs" />
     <Compile Include="AI\WorkGiver\WorkGiver_PaintVehicle.cs" />
@@ -563,7 +568,6 @@
     <Compile Include="Utility\Helpers\World\RoadCostHelper.cs" />
     <Compile Include="Utility\Helpers\SelectionHelper.cs" />
     <Compile Include="Utility\Helpers\GizmoHelper.cs" />
-    <Compile Include="Utility\Helpers\ThreadHelper.cs" />
     <Compile Include="Utility\Helpers\SoundHelper.cs" />
     <Compile Include="Utility\Helpers\World\VehicleCaravanPathingHelper.cs" />
     <Compile Include="Utility\Helpers\Rendering\VehicleGraphics.cs" />
@@ -716,7 +720,6 @@
     <Compile Include="World\WorldObjectComps\AirDefense.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="AI\Lords\Raids\" />
     <Folder Include="Components\Rendering\PawnRenderNode\" />
     <Folder Include="Comps\Fishing\" />
     <Folder Include="CustomFeatures\AerialVehicles\Skyfaller\Bombs\" />

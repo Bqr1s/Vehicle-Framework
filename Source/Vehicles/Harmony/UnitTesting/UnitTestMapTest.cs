@@ -11,9 +11,11 @@ namespace Vehicles.Testing
 {
   internal abstract class UnitTestMapTest : UnitTest
   {
-    public virtual Map TestMap => Find.CurrentMap;
+    protected virtual Map TestMap => Find.CurrentMap;
 
     public override TestType ExecuteOn => TestType.GameLoaded;
+
+    protected virtual Faction Faction => Faction.OfPlayer;
 
     protected virtual bool ShouldTest(VehicleDef vehicleDef)
     {
@@ -30,7 +32,8 @@ namespace Vehicles.Testing
     {
       CameraJumper.TryHideWorld();
       Assert.IsNotNull(TestMap);
-      Assert.IsTrue(DefDatabase<VehicleDef>.AllDefsListForReading.Count > 0, "No vehicles to test with");
+      Assert.IsTrue(DefDatabase<VehicleDef>.AllDefsListForReading.Count > 0,
+        "No vehicles to test with");
 
       // All map-based tests should be run synchronously, otherwise 
       // we would have race conditions when validating grids.
@@ -42,9 +45,9 @@ namespace Vehicles.Testing
       {
         if (!ShouldTest(vehicleDef)) continue;
 
-        VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);
+        VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction);
         TerrainDef terrainDef = DefDatabase<TerrainDef>.AllDefsListForReading
-          .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
+         .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
 
         IntVec3 root = TestMap.Center;
         DebugHelper.DestroyArea(TestArea(vehicleDef, root), TestMap, terrainDef);
@@ -74,7 +77,7 @@ namespace Vehicles.Testing
 
       public CellRect rect;
 
-      public HitboxTester(VehiclePawn vehicle, Map map, IntVec3 root, Func<IntVec3, T> valueGetter, 
+      public HitboxTester(VehiclePawn vehicle, Map map, IntVec3 root, Func<IntVec3, T> valueGetter,
         Func<T, bool> validator, Action<IntVec3> reset = null)
       {
         this.map = map;
@@ -123,6 +126,7 @@ namespace Vehicles.Testing
             return false;
           }
         }
+
         return true;
       }
 

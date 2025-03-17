@@ -8,19 +8,27 @@
       <li>
         <type>MainMenu</type>
         <tests>
+          <!-- Animations -->
           <li>SmashTools.Debugging.UnitTestAnimationCurve</li>
           <li>SmashTools.Debugging.UnitTestAnimDynamicMethod</li>
+          <!-- Utils -->
           <li>SmashTools.Debugging.UnitTestCellRectUtils</li>
+          <!-- Resources -->
           <li>SmashTools.Debugging.UnitTestObjectPool</li>
+          <li>SmashTools.Debugging.UnitTestDedicatedThread</li>
           <li>Vehicles.Testing.UnitTestMaterialPoolDefs</li>
         </tests>
       </li>
       <li>
         <type>GameLoaded</type>
         <tests>
+          <!-- Core Vehicle Mechanics -->
           <li>Vehicles.Testing.UnitTestVehicleHandler</li>
+          <!-- World-->
           <li>Vehicles.Testing.UnitTestAerialVehicle</li>
           <li>Vehicles.Testing.UnitTestStashedVehicle</li>
+          <!-- Vehicle Grids -->
+          <li>Vehicles.Testing.UnitTestDeferredGeneration</li>
           <li>Vehicles.Testing.UnitTestPositionManager</li>
           <li>Vehicles.Testing.UnitTestCoverGrid</li>
           <li>Vehicles.Testing.UnitTestGasGrid</li>
@@ -28,6 +36,7 @@
           <li>Vehicles.Testing.UnitTestThingGrid</li>
           <li>Vehicles.Testing.UnitTestPathGrid</li>
           <li>Vehicles.Testing.UnitTestRegions</li>
+          <!-- Resources -->
           <li>Vehicles.Testing.UnitTestMaterialPool</li>
           <li>Vehicles.Testing.UnitTestMapDeinit</li>
         </tests>

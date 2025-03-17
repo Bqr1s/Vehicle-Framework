@@ -102,9 +102,10 @@ public class Section_Debug : SettingsSection
         defaultValue: true);
       Scribe_Values.Look(ref debugLoadAssetBundles, nameof(debugLoadAssetBundles),
         defaultValue: true);
-
-      Scribe_Values.Look(ref debugAllowRaiders, nameof(debugAllowRaiders));
     }
+#if RAIDERS
+    Scribe_Values.Look(ref debugAllowRaiders, nameof(debugAllowRaiders));
+#endif
   }
 
   public override void DrawSection(Rect rect)
@@ -141,7 +142,7 @@ public class Section_Debug : SettingsSection
           ref debugShootAnyTurret, "VF_DevMode_DebugShootAnyTurretTooltip".Translate());
 
         if (shootAnyTurret != debugShootAnyTurret &&
-            Current.ProgramState == ProgramState.Playing && !Find.Maps.NullOrEmpty())
+          Current.ProgramState == ProgramState.Playing && !Find.Maps.NullOrEmpty())
         {
           foreach (Map map in Find.Maps)
           {
@@ -157,11 +158,9 @@ public class Section_Debug : SettingsSection
 
 #if RAIDERS
         listingStandard.CheckboxLabeledWithMessage("Raiders / Traders (Experimental)",
-          delegate(bool value)
-          {
-            return
-              new Message("VF_WillRequireRestart".Translate(), MessageTypeDefOf.CautionInput);
-          }, ref debugAllowRaiders,
+          (value) =>
+            new Message("VF_WillRequireRestart".Translate(), MessageTypeDefOf.CautionInput),
+          ref debugAllowRaiders,
           "Enables vehicle generation for NPCs.\n NOTE: This is an experimental feature. Use at your own risk.");
 #endif
         listingStandard.CheckboxLabeled("VF_DevMode_DebugSpawnVehiclesGodMode".Translate(),
@@ -264,7 +263,7 @@ public class Section_Debug : SettingsSection
 #endif
 
       if (listingStandard.ButtonText("VF_DevMode_LogThreadActivity".Translate(),
-            "VF_DevMode_LogThreadActivityTooltip"))
+        "VF_DevMode_LogThreadActivityTooltip"))
       {
         SoundDefOf.Click.PlayOneShotOnCamera();
         Find.WindowStack.Add(new Dialog_DedicatedThreadActivity(delegate()
@@ -286,14 +285,14 @@ public class Section_Debug : SettingsSection
       }
 
       if (listingStandard.ButtonText("VF_DevMode_DebugPathfinderDebugging".Translate(),
-            "VF_DevMode_DebugPathfinderDebuggingTooltip"))
+        "VF_DevMode_DebugPathfinderDebuggingTooltip"))
       {
         SoundDefOf.Click.PlayOneShotOnCamera();
         RegionDebugMenu();
       }
 
       if (listingStandard.ButtonText("VF_DevMode_DebugWorldPathfinderDebugging".Translate(),
-            "VF_DevMode_DebugWorldPathfinderDebuggingTooltip"))
+        "VF_DevMode_DebugWorldPathfinderDebuggingTooltip"))
       {
         SoundDefOf.Click.PlayOneShotOnCamera();
         WorldPathingDebugMenu();
@@ -313,7 +312,7 @@ public class Section_Debug : SettingsSection
         ];
 
         foreach (UnitTest test in UnitTestManager.AllUnitTests.OrderBy(test => test.ExecuteOn)
-                  .ThenBy(test => test.Name))
+         .ThenBy(test => test.Name))
         {
           UnitTest.TestType testType = test.ExecuteOn;
           if (testType == UnitTest.TestType.Disabled) continue;
@@ -385,7 +384,8 @@ public class Section_Debug : SettingsSection
           foreach (Map map in Find.Maps)
           {
             VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-            mapping.RegenerateGrids(forceRegenerate: true);
+            mapping.RegenerateGrids(VehicleMapping.GridSelection.All,
+              VehicleMapping.GridDeferment.Forced);
           }
         }, "Regenerating Regions", true, null);
       }
@@ -441,10 +441,10 @@ public class Section_Debug : SettingsSection
       Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
     }));
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
-                 def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
-                   ignorePostfix: true))
-              .ThenBy(def => def.modContentPack.Name)
-              .ThenBy(d => d.defName))
+        def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
+          ignorePostfix: true))
+     .ThenBy(def => def.modContentPack.Name)
+     .ThenBy(d => d.defName))
     {
       Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name, () => false,
         (value) => { }, onToggle: delegate(bool value)
@@ -491,8 +491,8 @@ public class Section_Debug : SettingsSection
   {
     List<Toggle> vehicleDefToggles = new List<Toggle>();
     vehicleDefToggles.Add(new Toggle("None", () => DebugHelper.Local.VehicleDef == null ||
-                                                   DebugHelper.Local.DebugType ==
-                                                   DebugRegionType.None, delegate(bool value)
+      DebugHelper.Local.DebugType ==
+      DebugRegionType.None, delegate(bool value)
     {
       if (value)
       {
@@ -501,10 +501,10 @@ public class Section_Debug : SettingsSection
       }
     }));
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
-                 def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
-                   ignorePostfix: true))
-              .ThenBy(def => def.modContentPack.Name)
-              .ThenBy(d => d.defName))
+        def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
+          ignorePostfix: true))
+     .ThenBy(def => def.modContentPack.Name)
+     .ThenBy(d => d.defName))
     {
       Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name,
         () => DebugHelper.Local.VehicleDef == vehicleDef,
@@ -537,7 +537,7 @@ public class Section_Debug : SettingsSection
     List<Toggle> vehicleDefToggles = [];
     vehicleDefToggles.Add(new Toggle("None",
       () => DebugHelper.World.VehicleDef == null ||
-            DebugHelper.World.DebugType == WorldPathingDebugType.None, delegate(bool value)
+        DebugHelper.World.DebugType == WorldPathingDebugType.None, delegate(bool value)
       {
         if (value)
         {
@@ -546,10 +546,10 @@ public class Section_Debug : SettingsSection
         }
       }));
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
-                 def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
-                   ignorePostfix: true))
-              .ThenBy(def => def.modContentPack.Name)
-              .ThenBy(d => d.defName))
+        def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
+          ignorePostfix: true))
+     .ThenBy(def => def.modContentPack.Name)
+     .ThenBy(d => d.defName))
     {
       Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name,
         () => DebugHelper.World.VehicleDef == vehicleDef, (value) => { },
@@ -583,8 +583,8 @@ public class Section_Debug : SettingsSection
     string versionChecking = "Null";
     VehicleHarmony.updates.Clear();
     foreach (UpdateLog log in FileReader.ReadPreviousFiles(VehicleHarmony.VehicleMCP)
-              .OrderByDescending(log =>
-                 Ext_Settings.CombineVersionString(log.UpdateData.currentVersion)))
+     .OrderByDescending(log =>
+        Ext_Settings.CombineVersionString(log.UpdateData.currentVersion)))
     {
       VehicleHarmony.updates.Add(log);
     }

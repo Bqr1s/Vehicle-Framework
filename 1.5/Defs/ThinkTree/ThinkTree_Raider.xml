@@ -15,6 +15,16 @@
 								<li Class = "Vehicles.JobGiver_RangedSupport"/>
 							</subNodes>
 						</li>
+
+            <li Class="Vehicles.ThinkNode_ConditionalVehicleState">
+              <canMove>false</canMove>
+              <hasPassengers>true</hasPassengers>
+							<subNodes>
+								<li Class = "Vehicles.ThinkNode_ExecuteAction">
+                  <action>Vehicles.VehicleActions.DisembarkAll</action>
+                </li>
+							</subNodes>
+						</li>
 						<!-- Run down targets within distance -->
 
 						<!-- Carry pawns closer before deploying -->
@@ -29,6 +39,17 @@
 						<li Class= "Vehicles.JobGiver_AwaitOrders"/>
 					</subNodes>
 				</li>
+        <li Class="ThinkNode_ConditionalIntelligence">
+          <minIntelligence>ToolUser</minIntelligence>
+          <subNodes>
+            <li Class="ThinkNode_ConditionalCapableOfWorkTag">
+              <workTags>Violent,Constructing</workTags>
+              <subNodes>
+                <li Class="Vehicles.JobGiver_SabotageVehicle"/>
+              </subNodes>
+            </li>
+          </subNodes>
+        </li>
 			</subNodes>
 		</thinkRoot>
 	</ThinkTreeDef>

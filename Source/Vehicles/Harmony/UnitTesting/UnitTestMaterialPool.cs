@@ -14,7 +14,7 @@ namespace Vehicles.Testing
   {
     public override TestType ExecuteOn => TestType.GameLoaded;
 
-    public override string Name => "MaterialPool (Instances)";
+    public override string Name => "MaterialPool_Instances";
 
     protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
     {
@@ -42,7 +42,7 @@ namespace Vehicles.Testing
           // log results in MaterialPoolWatcher and track material lifetime.
           turret.ResolveCannonGraphics(vehicle.patternData, forceRegen: true);
           if (!turret.NoGraphic &&
-              turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+            turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             targets++;
             materialCount += turret.MaterialCount;
@@ -62,9 +62,9 @@ namespace Vehicles.Testing
         }
 
         result.Add($"MaterialPool_{vehicle.def} (Add Turret MaterialCacheTarget)",
-                   vehicleMats.CacheTargets == targets);
+          vehicleMats.CacheTargets == targets);
         result.Add($"MaterialPool_{vehicle.def} (Add Turret Graphic)",
-                   vehicleMats.MaterialsAllocated == materialCount);
+          vehicleMats.MaterialsAllocated == materialCount);
       }
 
       if (vehicle.VehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
@@ -75,9 +75,9 @@ namespace Vehicles.Testing
 
       _ = vehicle.VehicleGraphic; // Force graphic to be cached before any upgrade calls
       result.Add($"MaterialPool_{vehicle.def} (Add MaterialCacheTarget)",
-                 vehicleMats.CacheTargets == targets);
+        vehicleMats.CacheTargets == targets);
       result.Add($"MaterialPool_{vehicle.def} (Add Graphic)",
-                 vehicleMats.MaterialsAllocated == materialCount);
+        vehicleMats.MaterialsAllocated == materialCount);
 
       // Overlays
       if (vehicle.overlayRenderer.Overlays.Count > 0)
@@ -97,9 +97,9 @@ namespace Vehicles.Testing
         }
 
         result.Add($"MaterialPool_{vehicle.def} Overlay (Add MaterialCacheTarget)",
-                   overlayMats.CacheTargets == overlayTargets);
+          overlayMats.CacheTargets == overlayTargets);
         result.Add($"MaterialPool_{vehicle.def} Overlay (Add Graphic)",
-                   overlayMats.MaterialsAllocated == overlayMaterialCount);
+          overlayMats.MaterialsAllocated == overlayMaterialCount);
       }
 
       // UpgradeTree
@@ -115,7 +115,7 @@ namespace Vehicles.Testing
           vehicle.CompUpgradeTree.FinishUnlock(node);
           vehicle.CompUpgradeTree.ResetUnlock(node);
           result.Add($"MaterialPool_{vehicle.def} {node.label} (Node Upgrades Destroyed)",
-                     upgradeMats.AllocationsEqualized);
+            upgradeMats.AllocationsEqualized);
         }
 
         // Unlock again so we can test cleanup with vehicle destroy

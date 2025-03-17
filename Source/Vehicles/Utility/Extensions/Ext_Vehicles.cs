@@ -26,9 +26,11 @@ namespace Vehicles
       {
         return true;
       }
-      bool canRoofPunch = SettingsCache.TryGetValue(vehicleDef, typeof(CompProperties_VehicleLauncher),
-                                                    nameof(CompProperties_VehicleLauncher.canRoofPunch),
-                                                    compProperties.canRoofPunch);
+
+      bool canRoofPunch = SettingsCache.TryGetValue(vehicleDef,
+        typeof(CompProperties_VehicleLauncher),
+        nameof(CompProperties_VehicleLauncher.canRoofPunch),
+        compProperties.canRoofPunch);
       return IsRoofRestricted(cell, map, canRoofPunch);
     }
 
@@ -38,6 +40,7 @@ namespace Vehicles
       {
         return IsRoofed(cell, map);
       }
+
       RoofDef roofDef = cell.GetRoof(map);
       return roofDef != null && roofDef.isThickRoof;
     }
@@ -50,12 +53,14 @@ namespace Vehicles
     /// <param name="cell"></param>
     /// <param name="rot"></param>
     /// <param name="size"></param>
-    public static IntVec2 RotatedBy(this IntVec2 cell, Rot4 rot, IntVec2 size, bool reverseRotate = false)
+    public static IntVec2 RotatedBy(this IntVec2 cell, Rot4 rot, IntVec2 size,
+      bool reverseRotate = false)
     {
       if (size.x == 1 && size.z == 1)
       {
         return cell;
       }
+
       switch (rot.AsInt)
       {
         case 0:
@@ -67,6 +72,7 @@ namespace Vehicles
             east.x *= -1;
             east.z *= -1;
           }
+
           return east;
         case 2:
           IntVec2 south = new IntVec2(-cell.x, -cell.z);
@@ -74,10 +80,12 @@ namespace Vehicles
           {
             south.x++;
           }
+
           if (size.z.IsEven())
           {
             south.z++;
           }
+
           return south;
         case 3:
           IntVec2 west = new IntVec2(cell.z, -cell.x);
@@ -85,10 +93,12 @@ namespace Vehicles
           {
             west.x++;
           }
+
           if (size.z.IsEven())
           {
             west.z++;
           }
+
           if (reverseRotate)
           {
             if (size.x.IsEven())
@@ -96,14 +106,17 @@ namespace Vehicles
               west.z++;
               west.x--;
             }
+
             if (size.z.IsEven())
             {
               west.z--;
               west.x--;
             }
+
             west.x *= -1;
             west.z *= -1;
           }
+
           return west;
         default:
           return cell;
@@ -122,9 +135,12 @@ namespace Vehicles
             {
               innerPawn.mindState.duty = null;
             }
+
             lordJob.Map.attackTargetsCache.UpdateTarget(innerPawn);
-            if (lordJob.EndPawnJobOnCleanup(innerPawn) && innerPawn.Spawned && innerPawn.CurJob != null &&
-              (!lordJob.DontInterruptLayingPawnsOnCleanup || !RestUtility.IsLayingForJobCleanup(innerPawn)))
+            if (lordJob.EndPawnJobOnCleanup(innerPawn) && innerPawn.Spawned &&
+              innerPawn.CurJob != null &&
+              (!lordJob.DontInterruptLayingPawnsOnCleanup ||
+                !RestUtility.IsLayingForJobCleanup(innerPawn)))
             {
               innerPawn.jobs.EndCurrentJob(JobCondition.InterruptForced, true, true);
             }
@@ -135,22 +151,26 @@ namespace Vehicles
 
     public static CellRect VehicleRect(this VehiclePawn vehicle, bool maxSizePossible = false)
     {
-      return vehicle.VehicleRect(vehicle.Position, vehicle.Rotation, maxSizePossible: maxSizePossible);
+      return vehicle.VehicleRect(vehicle.Position, vehicle.Rotation,
+        maxSizePossible: maxSizePossible);
     }
 
-    public static CellRect VehicleRect(this VehiclePawn vehicle, IntVec3 center, Rot4 rot, bool maxSizePossible = false)
+    public static CellRect VehicleRect(this VehiclePawn vehicle, IntVec3 center, Rot4 rot,
+      bool maxSizePossible = false)
     {
       return VehicleRect(vehicle.VehicleDef, center, rot, maxSizePossible: maxSizePossible);
     }
 
-    public static CellRect VehicleRect(this VehicleDef vehicleDef, IntVec3 center, Rot4 rot, bool maxSizePossible = false)
+    public static CellRect VehicleRect(this VehicleDef vehicleDef, IntVec3 center, Rot4 rot,
+      bool maxSizePossible = false)
     {
       IntVec2 size = vehicleDef.size;
       AdjustForVehicleOccupiedRect(ref size, ref rot, maxSizePossible: maxSizePossible);
       return GenAdj.OccupiedRect(center, rot, size);
     }
 
-    public static void AdjustForVehicleOccupiedRect(ref IntVec2 size, ref Rot4 rot, bool maxSizePossible = false)
+    public static void AdjustForVehicleOccupiedRect(ref IntVec2 size, ref Rot4 rot,
+      bool maxSizePossible = false)
     {
       if (rot == Rot4.West) rot = Rot4.East;
       if (rot == Rot4.South) rot = Rot4.North;
@@ -174,8 +194,10 @@ namespace Vehicles
       int padding = Mathf.CeilToInt(largestSize / 2f);
       if (even)
       {
-        padding += 1; // If size is even, add 1 to account for rotations with lower center point.  This will ensure all rotations are padded enough
+        padding +=
+          1; // If size is even, add 1 to account for rotations with lower center point.  This will ensure all rotations are padded enough
       }
+
       if (cell.x < padding)
       {
         cell.x = padding;
@@ -193,6 +215,7 @@ namespace Vehicles
       {
         cell.z = map.Size.z - padding;
       }
+
       return cell;
     }
 
@@ -213,15 +236,22 @@ namespace Vehicles
       vehicle.AddEvent(VehicleEventDefOf.CargoAdded, vehicle.statHandler.MarkAllDirty);
       vehicle.AddEvent(VehicleEventDefOf.CargoRemoved, vehicle.statHandler.MarkAllDirty);
       vehicle.AddEvent(VehicleEventDefOf.PawnEntered, vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnExited, vehicle.vehiclePather.RecalculatePermissions, vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnRemoved, vehicle.vehiclePather.RecalculatePermissions, vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnChangedSeats, vehicle.vehiclePather.RecalculatePermissions, vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnKilled, vehicle.vehiclePather.RecalculatePermissions, vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnCapacitiesDirty, vehicle.vehiclePather.RecalculatePermissions);
+      vehicle.AddEvent(VehicleEventDefOf.PawnExited, vehicle.vehiclePather.RecalculatePermissions,
+        vehicle.RecachePawnCount);
+      vehicle.AddEvent(VehicleEventDefOf.PawnRemoved, vehicle.vehiclePather.RecalculatePermissions,
+        vehicle.RecachePawnCount);
+      vehicle.AddEvent(VehicleEventDefOf.PawnChangedSeats,
+        vehicle.vehiclePather.RecalculatePermissions, vehicle.RecachePawnCount);
+      vehicle.AddEvent(VehicleEventDefOf.PawnKilled, vehicle.vehiclePather.RecalculatePermissions,
+        vehicle.RecachePawnCount);
+      vehicle.AddEvent(VehicleEventDefOf.PawnCapacitiesDirty,
+        vehicle.vehiclePather.RecalculatePermissions);
       vehicle.AddEvent(VehicleEventDefOf.IgnitionOff, vehicle.vehiclePather.RecalculatePermissions);
-      vehicle.AddEvent(VehicleEventDefOf.DamageTaken, vehicle.vehiclePather.RecalculatePermissions, vehicle.statHandler.MarkAllDirty, vehicle.Notify_TookDamage);
-      vehicle.AddEvent(VehicleEventDefOf.Repaired, vehicle.vehiclePather.RecalculatePermissions, vehicle.statHandler.MarkAllDirty);
-      vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, delegate ()
+      vehicle.AddEvent(VehicleEventDefOf.DamageTaken, vehicle.vehiclePather.RecalculatePermissions,
+        vehicle.statHandler.MarkAllDirty, vehicle.Notify_TookDamage);
+      vehicle.AddEvent(VehicleEventDefOf.Repaired, vehicle.vehiclePather.RecalculatePermissions,
+        vehicle.statHandler.MarkAllDirty);
+      vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, delegate()
       {
         if (vehicle.Spawned)
         {
@@ -232,7 +262,8 @@ namespace Vehicles
 
       if (!vehicle.VehicleDef.events.NullOrEmpty())
       {
-        foreach ((VehicleEventDef vehicleEventDef, List<ResolvedMethod<VehiclePawn>> methods) in vehicle.VehicleDef.events)
+        foreach ((VehicleEventDef vehicleEventDef, List<ResolvedMethod<VehiclePawn>> methods) in
+          vehicle.VehicleDef.events)
         {
           if (!methods.NullOrEmpty())
           {
@@ -243,13 +274,15 @@ namespace Vehicles
           }
         }
       }
+
       if (!vehicle.VehicleDef.statEvents.NullOrEmpty())
       {
         foreach (StatCache.EventLister eventLister in vehicle.VehicleDef.statEvents)
         {
           foreach (VehicleEventDef eventDef in eventLister.eventDefs)
           {
-            vehicle.AddEvent(eventDef, () => vehicle.statHandler.MarkStatDirty(eventLister.statDef));
+            vehicle.AddEvent(eventDef,
+              () => vehicle.statHandler.MarkStatDirty(eventLister.statDef));
           }
         }
       }
@@ -259,7 +292,8 @@ namespace Vehicles
       {
         foreach (var soundEventEntry in vehicle.VehicleDef.soundOneShotsOnEvent)
         {
-          vehicle.AddEvent(soundEventEntry.key, () => PlayOneShot(vehicle, soundEventEntry), soundEventEntry.removalKey);
+          vehicle.AddEvent(soundEventEntry.key, () => PlayOneShot(vehicle, soundEventEntry),
+            soundEventEntry.removalKey);
         }
       }
 
@@ -268,8 +302,10 @@ namespace Vehicles
       {
         foreach (var soundEventEntry in vehicle.VehicleDef.soundSustainersOnEvent)
         {
-          vehicle.AddEvent(soundEventEntry.start, () => StartSustainer(vehicle, soundEventEntry), soundEventEntry.removalKey);
-          vehicle.AddEvent(soundEventEntry.stop, () => StopSustainer(vehicle, soundEventEntry), soundEventEntry.removalKey);
+          vehicle.AddEvent(soundEventEntry.start, () => StartSustainer(vehicle, soundEventEntry),
+            soundEventEntry.removalKey);
+          vehicle.AddEvent(soundEventEntry.stop, () => StopSustainer(vehicle, soundEventEntry),
+            soundEventEntry.removalKey);
         }
       }
 
@@ -282,7 +318,8 @@ namespace Vehicles
       }
     }
 
-    public static void PlayOneShot<T>(VehiclePawn vehicle, VehicleSoundEventEntry<T> soundEventEntry)
+    public static void PlayOneShot<T>(VehiclePawn vehicle,
+      VehicleSoundEventEntry<T> soundEventEntry)
     {
       if (vehicle.Spawned)
       {
@@ -290,7 +327,8 @@ namespace Vehicles
       }
     }
 
-    public static void StartSustainer<T>(VehiclePawn vehicle, VehicleSustainerEventEntry<T> soundEventEntry)
+    public static void StartSustainer<T>(VehiclePawn vehicle,
+      VehicleSustainerEventEntry<T> soundEventEntry)
     {
       if (vehicle.Spawned)
       {
@@ -302,7 +340,8 @@ namespace Vehicles
       }
     }
 
-    public static void StopSustainer<T>(VehiclePawn vehicle, VehicleSustainerEventEntry<T> soundEventEntry)
+    public static void StopSustainer<T>(VehiclePawn vehicle,
+      VehicleSustainerEventEntry<T> soundEventEntry)
     {
       vehicle.sustainers.EndAll(soundEventEntry.value);
     }
@@ -312,7 +351,8 @@ namespace Vehicles
       return DebugSettings.godMode || (vehicle.Faction == faction || vehicle.ClaimableBy(faction));
     }
 
-    public static void RefundMaterials(this VehiclePawn vehicle, Map map, DestroyMode mode, List<Thing> listOfLeavingsOut = null)
+    public static void RefundMaterials(this VehiclePawn vehicle, Map map, DestroyMode mode,
+      List<Thing> listOfLeavingsOut = null)
     {
       float multiplier = RefundMaterialCount(vehicle.VehicleDef, mode);
       vehicle.RefundMaterials(map, mode, multiplier: multiplier);
@@ -335,12 +375,15 @@ namespace Vehicles
       };
     }
 
-    public static void RefundMaterials(this VehiclePawn vehicle, Map map, DestroyMode mode, float multiplier)
+    public static void RefundMaterials(this VehiclePawn vehicle, Map map, DestroyMode mode,
+      float multiplier)
     {
       ThingOwner<Thing> thingOwner = new ThingOwner<Thing>();
-      foreach (ThingDefCountClass thingDefCountClass in vehicle.VehicleDef.buildDef.CostListAdjusted(vehicle.Stuff))
+      foreach (ThingDefCountClass thingDefCountClass in
+        vehicle.VehicleDef.buildDef.CostListAdjusted(vehicle.Stuff))
       {
-        if (thingDefCountClass.thingDef == ThingDefOf.ReinforcedBarrel && !Find.Storyteller.difficulty.classicMortars)
+        if (thingDefCountClass.thingDef == ThingDefOf.ReinforcedBarrel &&
+          !Find.Storyteller.difficulty.classicMortars)
         {
           continue;
         }
@@ -356,17 +399,22 @@ namespace Vehicles
         }
 
         int refundCount = GenMath.RoundRandom(multiplier * thingDefCountClass.count);
-        if (refundCount > 0 && mode == DestroyMode.KillFinalize && thingDefCountClass.thingDef.slagDef != null)
+        if (refundCount > 0 && mode == DestroyMode.KillFinalize &&
+          thingDefCountClass.thingDef.slagDef != null)
         {
-          int count = thingDefCountClass.thingDef.slagDef.smeltProducts.First((ThingDefCountClass pro) => pro.thingDef == ThingDefOf.Steel).count;
+          int count = thingDefCountClass.thingDef.slagDef.smeltProducts
+           .First((ThingDefCountClass pro) => pro.thingDef == ThingDefOf.Steel).count;
           int proportionalCount = refundCount / count;
           proportionalCount = Mathf.Min(proportionalCount, vehicle.def.size.Area / 2);
           for (int n = 0; n < proportionalCount; n++)
           {
-            thingOwner.TryAdd(ThingMaker.MakeThing(thingDefCountClass.thingDef.slagDef, null), true);
+            thingOwner.TryAdd(ThingMaker.MakeThing(thingDefCountClass.thingDef.slagDef, null),
+              true);
           }
+
           refundCount -= proportionalCount * count;
         }
+
         if (refundCount > 0)
         {
           Thing thing2 = ThingMaker.MakeThing(thingDefCountClass.thingDef);
@@ -374,11 +422,13 @@ namespace Vehicles
           thingOwner.TryAdd(thing2, true);
         }
       }
+
       for (int i = vehicle.inventory.innerContainer.Count - 1; i >= 0; i--)
       {
         Thing thing = vehicle.inventory.innerContainer[i];
         thingOwner.TryAddOrTransfer(thing);
       }
+
       foreach (ThingComp thingComp in vehicle.AllComps)
       {
         if (thingComp is IRefundable refundable)
@@ -394,17 +444,21 @@ namespace Vehicles
           }
         }
       }
+
       TryDropAllOutsideVehicle(thingOwner, map, vehicle.OccupiedRect(), DestroyMode.Refund);
     }
 
-    public static bool TryDropOutsideVehicle(this ThingOwner container, Thing thing, Map map, CellRect cellRect, DestroyMode mode = DestroyMode.Refund)
+    public static bool TryDropOutsideVehicle(this ThingOwner container, Thing thing, Map map,
+      CellRect cellRect, DestroyMode mode = DestroyMode.Refund)
     {
       IntVec3 cell = cellRect.EdgeCells.RandomElement();
       if (mode == DestroyMode.KillFinalize && !map.areaManager.Home[cell])
       {
         thing.SetForbidden(true, warnOnFail: false);
       }
-      return container.TryDrop(thing, ThingPlaceMode.Near, thing.stackCount, out _, null, nearPlaceValidator: CanPlaceAt);
+
+      return container.TryDrop(thing, ThingPlaceMode.Near, thing.stackCount, out _, null,
+        nearPlaceValidator: CanPlaceAt);
 
       bool CanPlaceAt(IntVec3 cell)
       {
@@ -412,15 +466,18 @@ namespace Vehicles
         {
           return false;
         }
+
         if (map.thingGrid.ThingAt<VehiclePawn>(cell) != null)
         {
           return false;
         }
+
         return map.pathing.Normal.pathGrid.WalkableFast(cell);
       }
     }
 
-    public static bool TryDropAllOutsideVehicle(this ThingOwner container, Map map, CellRect cellRect, DestroyMode mode = DestroyMode.Refund)
+    public static bool TryDropAllOutsideVehicle(this ThingOwner container, Map map,
+      CellRect cellRect, DestroyMode mode = DestroyMode.Refund)
     {
       RotatingList<IntVec3> occupiedCells = cellRect.EdgeCells.InRandomOrder().ToRotatingList();
       while (container.Count > 0)
@@ -430,12 +487,15 @@ namespace Vehicles
         {
           container[0].SetForbidden(true, warnOnFail: false);
         }
-        if (!container.TryDrop(container[0], cell, map, ThingPlaceMode.Near, out _, null, nearPlaceValidator: CanPlaceAt))
+
+        if (!container.TryDrop(container[0], cell, map, ThingPlaceMode.Near, out _, null,
+          nearPlaceValidator: CanPlaceAt))
         {
           Log.Warning($"Failing to drop all from container {container.Owner}");
           return false;
         }
       }
+
       return true;
 
       bool CanPlaceAt(IntVec3 cell)
@@ -444,10 +504,12 @@ namespace Vehicles
         {
           return false;
         }
+
         if (map.thingGrid.ThingAt<VehiclePawn>(cell) != null)
         {
           return false;
         }
+
         return map.pathing.Normal.pathGrid.WalkableFast(cell);
       }
     }
@@ -459,9 +521,11 @@ namespace Vehicles
     /// <returns><c>null</c> if not currently inside an AerialVehicle</returns>
     public static AerialVehicleInFlight GetAerialVehicle(this Pawn pawn)
     {
-      if (VehicleWorldObjectsHolder.Instance?.AerialVehicles != null) //may get triggered prematurely from loading save
+      if (VehicleWorldObjectsHolder.Instance?.AerialVehicles !=
+        null) //may get triggered prematurely from loading save
       {
-        foreach (AerialVehicleInFlight aerialVehicle in VehicleWorldObjectsHolder.Instance.AerialVehicles)
+        foreach (AerialVehicleInFlight aerialVehicle in VehicleWorldObjectsHolder.Instance
+         .AerialVehicles)
         {
           if (aerialVehicle?.vehicle == pawn || aerialVehicle.vehicle.AllPawnsAboard.Contains(pawn))
           {
@@ -469,6 +533,7 @@ namespace Vehicles
           }
         }
       }
+
       return null;
     }
 
@@ -487,7 +552,8 @@ namespace Vehicles
     /// <param name="vehicles"></param>
     public static List<VehicleDef> UniqueVehicleDefsInList(this IEnumerable<Pawn> pawns)
     {
-      return pawns.Where(pawn => pawn is VehiclePawn).Select(pawn => (pawn as VehiclePawn).VehicleDef).Distinct().ToList();
+      return pawns.Where(pawn => pawn is VehiclePawn)
+       .Select(pawn => (pawn as VehiclePawn).VehicleDef).Distinct().ToList();
     }
 
     /// <summary>
@@ -539,7 +605,8 @@ namespace Vehicles
     /// <param name="pawn"></param>
     public static bool HasVehicleInCaravan(this Pawn pawn)
     {
-      return pawn.IsFormingVehicleCaravan() && pawn.GetLord().ownedPawns.NotNullAndAny(p => p is VehiclePawn);
+      return pawn.IsFormingVehicleCaravan() &&
+        pawn.GetLord().ownedPawns.NotNullAndAny(p => p is VehiclePawn);
     }
 
     /// <summary>
@@ -562,10 +629,11 @@ namespace Vehicles
       {
         return handler.vehicle.GetVehicleCaravan();
       }
+
       return pawn.ParentHolder as VehicleCaravan;
     }
 
-    //REDO
+    // TODO - Use for coordinated advance
     /// <summary>
     /// Vehicle speed should be reduced temporarily
     /// </summary>
@@ -577,7 +645,8 @@ namespace Vehicles
       {
         return false;
       }
-      return false;// vehicleLordCategories.Contains(lord.LordJob.GetType());
+
+      return false; // vehicleLordCategories.Contains(lord.LordJob.GetType());
     }
 
     /// <summary>
@@ -587,7 +656,8 @@ namespace Vehicles
     /// <param name="tile"></param>
     public static bool CoastalTravel(this VehicleDef vehicleDef, int tile)
     {
-      if (vehicleDef.properties.customBiomeCosts.TryGetValue(BiomeDefOf.Ocean, out float pathCost) && pathCost < WorldVehiclePathGrid.ImpassableMovementDifficulty)
+      if (vehicleDef.properties.customBiomeCosts.TryGetValue(BiomeDefOf.Ocean,
+          out float pathCost) && pathCost < WorldVehiclePathGrid.ImpassableMovementDifficulty)
       {
         WorldGrid worldGrid = Find.WorldGrid;
         List<int> neighbors = new List<int>();
@@ -598,8 +668,8 @@ namespace Vehicles
           if (worldGrid[neighborTile].biome == BiomeDefOf.Ocean) return true;
         }
       }
-      return false;
 
+      return false;
     }
 
     /// <summary>
@@ -635,9 +705,10 @@ namespace Vehicles
     public static bool DrivableFast(this VehiclePawn vehicle, int index)
     {
       VehiclePawn claimedBy = vehicle.Map.GetCachedMapComponent<VehiclePositionManager>()
-        .ClaimedBy(vehicle.Map.cellIndices.IndexToCell(index));
+       .ClaimedBy(vehicle.Map.cellIndices.IndexToCell(index));
       bool passable = (claimedBy is null || claimedBy == vehicle) &&
-        vehicle.Map.GetCachedMapComponent<VehicleMapping>()[vehicle.VehicleDef].VehiclePathGrid.WalkableFast(index);
+        vehicle.Map.GetCachedMapComponent<VehicleMapping>()[vehicle.VehicleDef].VehiclePathGrid
+         .WalkableFast(index);
       return passable;
     }
 
@@ -646,7 +717,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="vehicle"></param>
     /// <param name="dest"></param>
-    public static bool LocationRestrictedBySize(this VehiclePawn vehicle, IntVec3 dest, Rot8 rot, Map map = null)
+    public static bool LocationRestrictedBySize(this VehiclePawn vehicle, IntVec3 dest, Rot8 rot,
+      Map map = null)
     {
       map ??= vehicle.Map;
       foreach (IntVec3 cell in vehicle.VehicleRect(dest, rot))
@@ -656,6 +728,7 @@ namespace Vehicles
           return true;
         }
       }
+
       return false;
     }
 
@@ -665,7 +738,6 @@ namespace Vehicles
     /// <remarks>3x5 vehicle returns 3x3 rect, 2x4 returns 2x2, etc.</remarks>
     /// <param name="vehicle"></param>
     /// <param name="cell"></param>
-
     public static CellRect MinRect(this VehiclePawn vehicle, IntVec3 cell)
     {
       int minSize = Mathf.Min(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
@@ -678,7 +750,8 @@ namespace Vehicles
       return CellRect.CenteredOn(cell, Mathf.FloorToInt(maxSize / 2f));
     }
 
-    public static IEnumerable<IntVec3> DiagonalRect(this VehiclePawn vehicle, IntVec3 cell, Rot8 rot)
+    public static IEnumerable<IntVec3> DiagonalRect(this VehiclePawn vehicle, IntVec3 cell,
+      Rot8 rot)
     {
       if (!rot.IsDiagonal)
       {
@@ -694,7 +767,8 @@ namespace Vehicles
     /// <remarks>DOES take other vehicles into account</remarks>
     /// <param name="vehicle"></param>
     /// <param name="cell"></param>
-    public static bool DrivableRectOnCell(this VehiclePawn vehicle, IntVec3 cell, bool maxPossibleSize = false)
+    public static bool DrivableRectOnCell(this VehiclePawn vehicle, IntVec3 cell,
+      bool maxPossibleSize = false)
     {
       if (maxPossibleSize)
       {
@@ -702,8 +776,10 @@ namespace Vehicles
         {
           return false;
         }
+
         return vehicle.VehicleRect(cell, Rot8.East).All(rectCell => vehicle.Drivable(rectCell));
       }
+
       return MinRect(vehicle, cell).Cells.All(cell => vehicle.Drivable(cell));
     }
 
@@ -725,7 +801,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="pawn"></param>
     /// <param name="c"></param>
-    public static bool CellRectStandable(this VehiclePawn vehicle, Map map, IntVec3? c = null, Rot4? rot = null)
+    public static bool CellRectStandable(this VehiclePawn vehicle, Map map, IntVec3? c = null,
+      Rot4? rot = null)
     {
       IntVec3 loc = c ?? vehicle.Position;
       Rot4 facing = rot ?? vehicle.Rotation;
@@ -737,7 +814,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="pawn"></param>
     /// <param name="c"></param>
-    public static bool CellRectStandable(this VehicleDef vehicleDef, Map map, IntVec3 position, Rot4 rot)
+    public static bool CellRectStandable(this VehicleDef vehicleDef, Map map, IntVec3 position,
+      Rot4 rot)
     {
       foreach (IntVec3 cell in vehicleDef.VehicleRect(position, rot))
       {
@@ -746,6 +824,7 @@ namespace Vehicles
           return false;
         }
       }
+
       return true;
     }
 
@@ -765,6 +844,7 @@ namespace Vehicles
           return false;
         }
       }
+
       return true;
     }
 
@@ -774,7 +854,8 @@ namespace Vehicles
     /// <param name="vehicle"></param>
     public static int CountAssignedToVehicle(this VehiclePawn vehicle)
     {
-      return CaravanHelper.assignedSeats.Where(a => a.Value.vehicle == vehicle).Select(s => s.Key).Count();
+      return CaravanHelper.assignedSeats.Where(a => a.Value.vehicle == vehicle).Select(s => s.Key)
+       .Count();
     }
 
     /// <summary>

@@ -8,7 +8,7 @@ namespace Vehicles
   /// <summary>
   /// Region grid for vehicle specific regions
   /// </summary>
-  public sealed class VehicleRegionGrid : VehicleRegionManager
+  public sealed class VehicleRegionGrid : VehicleGridManager
   {
     private const int CleanSquaresPerFrame = 16;
 
@@ -246,8 +246,8 @@ namespace Vehicles
       IntVec3 intVec = UI.MouseCell();
       if (intVec.InBounds(mapping.map))
       {
-        VehicleRegion regionAtNoRebuildInvalidAllowed = GetRegionAt(intVec);
-        regionAtNoRebuildInvalidAllowed?.DebugDraw(debugRegionType);
+        VehicleRegion region = GetRegionAt(intVec);
+        region?.DebugDraw(debugRegionType);
       }
     }
 
@@ -259,8 +259,8 @@ namespace Vehicles
       IntVec3 intVec = UI.MouseCell();
       if (intVec.InBounds(mapping.map))
       {
-        VehicleRegion regionAtNoRebuildInvalidAllowed = GetRegionAt(intVec);
-        regionAtNoRebuildInvalidAllowed?.DebugOnGUIMouseover(debugRegionType);
+        VehicleRegion region = GetRegionAt(intVec);
+        region?.DebugOnGUIMouseover(debugRegionType);
       }
     }
   }

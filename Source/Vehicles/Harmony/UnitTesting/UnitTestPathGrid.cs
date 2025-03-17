@@ -22,7 +22,7 @@ namespace Vehicles.Testing
 
       VehiclePathGrid pathGrid = pathData.VehiclePathGrid;
       GenSpawn.Spawn(vehicle, root, TestMap);
-      result.Add($"{vehicle.def} Spawned", vehicle.Spawned);
+      result.Add($"VehiclePathGrid_{vehicle.def} Spawned", vehicle.Spawned);
 
       HitboxTester<int> positionTester = new(vehicle, TestMap, root,
         (cell) => pathGrid.CalculatedCostAt(cell),
@@ -55,8 +55,8 @@ namespace Vehicles.Testing
       positionTester = new(vehicle, TestMap, root,
         (cell) => vanillaPathGrid.CalculatedCostAt(cell, true, IntVec3.Invalid),
         (cost) => cost == terrainDef.pathCost ||
-                  (cost == PathGrid.ImpassableCost &&
-                   terrainDef.passability == Traversability.Impassable));
+          (cost == PathGrid.ImpassableCost &&
+            terrainDef.passability == Traversability.Impassable));
       positionTester.Start();
 
       GenSpawn.Spawn(vehicle, root, TestMap);
@@ -64,23 +64,23 @@ namespace Vehicles.Testing
 
       // Spawn
       success = terrainDef.passability == Traversability.Impassable ?
-                  positionTester.All(true) :
-                  positionTester.Hitbox(false);
+        positionTester.All(true) :
+        positionTester.Hitbox(false);
       result.Add("PathGrid (Spawn)", success);
 
       // set_Position
       vehicle.Position = reposition;
       success = terrainDef.passability == Traversability.Impassable ?
-                  positionTester.All(true) :
-                  positionTester.Hitbox(false);
+        positionTester.All(true) :
+        positionTester.Hitbox(false);
       vehicle.Position = root;
       result.Add("PathGrid (set_Position)", success);
 
       // set_Rotation
       vehicle.Rotation = Rot4.East;
       success = terrainDef.passability == Traversability.Impassable ?
-                  positionTester.All(true) :
-                  positionTester.Hitbox(false);
+        positionTester.All(true) :
+        positionTester.Hitbox(false);
       vehicle.Rotation = Rot4.North;
       result.Add("PathGrid (set_Rotation)", success);
 

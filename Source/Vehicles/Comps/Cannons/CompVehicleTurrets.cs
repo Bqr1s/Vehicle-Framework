@@ -541,8 +541,7 @@ namespace Vehicles
             continue;
           }
 
-          if (turretData.turret.TurretRestricted || turretData.turret.OnCooldown ||
-            (!turretData.turret.IsManned && !VehicleMod.settings.debug.debugShootAnyTurret))
+          if (!turretData.CanTarget)
           {
             turretData.turret.SetTarget(LocalTargetInfo.Invalid);
             DequeueTurret(turretData);
@@ -1049,6 +1048,25 @@ namespace Vehicles
         this.shots = shots;
         this.ticksTillShot = ticksTillShot;
         this.turret = turret;
+      }
+
+      public bool CanTarget
+      {
+        get
+        {
+          if (turret.TurretRestricted)
+            return false;
+          if (turret.OnCooldown)
+            return false;
+
+          if (!turret.IsManned)
+          {
+            return VehicleMod.settings.debug.debugShootAnyTurret &&
+              turret.vehicle.Faction.IsPlayerSafe();
+          }
+
+          return true;
+        }
       }
 
       public void ExposeData()

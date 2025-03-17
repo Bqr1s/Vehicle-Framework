@@ -11,7 +11,7 @@ namespace Vehicles
   /// <summary>
   /// Region and room update handler
   /// </summary>
-  public class VehicleRegionAndRoomUpdater : VehicleRegionManager
+  public class VehicleRegionAndRoomUpdater : VehicleGridManager
   {
     private readonly List<VehicleRegion> newRegions = [];
 
@@ -48,7 +48,7 @@ namespace Vehicles
     /// <summary>
     /// Updater has finished initial build
     /// </summary>
-    public bool Enabled { get; internal set; }
+    public bool Enabled { get; private set; }
 
     /// <summary>
     /// Anything in RegionGrid that needs to be rebuilt

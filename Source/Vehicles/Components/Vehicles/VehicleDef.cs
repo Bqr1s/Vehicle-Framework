@@ -28,7 +28,8 @@ namespace Vehicles
     [NumericBoxValues(MinValue = 0, MaxValue = float.MaxValue)]
     public float combatPower = 100;
 
-    //Editing in ModSettings is handled manually as StatModifier list won't serialize well to the config file in the existing setup.
+    // Editing in ModSettings is handled manually as StatModifier list
+    // won't serialize well to the config file in the existing setup.
     public List<VehicleStatModifier> vehicleStats;
 
     [PostToSettings(Label = "VF_MovementPermissions", Translate = true,
@@ -66,22 +67,19 @@ namespace Vehicles
 
     public List<StatCache.EventLister> statEvents;
 
-    //Event : SoundDef
-    public List<VehicleSoundEventEntry<VehicleEventDef>> soundOneShotsOnEvent =
-      new List<VehicleSoundEventEntry<VehicleEventDef>>();
+    // Event : SoundDef
+    public List<VehicleSoundEventEntry<VehicleEventDef>> soundOneShotsOnEvent = [];
 
-    //<Start Event, Stop Event> : SoundDef
-    public List<VehicleSustainerEventEntry<VehicleEventDef>> soundSustainersOnEvent =
-      new List<VehicleSustainerEventEntry<VehicleEventDef>>();
+    // <Start Event, Stop Event> : SoundDef
+    public List<VehicleSustainerEventEntry<VehicleEventDef>> soundSustainersOnEvent = [];
 
-    //TODO 1.6 - refactor to container class for cleaner xml input
-    public Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>> events =
-      new Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>>();
+    // TODO 1.6 - refactor to container class for cleaner xml input
+    public Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>> events = [];
 
-    public List<Type> designatorTypes = new List<Type>();
+    public List<Type> designatorTypes = [];
 
     [NoTranslate] //Should be translated in xml and parsed in appropriately
-    public string draftLabel = null;
+    public string draftLabel;
 
     public SoundDef soundBuilt;
 
@@ -95,8 +93,7 @@ namespace Vehicles
     public List<VehicleComponentProperties> components;
 
     [Unsaved]
-    private readonly SelfOrderingList<CompProperties> cachedComps =
-      new SelfOrderingList<CompProperties>();
+    private readonly SelfOrderingList<CompProperties> cachedComps = [];
 
     [Unsaved]
     private Texture2D resolvedLoadCargoTexture;
@@ -230,7 +227,9 @@ namespace Vehicles
 
       if (draftLabel.NullOrEmpty())
       {
-        draftLabel = "VF_draftLabel".Translate(); //Default translation for draft label
+        // Use Default translation if non specified. This alleviates the issue of implementing it in xml
+        // and vehicles that don't inherit the base vehicle pawn xml missing out on translations.
+        draftLabel = "VF_draftLabel".Translate();
       }
 
       if (!comps.NullOrEmpty())
