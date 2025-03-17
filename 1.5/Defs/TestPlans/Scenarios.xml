@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Defs>
+	<ScenarioDef>
+    <defName>TestScenario</defName>
+    <label>Test Scenario</label>
+    <description>Quick scenario for unit testing.</description>
+
+    <scenario>
+      <summary>...</summary>
+      <playerFaction>
+        <def>PlayerFaction</def>
+        <factionDef>PlayerColony</factionDef>
+      </playerFaction>
+
+      <parts>
+        <li Class="ScenPart_PlayerPawnsArriveMethod">
+          <def>PlayerPawnsArriveMethod</def>
+          <method>Standing</method>
+        </li>
+      </parts>
+    </scenario>
+  </ScenarioDef>
+
+  <MapGeneratorDef>
+    <defName>TestMapGenerator</defName>
+
+    <!-- 
+    NOTE - We shouldn't test DLC's yet for map gen specific issues. Let's keep it simple to avoid
+    polluting the unit tests with unnecessary interference.
+    -->
+    <genSteps>
+      <li>ElevationFertility</li>
+      <li>Terrain</li>
+      <li>Roads</li>
+      <!--
+      <li MayRequire="Ludeon.RimWorld.Ideology">ScatterRoadDebris</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">ScatterCaveDebris</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">AncientUtilityBuilding</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">MechanoidRemains</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">AncientTurret</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">AncientMechs</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">AncientLandingPad</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">AncientFences</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">AncientPipelineSection</li>
+      <li MayRequire="Ludeon.RimWorld.Ideology">AncientJunkClusters</li>
+      -->
+      <li>FindPlayerStartSpot</li>
+      <li>ScenParts</li>
+      <!--
+      <li MayRequire="Ludeon.RimWorld.Biotech">Pollution</li>
+      <li MayRequire="Ludeon.RimWorld.Biotech">AncientPollutionJunk</li>
+      -->
+      <li>Plants</li>
+      <li>Snow</li>
+      <li>Fog</li>
+    </genSteps>
+  </MapGeneratorDef>
+</Defs>
