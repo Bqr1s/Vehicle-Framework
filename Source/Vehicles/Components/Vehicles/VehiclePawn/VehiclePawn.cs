@@ -1,16 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Text;
-using UnityEngine;
-using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
-using Verse;
-using Verse.Sound;
 using SmashTools;
 using SmashTools.Animations;
+using UnityEngine;
+using Verse;
 
 namespace Vehicles
 {
@@ -22,10 +17,6 @@ namespace Vehicles
     public EventManager<VehicleEventDef> EventRegistry { get; set; }
 
     public VehicleDef VehicleDef => def as VehicleDef;
-
-    public VehiclePawn()
-    {
-    }
 
     public Pawn FindPawnWithBestStat(StatDef stat, Predicate<Pawn> pawnValidator = null)
     {
@@ -70,22 +61,11 @@ namespace Vehicles
 
     private void InitializeVehicle()
     {
-      if (handlers != null && handlers.Count > 0)
-      {
+      if (handlers is { Count: > 0 })
         return;
-      }
 
-      if (cargoToLoad is null)
-      {
-        cargoToLoad = new List<TransferableOneWay>();
-      }
-
-      if (bills is null)
-      {
-        bills = new List<Bill_BoardVehicle>();
-      }
-
-      //navigationCategory = VehicleDef.defaultNavigation;
+      cargoToLoad ??= [];
+      bills ??= [];
 
       if (!VehicleDef.properties.roles.NullOrEmpty())
       {
@@ -141,18 +121,23 @@ namespace Vehicles
     /// <summary>
     /// Executes after vehicle has been loaded into the game
     /// </summary>
-    /// <remarks>Called regardless if vehicle is spawned or unspawned. Responsible for important variables being set that may be called even for unspawned vehicles</remarks>
+    /// <remarks>
+    /// Called regardless if vehicle is spawned or unspawned. Responsible for important
+    /// variables being set that may be called even for unspawned vehicles.
+    /// </remarks>
     protected virtual void PostLoad()
     {
-      this.RegisterEvents(); //Events must be registered before comp post loads, SpawnSetup won't trigger register in this case
+      // Events must be registered before comp post loads, SpawnSetup won't trigger register in this case
+      this.RegisterEvents();
       RegenerateUnsavedComponents();
       RecacheComponents();
       RecachePawnCount();
       animator?.PostLoad();
 
-      foreach (VehicleComp comp in AllComps.Where(t => t is VehicleComp))
+      foreach (ThingComp comp in AllComps)
       {
-        comp.PostLoad();
+        if (comp is VehicleComp vehicleComp)
+          vehicleComp.PostLoad();
       }
     }
 
@@ -221,7 +206,8 @@ namespace Vehicles
       {
         if (pawn.IsWorldPawn())
         {
-          Find.WorldPawns.RemovePawn(pawn); //Remove internal pawns from WorldPawns
+          // Remove internal pawns from WorldPawns
+          Find.WorldPawns.RemovePawn(pawn);
         }
       }
 
@@ -229,9 +215,8 @@ namespace Vehicles
       {
         if (thing is Pawn pawn)
         {
-          Find.WorldPawns
-           .RemovePawn(
-              pawn); //Remove inventory pawns in case some were transfered here (like animals)
+          // Remove inventory pawns in case some were transfered here (like animals)
+          Find.WorldPawns.RemovePawn(pawn);
         }
       }
 
@@ -239,7 +224,7 @@ namespace Vehicles
 
       Drawer.Notify_Spawned();
       InitializeHitbox();
-      Map.GetCachedMapComponent<VehicleMapping>().NotifyVehicleSpawned(this);
+      Map.GetCachedMapComponent<VehicleMapping>().RequestGridsFor(this);
       ReclaimPosition();
       Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleSpawned(this);
       ResetRenderStatus();
@@ -294,7 +279,7 @@ namespace Vehicles
 
       Scribe_Values.Look(ref movementStatus, nameof(movementStatus), VehicleMovementStatus.Online);
       //Scribe_Values.Look(ref navigationCategory, nameof(navigationCategory), NavigationCategory.Opportunistic);
-      Scribe_Values.Look(ref currentlyFishing, nameof(currentlyFishing), false);
+      Scribe_Values.Look(ref currentlyFishing, nameof(currentlyFishing));
       Scribe_Values.Look(ref showAllItemsOnMap, nameof(showAllItemsOnMap));
 
       Scribe_Collections.Look(ref cargoToLoad, nameof(cargoToLoad), lookMode: LookMode.Deep);

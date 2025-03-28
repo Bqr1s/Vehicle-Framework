@@ -1,139 +1,210 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using Verse;
+using LudeonTK;
 using RimWorld;
-using RimWorld.Planet;
 using SmashTools;
+using SmashTools.Pathfinding;
+using UnityEngine;
+using Verse;
+using Verse.Sound;
 
 namespace Vehicles
 {
-	/// <summary>
-	/// Reachability grid
-	/// </summary>
-	public class WorldVehicleReachability : WorldComponent
-	{
-		private readonly Dictionary<VehicleDef, int[]> reachabilityGrid;
+  /// <summary>
+  /// Reachability grid
+  /// </summary>
+  public class WorldVehicleReachability
+  {
+    private readonly WorldVehiclePathGrid pathGrid;
 
-		private int nextFieldID;
-		private int impassableFieldID;
-		private int minValidFieldID;
+    private readonly WorldRegionGrid[] regionGrids;
 
-		public WorldVehicleReachability(World world) : base(world)
-		{
-			this.world = world;
-			reachabilityGrid = new Dictionary<VehicleDef, int[]>();
-			nextFieldID = 1;
-			InvalidateAllFields();
-			InitReachabilityGrid();
-			Instance = this;
-		}
+    public WorldVehicleReachability(WorldVehiclePathGrid pathGrid)
+    {
+      this.pathGrid = pathGrid;
+      regionGrids = new WorldRegionGrid[DefDatabase<VehicleDef>.DefCount];
+      InitReachabilityGrid();
+      pathGrid.onPathGridRecalculated += RegenerateRegionsFor;
+    }
 
-		/// <summary>
-		/// Singleton getter
-		/// </summary>
-		public static WorldVehicleReachability Instance { get; private set; }
+    internal WorldRegionGrid GetRegionGrid(VehicleDef vehicleDef)
+    {
+      return regionGrids[vehicleDef.DefIndex];
+    }
 
-		/// <summary>
-		/// Clear reachability cache
-		/// </summary>
-		public void ClearCache()
-		{
-			InvalidateAllFields();
-		}
+    public int GetRegionId(VehicleDef vehicleDef, int tile)
+    {
+      return regionGrids[vehicleDef.DefIndex].GetRegionId(tile);
+    }
 
-		/// <summary>
-		/// Validate all VehicleDefs in reachability cache
-		/// </summary>
-		private void InitReachabilityGrid()
-		{
-			foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
-			{
-				reachabilityGrid.Add(vehicleDef, new int[Find.WorldGrid.TilesCount]);
-			}
-		}
+    /// <summary>
+    /// Validate all VehicleDefs in reachability cache
+    /// </summary>
+    private void InitReachabilityGrid()
+    {
+      foreach (VehicleDef vehicleDef in GridOwners.World.AllOwners)
+      {
+        regionGrids[vehicleDef.DefIndex] = new WorldRegionGrid(pathGrid, vehicleDef);
+      }
+    }
 
-		/// <summary>
-		/// <paramref name="caravan"/> can reach <paramref name="destTile"/>
-		/// </summary>
-		/// <param name="c"></param>
-		/// <param name="destTile"></param>
-		public bool CanReach(VehicleCaravan caravan, int destTile)
-		{
-			int startTile = caravan.Tile;
-			List<VehicleDef> vehicleDefs = caravan.UniqueVehicleDefsInCaravan().ToList();
-			return vehicleDefs.All(v => CanReach(v, startTile, destTile));
-		}
+    private void RegenerateAllRegions()
+    {
+      foreach (VehicleDef vehicleDef in GridOwners.World.AllOwners)
+      {
+        RegenerateRegionsFor(vehicleDef);
+      }
+    }
 
-		/// <summary>
-		/// <paramref name="vehicleDef"/> can reach <paramref name="destTile"/> from <paramref name="startTile"/>
-		/// </summary>
-		/// <param name="vehicleDef"></param>
-		/// <param name="startTile"></param>
-		/// <param name="destTile"></param>
-		public bool CanReach(VehicleDef vehicleDef, int startTile, int destTile)
-		{
-			if (startTile < 0 || startTile >= Find.WorldGrid.TilesCount || destTile < 0 || destTile >= Find.WorldGrid.TilesCount)
-			{
-				return false;
-			}
-			if (reachabilityGrid[vehicleDef][startTile] == impassableFieldID || reachabilityGrid[vehicleDef][destTile] == impassableFieldID)
-			{
-				return false;
-			}
-			if (IsValidField(reachabilityGrid[vehicleDef][startTile])  || IsValidField(reachabilityGrid[vehicleDef][destTile]))
-			{
-				return reachabilityGrid[vehicleDef][startTile] == reachabilityGrid[vehicleDef][destTile];
-			}
-			FloodFillAt(startTile, vehicleDef);
-			return reachabilityGrid[vehicleDef][startTile] != impassableFieldID && reachabilityGrid[vehicleDef][startTile] == reachabilityGrid[vehicleDef][destTile];
-		}
+    private void RegenerateRegionsFor(VehicleDef vehicleDef)
+    {
+      if (!GridOwners.World.IsOwner(vehicleDef))
+        return;
+      regionGrids[vehicleDef.DefIndex].GenerateRegions();
+    }
 
-		/// <summary>
-		/// Invalidate all field IDs
-		/// </summary>
-		private void InvalidateAllFields()
-		{
-			if (nextFieldID == int.MaxValue)
-			{
-				nextFieldID = 1;
-			}
-			minValidFieldID = nextFieldID;
-			impassableFieldID = nextFieldID;
-			nextFieldID++;
-		}
+    /// <summary>
+    /// <paramref name="caravan"/> can reach <paramref name="destTile"/>
+    /// </summary>
+    public bool CanReach(VehicleCaravan caravan, int destTile)
+    {
+      int startTile = caravan.Tile;
+      List<VehicleDef> vehicleDefs = caravan.UniqueVehicleDefsInCaravan().ToList();
+      return vehicleDefs.All(v => CanReach(v, startTile, destTile));
+    }
 
-		/// <summary>
-		/// <paramref name="fieldID"/> is valid
-		/// </summary>
-		/// <param name="fieldID"></param>
-		private bool IsValidField(int fieldID)
-		{
-			return fieldID >= minValidFieldID;
-		}
+    /// <summary>
+    /// <paramref name="vehicleDef"/> can reach <paramref name="destTile"/> from <paramref name="startTile"/>
+    /// </summary>
+    /// <param name="vehicleDef"></param>
+    /// <param name="startTile"></param>
+    /// <param name="destTile"></param>
+    public bool CanReach(VehicleDef vehicleDef, int startTile, int destTile)
+    {
+      if (startTile < 0 || startTile >= Find.WorldGrid.TilesCount || destTile < 0 ||
+        destTile >= Find.WorldGrid.TilesCount)
+      {
+        Log.Error("Trying to reach tile that is out of bounds of the world grid.");
+        return false;
+      }
 
-		/// <summary>
-		/// FloodFill reachability cache at <paramref name="tile"/> for <paramref name="vehicleDef"/>
-		/// </summary>
-		/// <param name="tile"></param>
-		/// <param name="vehicleDef"></param>
-		private void FloodFillAt(int tile, VehicleDef vehicleDef)
-		{
-			if (!reachabilityGrid.ContainsKey(vehicleDef))
-			{
-				reachabilityGrid.Add(vehicleDef, new int[Find.WorldGrid.TilesCount]);
-			}
+      return regionGrids[vehicleDef.DefIndex].CanReach(startTile, destTile);
+    }
 
-			if (!WorldVehiclePathGrid.Instance.Passable(tile, vehicleDef))
-			{
-				reachabilityGrid[vehicleDef][tile] = impassableFieldID;
-				return;
-			}
+    [DebugAction(VehicleHarmony.VehiclesLabel, name = "Regen WorldReachability",
+      allowedGameStates = AllowedGameStates.PlayingOnWorld)]
+    private static void RecalculateReachabilityGrid()
+    {
+      TaskManager.RunAsync(WorldVehiclePathGrid.Instance.reachability.RegenerateAllRegions,
+        ExceptionHandler);
+      return;
 
-			Find.WorldFloodFiller.FloodFill(tile, (int x) => WorldVehiclePathGrid.Instance.Passable(x, vehicleDef), delegate (int x)
-			{
-				reachabilityGrid[vehicleDef][x] = nextFieldID;
-			}, int.MaxValue, null);
-			nextFieldID++;
-		}
-	}
+      void ExceptionHandler(Exception ex)
+      {
+        Trace.Fail(
+          $"Exception thrown while generating reachability grid on world map.\n{ex}");
+      }
+    }
+
+    [DebugAction(VehicleHarmony.VehiclesLabel, name = "Flash Region Grid",
+      allowedGameStates = AllowedGameStates.PlayingOnWorld)]
+    private static void FlashRandomRegionGrid()
+    {
+      const int FlashTicks = 600;
+
+      if (!GridOwners.World.AnyOwners)
+      {
+        SoundDefOf.ClickReject.PlayOneShotOnCamera();
+        return;
+      }
+      VehicleDef vehicleDef = GridOwners.World.AllOwners[0];
+      WorldVehicleReachability reachability = WorldVehiclePathGrid.Instance.reachability;
+      for (int i = 0; i < Find.WorldGrid.TilesCount; i++)
+      {
+        Find.World.debugDrawer.FlashTile(i, colorPct: ColorPct(i), text: IdStringAt(i), FlashTicks);
+      }
+      return;
+
+      string IdStringAt(int t) => reachability.GetRegionId(vehicleDef, t).ToString();
+
+      float ColorPct(int tile)
+      {
+        WorldRegionGrid regionGrid =
+          WorldVehiclePathGrid.Instance.reachability.regionGrids[vehicleDef.DefIndex];
+        int id = regionGrid.GetRegionId(tile);
+        return id switch
+        {
+          0  => 0,
+          -1 => 0.25f,
+          _  => 0.75f,
+        };
+      }
+    }
+
+    internal class WorldRegionGrid
+    {
+      private readonly WorldVehiclePathGrid pathGrid;
+      private readonly VehicleDef owner;
+
+      // -1 : Impassable tile
+      //  0 : Unregistered tile
+      // >0 : Tile with region
+      private int[] regionIds = [];
+
+      private int totalRegions;
+
+      public WorldRegionGrid(WorldVehiclePathGrid pathGrid, VehicleDef vehicleDef)
+      {
+        this.pathGrid = pathGrid;
+        this.owner = vehicleDef;
+      }
+
+      public int TotalRegions => totalRegions + 2;
+
+      public int GetRegionId(int tile)
+      {
+        return regionIds[tile];
+      }
+
+      public bool CanReach(int fromTile, int toTile)
+      {
+        int fromId = regionIds[fromTile];
+        int toId = regionIds[toTile];
+        return (fromId > 0 && toId > 0) && fromId == toId;
+      }
+
+      public void GenerateRegions()
+      {
+        BFS<int> floodfiller = new();
+        int[] tilesToId = new int[Find.WorldGrid.TilesCount];
+        totalRegions = 1;
+
+        for (int tile = 0; tile < Find.WorldGrid.TilesCount; tile++)
+        {
+          if (tilesToId[tile] != 0) continue;
+          if (!pathGrid.PassableFast(tile, owner))
+          {
+            tilesToId[tile] = -1;
+            continue;
+          }
+
+          int id = totalRegions;
+          floodfiller.FloodFill(tile, Ext_World.GetTileNeighbors, null, onEntered: OnEnter,
+            onSkipped: null, canEnter: CanEnter);
+
+          totalRegions++;
+          continue;
+
+          void OnEnter(int t) => tilesToId[t] = id;
+
+          // Tile hasn't been processed and is not impassable
+          bool CanEnter(int t) => tilesToId[t] == 0 && pathGrid.PassableFast(t, owner);
+        }
+        // This is the only case where the id array will be getting written to so we can just use
+        // an atomic reference swap and maintain thread safety lock-free.
+        this.regionIds = tilesToId;
+      }
+    }
+  }
 }

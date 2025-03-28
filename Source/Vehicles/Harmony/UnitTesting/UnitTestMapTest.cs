@@ -13,9 +13,11 @@ namespace Vehicles.Testing
   {
     protected virtual Map TestMap => Find.CurrentMap;
 
+    protected virtual Faction Faction => Faction.OfPlayer;
+
     public override TestType ExecuteOn => TestType.GameLoaded;
 
-    protected virtual Faction Faction => Faction.OfPlayer;
+    protected virtual bool RefreshGrids => true;
 
     protected virtual bool ShouldTest(VehicleDef vehicleDef)
     {
@@ -39,15 +41,25 @@ namespace Vehicles.Testing
       // we would have race conditions when validating grids.
       using ThreadDisabler td = new();
 
-      // Should always be at least 1 vehicle for unit tests to execute
-      // assuming debug vehicle is enabled
+      VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
+
       foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
       {
         if (!ShouldTest(vehicleDef)) continue;
 
+        if (RefreshGrids)
+          mapping.RequestGridsFor(vehicleDef, DeferredGridGeneration.Urgency.Urgent);
+
+        // Path and region grids should all be initialized before starting any map-based test.
+        Assert.IsTrue(!mapping[vehicleDef].Suspended);
+        Assert.IsTrue(mapping[vehicleDef].VehiclePathGrid.Enabled);
+        if (!mapping.GridOwners.IsOwner(vehicleDef))
+          Assert.IsTrue(mapping[mapping.GridOwners.GetOwner(vehicleDef)].VehiclePathGrid.Enabled);
+
         VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction);
         TerrainDef terrainDef = DefDatabase<TerrainDef>.AllDefsListForReading
-         .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _));
+         .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _) &&
+            def.affordances.Contains(vehicleDef.buildDef.terrainAffordanceNeeded));
 
         IntVec3 root = TestMap.Center;
         DebugHelper.DestroyArea(TestArea(vehicleDef, root), TestMap, terrainDef);
@@ -56,9 +68,12 @@ namespace Vehicles.Testing
         yield return TestVehicle(vehicle, root);
 
         if (!vehicle.Destroyed)
-        {
           vehicle.DestroyVehicleAndPawns();
-        }
+
+        // Grids from owners shouldn't interfere with their piggies. If we don't clear, we don't
+        // be able to validate incorrect grid updating between owner and piggy.
+        if (RefreshGrids)
+          mapping.deferredGridGeneration.DoPass();
       }
     }
 

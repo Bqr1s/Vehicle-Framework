@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using SmashTools;
+using SmashTools.Performance;
 using Verse;
 
 namespace Vehicles
@@ -14,15 +12,15 @@ namespace Vehicles
   /// so that further actions are executed synchronously rather than getting enqueued to
   /// the dedicated thread.
   /// </summary>
-  public readonly struct ThreadEnabler : IDisposable
+  public readonly struct ThreadDisabler : IDisposable
   {
     // True = thread was active before disabling
     private readonly Dictionary<Map, bool> threadStates = [];
 
-    public ThreadEnabler()
+    public ThreadDisabler()
     {
-      // Need to enable from main thread, Find.Maps is not thread safe
-      Assert.IsTrue(UnityData.IsInMainThread);
+      // Need to disable from main thread, Find.Maps is not thread safe
+      Assert.IsTrue(ThreadManager.InMainOrEventThread);
 
       foreach (Map map in Find.Maps)
       {
@@ -30,7 +28,7 @@ namespace Vehicles
         if (mapping.ThreadAlive)
         {
           threadStates[map] = !mapping.dedicatedThread.IsSuspended;
-          mapping.dedicatedThread.IsSuspended = false;
+          mapping.dedicatedThread.IsSuspended = true;
         }
       }
     }
@@ -38,7 +36,7 @@ namespace Vehicles
     void IDisposable.Dispose()
     {
       // Need to dispose from main thread, Find.Maps is not thread safe
-      Assert.IsTrue(UnityData.IsInMainThread);
+      Assert.IsTrue(ThreadManager.InMainOrEventThread);
 
       foreach (Map map in Find.Maps)
       {

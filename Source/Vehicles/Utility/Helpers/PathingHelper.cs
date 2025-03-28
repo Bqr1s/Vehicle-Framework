@@ -254,7 +254,7 @@ namespace Vehicles
       foreach (VehicleDef vehicleDef in vehicleDefs)
       {
         mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostUnderRect(occupiedRect);
-        if (GridOwners.IsOwner(vehicleDef))
+        if (mapping.GridOwners.IsOwner(vehicleDef))
         {
           mapping[vehicleDef].VehicleRegionDirtyer.NotifyThingAffectingRegionsSpawned(occupiedRect);
           mapping[vehicleDef].VehicleReachability.ClearCache();
@@ -268,7 +268,7 @@ namespace Vehicles
       foreach (VehicleDef vehicleDef in vehicleDefs)
       {
         mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostUnderRect(occupiedRect);
-        if (GridOwners.IsOwner(vehicleDef))
+        if (mapping.GridOwners.IsOwner(vehicleDef))
         {
           mapping[vehicleDef].VehicleRegionDirtyer
            .NotifyThingAffectingRegionsDespawned(occupiedRect);
@@ -301,7 +301,7 @@ namespace Vehicles
     {
       foreach (VehicleDef vehicleDef in vehicleDefs)
       {
-        if (GridOwners.IsOwner(vehicleDef))
+        if (mapping.GridOwners.IsOwner(vehicleDef))
         {
           mapping[vehicleDef].VehicleReachability.ClearCache();
         }
@@ -313,7 +313,7 @@ namespace Vehicles
       LongEventHandler.ExecuteWhenFinished(delegate()
       {
         VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-        if (GridOwners.AnyOwners)
+        if (mapping.GridOwners.AnyOwners)
         {
           RecalculateAllPerceivedPathCosts(mapping);
         }
@@ -324,7 +324,7 @@ namespace Vehicles
     {
       foreach (IntVec3 cell in mapping.map.AllCells)
       {
-        foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
+        foreach (VehicleDef vehicleDef in mapping.GridOwners.AllOwners)
         {
           mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostAt(cell);
         }
@@ -339,9 +339,12 @@ namespace Vehicles
     /// <param name="map"></param>
     public static void RecalculatePerceivedPathCostAt(IntVec3 cell, Map map)
     {
-      if (!GridOwners.AnyOwners) return;
-
       VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
+      Assert.IsNotNull(mapping);
+
+      if (!mapping.GridOwners.AnyOwners)
+        return;
+
       if (mapping.ThreadAvailable)
       {
         AsyncPathingAction asyncAction = AsyncPool<AsyncPathingAction>.Get();
@@ -359,7 +362,7 @@ namespace Vehicles
       foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
       {
         VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
-        if (pathData.Suspended) continue;
+        if (!pathData.VehiclePathGrid.Enabled) continue;
 
         pathData.VehiclePathGrid.RecalculatePerceivedPathCostAt(cell);
       }

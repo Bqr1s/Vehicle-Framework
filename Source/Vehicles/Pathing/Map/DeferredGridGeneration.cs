@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections.Generic;
+using System.Linq;
 using LudeonTK;
 using RimWorld;
 using SmashTools;
+using SmashTools.Debugging;
 using SmashTools.Performance;
 using Verse;
 
@@ -15,65 +15,133 @@ public class DeferredGridGeneration
 
   private readonly VehicleMapping mapping;
 
-  private readonly GridCounter regionGrid = new();
-  private readonly GridCounter pathGrid = new();
+  private readonly GridCounter pathGridCounter = new();
 
   public DeferredGridGeneration(VehicleMapping mapping)
   {
     this.mapping = mapping;
   }
 
+  private bool GridGenIsValid()
+  {
+    return !mapping.map.Disposed;
+  }
+
   internal void GenerateAllPathGrids()
   {
+    // We don't want this to change mid execution, either queue all or none
+    bool deferred = mapping.ThreadAvailable;
+    AsyncLongOperationAction longOperation =
+      deferred ? AsyncPool<AsyncLongOperationAction>.Get() : null;
+    bool anyRequest = false;
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
     {
-      Action postGenerationCallback = null;
-#if DEBUG
-      postGenerationCallback = () => CoroutineManager.QueueInvoke(() =>
-        Ext_Messages.Message($"PathGrid generated for vehicle {vehicleDef.LabelCap}.",
-          MessageTypeDefOf.SilentInput,
-          time: 0.5f, historical: false));
-#endif
-      RequestPathGrid(vehicleDef, Urgency.Deferred,
-        postGenerationCallback: postGenerationCallback);
+      if (deferred)
+        anyRequest |= TryAddPathGridRequest(vehicleDef, longOperation);
+      else
+        GeneratePathGridFor(vehicleDef);
+    }
+
+    if (deferred)
+    {
+      if (anyRequest)
+        FinalizeAndSendLongOp(longOperation);
+      else
+        longOperation.ReturnToPool();
     }
   }
 
   internal void GenerateAllRegionGrids()
   {
-    foreach (VehicleDef ownerDef in GridOwners.AllOwners)
+    // We don't want this to change mid execution, either queue all or none
+    bool deferred = mapping.ThreadAvailable;
+    AsyncLongOperationAction longOperation =
+      deferred ? AsyncPool<AsyncLongOperationAction>.Get() : null;
+    bool anyRequest = false;
+    foreach (VehicleDef ownerDef in mapping.GridOwners.AllOwners)
     {
-      Action postGenerationCallback = null;
-#if DEBUG
-      postGenerationCallback = () => CoroutineManager.QueueInvoke(() =>
-        Ext_Messages.Message($"Regions generated for owner {ownerDef.LabelCap}.",
-          MessageTypeDefOf.SilentInput,
-          time: 0.5f, historical: false));
-#endif
-      RequestRegionSet(ownerDef, Urgency.Deferred,
-        postGenerationCallback: postGenerationCallback);
+      if (deferred)
+        anyRequest |= TryAddRegionGridRequest(ownerDef, longOperation);
+      else
+        GenerateRegionGridFor(ownerDef);
+    }
+
+    if (deferred)
+    {
+      if (anyRequest)
+        FinalizeAndSendLongOp(longOperation);
+      else
+        longOperation.ReturnToPool();
     }
   }
 
-  public void RequestGridsFor(VehicleDef vehicleDef, Urgency urgency,
-    Action postGenerationCallback = null)
+  public void RequestGridsFor(VehicleDef vehicleDef, Urgency urgency)
   {
-    if (RequestPathGrid(vehicleDef, urgency, postGenerationCallback) == Urgency.Urgent)
-      Debug.Message($"Skipped deferred PathGrid generation for {vehicleDef}");
-    if (RequestRegionSet(vehicleDef, urgency, postGenerationCallback) == Urgency.Urgent)
-      Debug.Message($"Skipped deferred Region generation for {vehicleDef}");
+    if (urgency == Urgency.None)
+      return;
+
+    if (mapping.ThreadAvailable && urgency == Urgency.Deferred)
+    {
+      AsyncLongOperationAction longOperation = AsyncPool<AsyncLongOperationAction>.Get();
+
+      bool anyRequest = TryAddPathGridRequest(vehicleDef, longOperation);
+      anyRequest |= TryAddRegionGridRequest(vehicleDef, longOperation);
+
+      if (anyRequest)
+        FinalizeAndSendLongOp(longOperation);
+      else
+        longOperation.ReturnToPool();
+      return;
+    }
+    Debug.Message($"Skipped deferred grid generation for {vehicleDef}");
+    GeneratePathGridFor(vehicleDef);
+    GenerateRegionGridFor(vehicleDef);
   }
 
+  private void FinalizeAndSendLongOp(AsyncLongOperationAction longOperation)
+  {
+    if (!longOperation.IsValid)
+    {
+      Assert.Fail("Trying to send long op to thread but it's already invalid.");
+      longOperation.ReturnToPool();
+      return;
+    }
+
+    longOperation.OnValidate += GridGenIsValid;
+    mapping.dedicatedThread.Enqueue(longOperation);
+  }
+
+  /// <summary>
+  /// Runs DoIncrementalPass multiple times to reach minimum days unused for removal on all unused
+  /// vehicles.
+  /// </summary>
   public void DoPass()
   {
-    Assert.IsTrue(regionGrid.UsedCount == 0);
-    Assert.IsTrue(pathGrid.UsedCount == 0);
+    for (int i = 0; i < DaysUnusedForRemoval; i++)
+    {
+      DoIncrementalPass();
+    }
+  }
+
+  internal void DoPassExpectClear()
+  {
+    DoPass();
+    Assert.IsTrue(
+      DefDatabase<VehicleDef>.AllDefsListForReading.All(
+        def => !mapping[def].VehiclePathGrid.Enabled));
+    Assert.IsTrue(
+      DefDatabase<VehicleDef>.AllDefsListForReading.All(
+        def => mapping[def].Suspended));
+  }
+
+  public void DoIncrementalPass()
+  {
+    Assert.IsTrue(pathGridCounter.Count == 0);
     foreach (Pawn pawn in mapping.map.mapPawns.AllPawns)
     {
       if (pawn is VehiclePawn vehicle)
       {
-        pathGrid.SetUsed(vehicle.VehicleDef);
-        regionGrid.SetUsed(GridOwners.GetOwner(vehicle.VehicleDef));
+        pathGridCounter.SetUsed(vehicle.VehicleDef);
       }
     }
 
@@ -81,160 +149,112 @@ public class DeferredGridGeneration
     {
       if (pawn is VehiclePawn vehicle && vehicle.Faction.IsPlayerSafe())
       {
-        pathGrid.SetUsed(vehicle.VehicleDef);
-        regionGrid.SetUsed(GridOwners.GetOwner(vehicle.VehicleDef));
+        pathGridCounter.SetUsed(vehicle.VehicleDef);
       }
     }
 
     // Release region set for vehicles not actively in use
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
     {
-      if (GridOwners.IsOwner(vehicleDef) && regionGrid.IsUsed(vehicleDef))
-        continue;
-
-      if (pathGrid.IsUsed(vehicleDef))
-        continue;
-
-      pathGrid.IncrementUnused(vehicleDef);
-      // Remove when exceeds days unused
-      if (pathGrid.ShouldRemoveGrid(vehicleDef))
+      if (!pathGridCounter.IsUsed(vehicleDef))
       {
-        ReleasePathGrid(vehicleDef);
-      }
-
-      if (GridOwners.IsOwner(vehicleDef))
-      {
-        regionGrid.IncrementUnused(vehicleDef);
-        if (regionGrid.ShouldRemoveGrid(vehicleDef))
+        pathGridCounter.IncrementUnused(vehicleDef);
+        if (pathGridCounter.ShouldRemoveGrid(vehicleDef))
         {
-          ReleaseRegionSet(vehicleDef);
+          ReleasePathGrid(vehicleDef);
         }
       }
     }
 
-    pathGrid.OnPassDone();
-    regionGrid.OnPassDone();
+    foreach (VehicleDef vehicleDef in mapping.GridOwners.AllOwners)
+    {
+      VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
+      if (!pathData.VehiclePathGrid.Enabled && !mapping.GridOwners.TryForfeitOwnership(vehicleDef))
+      {
+        ReleaseRegionGrid(vehicleDef);
+      }
+    }
+
+    pathGridCounter.OnPassComplete();
   }
 
-  private Urgency RequestPathGrid(VehicleDef vehicleDef, Urgency urgency,
-    Action postGenerationCallback = null)
+  private bool TryAddPathGridRequest(VehicleDef vehicleDef, AsyncLongOperationAction longOperation)
+  {
+    // Path grid has already been initialized
+    if (mapping[vehicleDef].VehiclePathGrid.Enabled)
+      return false;
+    longOperation.OnInvoke += () => GeneratePathGridFor(vehicleDef);
+    return true;
+  }
+
+  private bool TryAddRegionGridRequest(VehicleDef vehicleDef,
+    AsyncLongOperationAction longOperation)
+  {
+    // Region grid has already been initialized
+    if (!mapping[vehicleDef].Suspended)
+      return false;
+    longOperation.OnInvoke += () => GenerateRegionGridFor(vehicleDef);
+    return true;
+  }
+
+  private void GeneratePathGridFor(VehicleDef vehicleDef)
   {
     VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
-    // Path grid has already been initialized
+
     if (pathData.VehiclePathGrid.Enabled)
-    {
-      postGenerationCallback?.Invoke();
-      return Urgency.None;
-    }
+      return;
 
-    // If thread is not available, all rebuild requests are urgent
-    if (urgency < Urgency.Urgent && mapping.ThreadAlive)
-    {
-      AsyncLongOperationAction longOperation = AsyncPool<AsyncLongOperationAction>.Get();
-      longOperation.Set(GeneratePathGrid, () => !mapping.map.Disposed);
-      mapping.dedicatedThread.Enqueue(longOperation);
-      return Urgency.Deferred;
-    }
-
-    GeneratePathGrid();
-    return Urgency.Urgent;
-
-    void GeneratePathGrid()
-    {
-      if (pathData.VehiclePathGrid.Enabled) return;
-
-      pathData.VehiclePathGrid.RecalculateAllPerceivedPathCosts();
-
-      // Post-generation event should be invoked on the main thread
-      if (postGenerationCallback != null)
-      {
-        CoroutineManager.QueueInvoke(postGenerationCallback);
-      }
-    }
+    pathData.VehiclePathGrid.RecalculateAllPerceivedPathCosts();
   }
 
-  private Urgency RequestRegionSet(VehicleDef vehicleDef, Urgency urgency,
-    Action postGenerationCallback = null)
+  private void GenerateRegionGridFor(VehicleDef vehicleDef)
   {
-    VehicleDef ownerDef = GridOwners.GetOwner(vehicleDef);
+    VehicleDef ownerDef = mapping.GridOwners.GetOwner(vehicleDef);
     VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
-    // Region grid has already been initialized
-    if (!pathData.Suspended)
-    {
-      postGenerationCallback?.Invoke();
-      return Urgency.None;
-    }
 
-    // If thread is not available, all rebuild requests are urgent
-    if (urgency < Urgency.Urgent && mapping.ThreadAlive)
-    {
-      AsyncLongOperationAction longOperation = AsyncPool<AsyncLongOperationAction>.Get();
-      longOperation.Set(GenerateRegions, () => !mapping.map.Disposed);
-      mapping.dedicatedThread.Enqueue(longOperation);
-      return Urgency.Deferred;
-    }
-
-    GenerateRegions();
-    return Urgency.Urgent;
-
-    void GenerateRegions()
-    {
-      if (!pathData.Suspended) return;
-
-      pathData.VehicleRegionAndRoomUpdater.Init();
-      pathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
-      // post-generation event should be invoked on the main thread
-      if (postGenerationCallback != null)
-      {
-        CoroutineManager.QueueInvoke(postGenerationCallback);
-      }
-    }
-  }
-
-  internal void ReleaseAll(VehicleDef vehicleDef)
-  {
-    ReleasePathGrid(vehicleDef);
-    ReleaseRegionSet(GridOwners.GetOwner(vehicleDef));
+    pathData.VehicleRegionAndRoomUpdater.Init();
+    pathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
   }
 
   private void ReleasePathGrid(VehicleDef ownerDef)
   {
     VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
-    if (pathData.VehiclePathGrid.Enabled)
-    {
-      pathData.VehiclePathGrid.Release();
+    if (!pathData.VehiclePathGrid.Enabled)
+      return;
+
+    pathData.VehiclePathGrid.Release();
 
 #if DEBUG
-      Ext_Messages.Message($"Released PathGrid for {ownerDef}", MessageTypeDefOf.SilentInput,
-        time: 1f, historical: false);
+    Ext_Messages.Message($"Released PathGrid for {ownerDef}", MessageTypeDefOf.SilentInput,
+      time: 1f, historical: false);
 #endif
-    }
   }
 
-  private void ReleaseRegionSet(VehicleDef ownerDef)
+  private void ReleaseRegionGrid(VehicleDef ownerDef)
   {
     VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
-    if (!pathData.Suspended)
-    {
-      pathData.VehicleRegionAndRoomUpdater.Release();
+    if (pathData.Suspended)
+      return;
+
+    Assert.IsTrue(UnitTestManager.RunningUnitTests,
+      "Failed to release region grid from path grid ownership transfer outside of unit test scenario.");
+    pathData.VehicleRegionAndRoomUpdater.Release();
 
 #if DEBUG
-      Ext_Messages.Message($"Released Regions for {ownerDef}", MessageTypeDefOf.SilentInput,
-        time: 1f, historical: false);
+    Ext_Messages.Message($"Released ReionGrid for {ownerDef}", MessageTypeDefOf.SilentInput,
+      time: 1f, historical: false);
 #endif
-    }
   }
 
   public static Urgency UrgencyFor(VehiclePawn vehicle)
   {
-    // If null faction, vehicle is immovable anyways
-    if (vehicle.Faction == null) return Urgency.None;
+    // If null faction, vehicle should be immovable
+    if (vehicle.Faction == null)
+      return Urgency.None;
 
+    // Non-player factions need grid urgently for incidents
     if (!vehicle.Faction.IsPlayer)
-    {
-      // Non-player factions need grid urgently for incidents
       return Urgency.Urgent;
-    }
 
     return Urgency.Deferred;
   }
@@ -242,14 +262,10 @@ public class DeferredGridGeneration
   [DebugAction(VehicleHarmony.VehiclesLabel, "Force Remove Unused Regions")]
   private static void DoPassOnAllMaps()
   {
-    // Simulate multiple days for multi-pass based removal
-    for (int i = 0; i < DaysUnusedForRemoval; i++)
+    foreach (Map map in Find.Maps)
     {
-      foreach (Map map in Find.Maps)
-      {
-        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-        mapping.deferredGridGeneration.DoPass();
-      }
+      VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+      mapping.deferredGridGeneration.DoPass();
     }
   }
 
@@ -258,7 +274,7 @@ public class DeferredGridGeneration
     private readonly Dictionary<VehicleDef, int> countdownToRemoval = [];
     private readonly HashSet<VehicleDef> activelyUsed = [];
 
-    public int UsedCount => activelyUsed.Count;
+    public int Count => activelyUsed.Count;
 
     public bool IsUsed(VehicleDef vehicleDef)
     {
@@ -267,14 +283,16 @@ public class DeferredGridGeneration
 
     public void SetUsed(VehicleDef vehicleDef)
     {
-      activelyUsed.Add(vehicleDef);
       countdownToRemoval.Remove(vehicleDef);
+      activelyUsed.Add(vehicleDef);
     }
 
     public void IncrementUnused(VehicleDef vehicleDef)
     {
+      Assert.IsFalse(activelyUsed.Contains(vehicleDef));
       if (!countdownToRemoval.ContainsKey(vehicleDef))
         countdownToRemoval.Add(vehicleDef, 0);
+
       countdownToRemoval[vehicleDef]++;
     }
 
@@ -285,7 +303,7 @@ public class DeferredGridGeneration
       return countdownToRemoval[vehicleDef] >= DaysUnusedForRemoval;
     }
 
-    public void OnPassDone()
+    public void OnPassComplete()
     {
       activelyUsed.Clear();
     }

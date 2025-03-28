@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Defs>
+	<SmashTools.Debugging.TestPlanDef>
+		<defName>VF_TestPlan_SmashTools</defName>
+		<label>SmashTools</label>
+		<plan>
+      <li>
+        <type>MainMenu</type>
+        <tests>
+          <!-- Animations -->
+          <!-- <li>SmashTools.Debugging.UnitTestAnimationCurve</li> -->
+          <li>SmashTools.Debugging.UnitTestAnimDynamicMethod</li>
+          <!-- Utils -->
+          <li>SmashTools.Debugging.UnitTestCellRectUtils</li>
+          <!-- Resources -->
+          <li>SmashTools.Debugging.UnitTestObjectPool</li>
+          <li>SmashTools.Debugging.UnitTestAsyncPool</li>
+          <li>SmashTools.Debugging.UnitTestDedicatedThread</li>
+        </tests>
+      </li>
+      <li>
+        <type>GameLoaded</type>
+        <tests/>
+      </li>
+      <li>
+        <type>MainMenu</type>
+        <tests>
+          <li>SmashTools.Debugging.UnitTestComponentCache</li>
+        </tests>
+      </li>
+    </plan>
+	</SmashTools.Debugging.TestPlanDef>
+</Defs>

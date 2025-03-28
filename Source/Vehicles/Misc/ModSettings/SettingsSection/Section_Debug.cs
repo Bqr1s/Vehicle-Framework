@@ -345,71 +345,7 @@ public class Section_Debug : SettingsSection
       {
         Find.WindowStack.Add(new Dialog_Profiler());
       }
-
-      if (listingStandard.ButtonText("Output Material Cache"))
-      {
-        SoundDefOf.Click.PlayOneShotOnCamera();
-        RGBMaterialPool.LogAllMaterials();
-      }
-
-      if (listingStandard.ButtonText("Output Owners"))
-      {
-        Map map = Find.CurrentMap;
-        if (map != null)
-        {
-          Log.Message($"Vehicles = {DefDatabase<VehicleDef>.AllDefsListForReading.Count}");
-          foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
-          {
-            Log.Message($"{vehicleDef} DefIndex = {vehicleDef.DefIndex}");
-          }
-
-          Log.Message("-------");
-          VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-          Log.Message($"Total Owners = {GridOwners.AllOwners.Count}");
-          foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
-          {
-            List<VehicleDef> piggies = mapping.GetPiggies(vehicleDef);
-            Log.Message(
-              $"Owner: {vehicleDef} Piggies=({string.Join(",", piggies.Select(def => def.defName))})");
-          }
-        }
-      }
 #endif
-
-      if (listingStandard.ButtonText("Regenerate All Grids"))
-      {
-        LongEventHandler.QueueLongEvent(delegate()
-        {
-          SoundDefOf.Click.PlayOneShotOnCamera();
-          foreach (Map map in Find.Maps)
-          {
-            VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-            mapping.RegenerateGrids(VehicleMapping.GridSelection.All,
-              VehicleMapping.GridDeferment.Forced);
-          }
-        }, "Regenerating Regions", true, null);
-      }
-
-      if (listingStandard.ButtonText("Clear Region Cache"))
-      {
-        LongEventHandler.QueueLongEvent(delegate()
-        {
-          SoundDefOf.Click.PlayOneShotOnCamera();
-          foreach (Map map in Find.Maps)
-          {
-            VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-            foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
-            {
-              mapping[vehicleDef].VehicleReachability.ClearCache();
-            }
-          }
-        }, "Clearing Region Cache", false, null);
-      }
-
-      if (listingStandard.ButtonText("Flash Path Costs"))
-      {
-        OpenFlashPathCostsMenu();
-      }
     }
   }
 
@@ -422,66 +358,11 @@ public class Section_Debug : SettingsSection
         VehicleMapping mapComp = map.GetCachedMapComponent<VehicleMapping>();
         if (debugUseMultithreading)
         {
-          mapComp.InitThread(map);
+          mapComp.InitThread();
         }
         else
         {
           mapComp.ReleaseThread();
-        }
-      }
-    }
-  }
-
-  public void OpenFlashPathCostsMenu()
-  {
-    List<Toggle> vehicleDefToggles = new List<Toggle>();
-    vehicleDefToggles.Add(new Toggle("Vanilla", () => false, (value) => { }, delegate(bool value)
-    {
-      FlashPathCostsFor(null);
-      Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-    }));
-    foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
-        def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
-          ignorePostfix: true))
-     .ThenBy(def => def.modContentPack.Name)
-     .ThenBy(d => d.defName))
-    {
-      Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name, () => false,
-        (value) => { }, onToggle: delegate(bool value)
-        {
-          FlashPathCostsFor(vehicleDef);
-          Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-        });
-      toggle.Disabled = !PathingHelper.ShouldCreateRegions(vehicleDef);
-      vehicleDefToggles.Add(toggle);
-    }
-
-    Find.WindowStack.Add(
-      new Dialog_RadioButtonMenu("VF_DevMode_DebugPathfinderDebugging".Translate(),
-        vehicleDefToggles));
-  }
-
-  private void FlashPathCostsFor(VehicleDef vehicleDef)
-  {
-    SoundDefOf.Click.PlayOneShotOnCamera();
-    SoundDefOf.Click.PlayOneShotOnCamera();
-    if (Find.CurrentMap is Map map)
-    {
-      if (vehicleDef == null)
-      {
-        foreach (IntVec3 cell in map.AllCells)
-        {
-          int cost = map.pathing.Normal.pathGrid.PerceivedPathCostAt(cell);
-          map.debugDrawer.FlashCell(cell, cost / 500f, cost.ToString());
-        }
-      }
-      else
-      {
-        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-        foreach (IntVec3 cell in map.AllCells)
-        {
-          int cost = mapping[vehicleDef].VehiclePathGrid.PerceivedPathCostAt(cell);
-          map.debugDrawer.FlashCell(cell, cost / 500f, cost.ToString());
         }
       }
     }

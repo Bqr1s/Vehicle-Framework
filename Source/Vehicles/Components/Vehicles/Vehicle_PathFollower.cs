@@ -656,9 +656,8 @@ namespace Vehicles
       float tickCost = MoveTicksAt(vehicle, from, to);
       tickCost += vehicle.Map.GetCachedMapComponent<VehicleMapping>()[vehicle.VehicleDef]
        .VehiclePathGrid.PerceivedPathCostAt(to);
-      tickCost =
-        Mathf.Min(tickCost,
-          MaxMoveTicks); //At minimum should take ~7.5 seconds per cell, any slower vehicle should be disabled
+      // At minimum should take ~7.5 seconds per cell, any slower vehicle should be disabled
+      tickCost = Mathf.Min(tickCost, MaxMoveTicks);
       if (vehicle.CurJob != null)
       {
         LocomotionTicks(vehicle, from, to, ref tickCost);
@@ -674,6 +673,8 @@ namespace Vehicles
 
     private bool TrySetNewPath()
     {
+      // TODO - Should use task based approach, if the dedicated thread is busy with some large
+      // grid changes, we don't want pathfinding to be blocked for literal seconds.
       PawnPath pawnPath = GenerateNewPath_Concurrent();
       if (pawnPath is null || !pawnPath.Found)
       {

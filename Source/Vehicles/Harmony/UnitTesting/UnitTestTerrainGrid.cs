@@ -51,10 +51,10 @@ namespace Vehicles.Testing
       // Terrain becomes impassable
       SetArea(in terrainArea, impassableTerrain);
       success = AreaCost(in terrainArea, impassableTerrain) &&
-                !VehiclePathGrid.PassableTerrainCost(vehicleDef, impassableTerrain, out _);
+        !VehiclePathGrid.PassableTerrainCost(vehicleDef, impassableTerrain, out _);
       result.Add($"TerrainGrid_{vehicleDef} (ImpassableCost)", success);
 
-      if (PathingHelper.ShouldCreateRegions(vehicleDef) && GridOwners.IsOwner(vehicleDef))
+      if (PathingHelper.ShouldCreateRegions(vehicleDef) && mapping.GridOwners.IsOwner(vehicleDef))
       {
         // Impassable terrain invalidates regions
         success = Regions(in testArea, false);

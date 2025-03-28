@@ -16,9 +16,9 @@ namespace Vehicles.Testing
 
     public override IEnumerable<UTResult> Execute()
     {
-      Map map = Find.CurrentMap;
       World world = Find.World;
       Assert.IsNotNull(world);
+      Map map = Find.CurrentMap;
       Assert.IsNotNull(map);
 
       foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
@@ -44,7 +44,8 @@ namespace Vehicles.Testing
 
       VehiclePawn vehicle = aerialVehicle.vehicle;
       Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
-      Assert.IsTrue(colonist != null && colonist.Faction == Faction.OfPlayer, "Unable to generate colonist");
+      Assert.IsTrue(colonist != null && colonist.Faction == Faction.OfPlayer,
+        "Unable to generate colonist");
       Pawn animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Alphabeaver, Faction.OfPlayer);
       Assert.IsTrue(animal != null && animal.Faction == Faction.OfPlayer, "Unable to generate pet");
 
@@ -52,7 +53,7 @@ namespace Vehicles.Testing
       Assert.IsNotNull(handler, "Testing with aerial vehicle which has no roles");
       result.Add("AerailVehicle (Add Pawn)", vehicle.TryAddPawn(colonist, handler));
       result.Add("AerialVehicle (Add Pet)", vehicle.inventory.innerContainer
-        .TryAddOrTransfer(animal, canMergeWithExistingStacks: false));
+       .TryAddOrTransfer(animal, canMergeWithExistingStacks: false));
       result.Add("AerialVehicle (Vehicle Destroyed)", !vehicle.Destroyed);
       result.Add("AerialVehicle (Vehicle Discarded)", !vehicle.Discarded);
 
@@ -91,7 +92,8 @@ namespace Vehicles.Testing
         aerialWorldObject == aerialVehicle);
 
       result.Add("AerialVehicle (Pawn ParentHolder)", vehicle.AllPawnsAboard.All(PawnInVehicle));
-      result.Add("AerialVehicle (Thing ParentHolder)", vehicle.inventory.innerContainer.All(ThingInVehicle));
+      result.Add("AerialVehicle (Thing ParentHolder)",
+        vehicle.inventory.innerContainer.All(ThingInVehicle));
 
       Find.WorldPawns.gc.CancelGCPass();
       _ = Find.WorldPawns.gc.PawnGCPass();

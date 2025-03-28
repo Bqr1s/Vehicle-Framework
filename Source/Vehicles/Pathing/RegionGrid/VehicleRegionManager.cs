@@ -9,9 +9,9 @@ namespace Vehicles
   public abstract class VehicleGridManager
   {
     protected readonly VehicleMapping mapping;
-    protected readonly VehicleDef createdFor;
+    internal protected VehicleDef createdFor;
 
-    public VehicleGridManager(VehicleMapping mapping, VehicleDef createdFor)
+    protected VehicleGridManager(VehicleMapping mapping, VehicleDef createdFor)
     {
       this.mapping = mapping;
       this.createdFor = createdFor;

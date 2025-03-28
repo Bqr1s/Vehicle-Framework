@@ -64,8 +64,14 @@ namespace Vehicles
 
     public void Init()
     {
+      if (!mapping[createdFor].VehiclePathGrid.Enabled &&
+        !mapping.GridOwners.TryForfeitOwnership(createdFor))
+      {
+        Trace.Fail("Trying to initialize region grids with no vehicle to claim ownership.");
+        return;
+      }
+
       Enabled = true;
-      mapping[createdFor].Suspended = false;
       regionGrid = mapping[createdFor].VehicleRegionGrid;
       regionGrid.Init();
     }
@@ -74,7 +80,6 @@ namespace Vehicles
     {
       Initialized = false;
       Enabled = false;
-      mapping[createdFor].Suspended = true;
       regionGrid.Release();
     }
 
@@ -112,10 +117,9 @@ namespace Vehicles
       UpdatingRegion = true;
       if (!Initialized)
       {
-        RebuildAllVehicleRegions();
+        mapping[createdFor].VehicleRegionDirtyer.SetAllDirty();
       }
-
-      if (!mapping[createdFor].VehicleRegionDirtyer.AnyDirty)
+      else if (!mapping[createdFor].VehicleRegionDirtyer.AnyDirty)
       {
         UpdatingRegion = false;
         return;

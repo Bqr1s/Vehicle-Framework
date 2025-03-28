@@ -194,8 +194,9 @@ namespace Vehicles
       int padding = Mathf.CeilToInt(largestSize / 2f);
       if (even)
       {
-        padding +=
-          1; // If size is even, add 1 to account for rotations with lower center point.  This will ensure all rotations are padded enough
+        // If size is even, add 1 to account for rotations with lower center point.
+        // This will ensure all rotations are padded enough
+        padding += 1;
       }
 
       if (cell.x < padding)

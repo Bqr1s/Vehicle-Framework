@@ -59,7 +59,6 @@ namespace Vehicles
     /// <summary>
     /// Generate region at <paramref name="root"/>
     /// </summary>
-    /// <param name="root"></param>
     public RegionResult TryGenerateRegionFrom(IntVec3 root, ref VehicleRegion region)
     {
       RegionType expectedRegionType =

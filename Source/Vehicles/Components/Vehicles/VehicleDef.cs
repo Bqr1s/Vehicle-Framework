@@ -35,7 +35,7 @@ namespace Vehicles
     [PostToSettings(Label = "VF_MovementPermissions", Translate = true,
       UISettingsType = UISettingsType.SliderEnum)]
     [ActionOnSettingsInput(typeof(VehicleHarmony),
-      nameof(VehicleHarmony.RecacheMoveableVehicleDefs))]
+      nameof(GridOwners.RecacheMoveableVehicleDefs))]
     public VehiclePermissions vehicleMovementPermissions = VehiclePermissions.DriverNeeded;
 
     [PostToSettings(Label = "VF_CanCaravan", Translate = true, Tooltip = "VF_CanCaravanTooltip",

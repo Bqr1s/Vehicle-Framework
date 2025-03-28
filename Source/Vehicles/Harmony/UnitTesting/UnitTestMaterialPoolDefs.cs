@@ -92,9 +92,9 @@ namespace Vehicles.Testing
       }
 
       // Upgrades
-      if (vehicleDef.GetCompProperties<CompProperties_UpgradeTree>() is
-          CompProperties_UpgradeTree compUpgrade && compUpgrade.def != null &&
-        !compUpgrade.def.nodes.NullOrEmpty())
+      CompProperties_UpgradeTree compUpgrade =
+        vehicleDef.GetCompProperties<CompProperties_UpgradeTree>();
+      if (compUpgrade?.def != null && !compUpgrade.def.nodes.NullOrEmpty())
       {
         foreach (UpgradeNode node in compUpgrade.def.nodes)
         {

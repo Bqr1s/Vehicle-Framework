@@ -21,8 +21,9 @@ namespace Vehicles.Testing
     {
       // Should never be the case but some people are wild
       // so 8 wide vehicle isn't out of the question.
-      if (vehicleDef.SizePadding > 4) return false;
-      return PathingHelper.ShouldCreateRegions(vehicleDef) && GridOwners.IsOwner(vehicleDef);
+      if (vehicleDef.SizePadding > 4)
+        return false;
+      return PathingHelper.ShouldCreateRegions(vehicleDef);
     }
 
     protected override CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
@@ -111,7 +112,7 @@ namespace Vehicles.Testing
       // Region Reused
       ClearArea();
       result.Add($"{vehicleDef} (Region Reused)", region != null &&
-                                                  region == regionGrid.GetValidRegionAt(root));
+        region == regionGrid.GetValidRegionAt(root));
       result.Add($"{vehicleDef} (Region Links)", ValidateLinks(testArea));
       result.Add($"{vehicleDef} (Invalid Regions)", !regionGrid.AnyInvalidRegions);
 

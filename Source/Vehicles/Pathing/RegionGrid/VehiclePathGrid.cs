@@ -28,6 +28,14 @@ namespace Vehicles
     public void Release()
     {
       Enabled = false;
+
+      if (mapping.GridOwners.IsOwner(createdFor) &&
+        !mapping.GridOwners.TryForfeitOwnership(createdFor))
+      {
+        // If there are no vehicles left to claim ownership, we should release the region grid
+        // rather than leave it in an invalid state.
+        mapping[createdFor].VehicleRegionAndRoomUpdater.Release();
+      }
     }
 
     public override void PostInit()
@@ -131,10 +139,9 @@ namespace Vehicles
       Interlocked.Exchange(ref pathGrid[mapping.map.cellIndices.CellToIndex(cell)], cost);
       debugString?.Append($"WalkableNew: {WalkableFast(cell)} WalkableOld: {walkable}");
       bool walkabilityChanged = WalkableFast(cell) != walkable;
+
       if (VehicleMod.settings.debug.debugPathCostChanges)
-      {
         Debug.Message(debugString.ToStringSafe());
-      }
 
       if (walkabilityChanged && !mapping[createdFor].Suspended)
       {

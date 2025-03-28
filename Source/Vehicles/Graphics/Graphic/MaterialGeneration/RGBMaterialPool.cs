@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using HarmonyLib;
+using LudeonTK;
 using SmashTools;
 using UnityEngine;
 using Verse;
@@ -223,6 +224,7 @@ namespace Vehicles
       cache.Clear();
     }
 
+    [DebugOutput(VehicleHarmony.VehiclesLabel)]
     internal static void LogAllMaterials()
     {
       StringBuilder report = new();
