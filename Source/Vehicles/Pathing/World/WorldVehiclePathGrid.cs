@@ -1,18 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
+using DevTools;
 using HarmonyLib;
-using JetBrains.Annotations;
 using LudeonTK;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
-using Trace = SmashTools.Trace;
 
 namespace Vehicles
 {
@@ -58,7 +56,6 @@ namespace Vehicles
       winter = new float[Find.WorldGrid.TilesCount];
       ResetPathGrid();
       Initialized = false;
-      Assert.IsNull(Instance, "Singleton was not cleared at the end of the last session.");
       Instance = this;
       reachability = new WorldVehicleReachability(this);
     }

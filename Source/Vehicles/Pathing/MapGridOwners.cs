@@ -15,20 +15,9 @@ public class MapGridOwners : GridOwnerList<MapGridOwners.PathConfig>
     this.mapping = mapping;
   }
 
-  public bool TryForfeitOwnership(VehicleDef ownerDef)
+  protected override bool CanTransferOwnershipTo(VehicleDef vehicleDef)
   {
-    Assert.IsTrue(IsOwner(ownerDef));
-    Debug.Message($"{ownerDef} forfeiting ownership.");
-
-    foreach (VehicleDef piggyDef in GetPiggies(ownerDef))
-    {
-      if (mapping[piggyDef].VehiclePathGrid.Enabled)
-      {
-        TransferOwnership(piggyDef);
-        return true;
-      }
-    }
-    return false;
+    return mapping[vehicleDef].VehiclePathGrid.Enabled;
   }
 
   // Accessed from Init, already locked for the duration of owner generation

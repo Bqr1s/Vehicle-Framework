@@ -4,14 +4,12 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
+using DevTools;
 using HarmonyLib;
+using RimWorld;
+using SmashTools;
 using Verse;
 using Verse.AI;
-using RimWorld;
-using RimWorld.Planet;
-using UnityEngine;
-using SmashTools;
-using SmashTools.Performance;
 
 namespace Vehicles
 {

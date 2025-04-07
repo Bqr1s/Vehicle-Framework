@@ -4,8 +4,8 @@ using System.Linq;
 using LudeonTK;
 using RimWorld;
 using SmashTools;
-using SmashTools.Debugging;
 using SmashTools.Performance;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using UpdateLogTool;
 using Verse;
@@ -298,49 +298,14 @@ public class Section_Debug : SettingsSection
         WorldPathingDebugMenu();
       }
 
-#if DEBUG
+#if DEBUG || UNIT_TESTING
       if (listingStandard.ButtonText("Unit Tests"))
       {
-        SoundDefOf.Click.PlayOneShotOnCamera();
-        List<Toggle> toggles =
-        [
-          //new Toggle("All", () => false, (value) => { }, delegate
-          //{
-          //  UnitTestManager.ExecuteUnitTests();
-          //  Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-          //})
-        ];
-
-        foreach (UnitTest test in UnitTestManager.AllUnitTests.OrderBy(test => test.ExecuteOn)
-         .ThenBy(test => test.Name))
-        {
-          UnitTest.TestType testType = test.ExecuteOn;
-          if (testType == UnitTest.TestType.Disabled) continue;
-
-          Toggle toggle = new(test.Name, UnitTest.TestTypeLabel(testType), () => false,
-            (value) => { },
-            onToggle: delegate
-            {
-              UnitTestManager.Run(test);
-              Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-            });
-          toggles.Add(toggle);
-        }
-
-        foreach (TestPlanDef testPlanDef in DefDatabase<TestPlanDef>.AllDefsListForReading)
-        {
-          Toggle toggle = new(testPlanDef.LabelCap, "Test Plan", () => false, (value) => { },
-            onToggle: delegate
-            {
-              UnitTestManager.RunPlan(testPlanDef);
-              Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-            });
-          toggles.Add(toggle);
-        }
-
-        Find.WindowStack.Add(new Dialog_RadioButtonMenu("Unit Tests", toggles));
+        UnitTestManager.ShowMenu();
       }
+#endif
 
+#if DEBUG
       if (listingStandard.ButtonText("Profiling"))
       {
         Find.WindowStack.Add(new Dialog_Profiler());

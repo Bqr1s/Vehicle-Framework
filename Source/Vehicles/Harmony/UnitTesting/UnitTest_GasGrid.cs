@@ -1,12 +1,12 @@
 ﻿using System.Linq;
-using SmashTools;
-using SmashTools.Debugging;
+using DevTools;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestGasGrid : UnitTestMapTest
+  internal class UnitTest_GasGrid : UnitTest_MapTest
   {
     public override string Name => "GasGrid";
 
@@ -16,16 +16,14 @@ namespace Vehicles.Testing
       UTResult result = new();
       IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
       CellRect testArea = TestArea(vehicle.VehicleDef, root);
-      VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
       GasGrid gasGrid = TestMap.gasGrid;
       bool blocksGas = vehicle.VehicleDef.Fillage == FillCategory.Full;
-      HitboxTester<bool> gasTester = new(vehicle, TestMap, root,
-                                         gasGrid.AnyGasAt,
-                                         // Gas can only occupy if vehicle Fillage != Full
-                                         (gasAt) => gasAt == (!vehicle.Spawned || !blocksGas),
-                                         (_) => gasGrid.Debug_ClearAll());
+      HitboxTester<bool> gasTester = new(vehicle, root,
+        gasGrid.AnyGasAt,
+        // Gas can only occupy if vehicle Fillage != Full
+        (gasAt) => gasAt == (!vehicle.Spawned || !blocksGas),
+        (_) => gasGrid.Debug_ClearAll());
       gasTester.Start();
 
       gasGrid.Debug_FillAll();

@@ -1,11 +1,12 @@
 ﻿using System.Linq;
+using DevTools;
 using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing;
 
-internal class UnitTestMapGridOwners : UnitTestMapTest
+internal class UnitTest_MapGridOwners : UnitTest_MapTest
 {
   public override string Name => "MapGridOwners";
 

@@ -1,16 +1,17 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using DevTools;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestAerialVehicle : UnitTest
+  internal class UnitTest_AerialVehicle : UnitTest_VehicleTest
   {
-    public override TestType ExecuteOn => TestType.GameLoaded;
+    public override TestType ExecuteOn => TestType.Playing;
 
     public override string Name => "AerialVehicle";
 
@@ -35,12 +36,13 @@ namespace Vehicles.Testing
 
         vehicle.Destroy();
         aerialVehicle.Destroy();
+        Find.WorldPawns.RemoveAndDiscardPawnViaGC(vehicle);
       }
     }
 
     private UTResult TestAerialVehicleInit(AerialVehicleInFlight aerialVehicle)
     {
-      UTResult result = new();
+      UTResult result = new("AerialVehicle Init");
 
       VehiclePawn vehicle = aerialVehicle.vehicle;
       Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
@@ -62,7 +64,7 @@ namespace Vehicles.Testing
 
     private UTResult TestAerialVehicleGC(AerialVehicleInFlight aerialVehicle)
     {
-      UTResult result = new(onFail: Find.WorldPawns.gc.LogGC);
+      UTResult result = new("AerialVehicle WorldPawnGC", onFail: Find.WorldPawns.gc.LogGC);
 
       VehiclePawn vehicle = aerialVehicle.vehicle;
 

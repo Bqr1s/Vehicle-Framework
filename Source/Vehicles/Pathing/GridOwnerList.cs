@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using DevTools;
 using JetBrains.Annotations;
 using SmashTools;
 using Verse;
@@ -62,6 +63,8 @@ public abstract class GridOwnerList<T> where T : IPathConfig
 
   protected abstract void GenerateConfigs();
 
+  protected abstract bool CanTransferOwnershipTo(VehicleDef vehicleDef);
+
   protected void SeparateIntoGroups(List<VehicleDef> owners, bool compress = true)
   {
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
@@ -92,6 +95,22 @@ public abstract class GridOwnerList<T> where T : IPathConfig
     }
 
     ownerId = -1;
+    return false;
+  }
+
+  public bool TryForfeitOwnership(VehicleDef ownerDef)
+  {
+    Assert.IsTrue(IsOwner(ownerDef));
+    Debug.Message($"{ownerDef} forfeiting ownership.");
+
+    foreach (VehicleDef piggyDef in GetPiggies(ownerDef))
+    {
+      if (CanTransferOwnershipTo(piggyDef))
+      {
+        TransferOwnership(piggyDef);
+        return true;
+      }
+    }
     return false;
   }
 

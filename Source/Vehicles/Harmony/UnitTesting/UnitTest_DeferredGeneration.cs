@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Threading;
+using DevTools;
 using SmashTools;
-using SmashTools.Debugging;
 using SmashTools.Performance;
+using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestDeferredGeneration : UnitTestMapTest
+  internal class UnitTest_DeferredGeneration : UnitTest_MapTest
   {
     private const double MaxWaitTime = 5000; // ms
 

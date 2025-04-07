@@ -1,11 +1,11 @@
 ﻿using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestPositionManager : UnitTestMapTest
+  internal class UnitTest_PositionManager : UnitTest_MapTest
   {
     public override string Name => "PositionManager";
 
@@ -16,12 +16,11 @@ namespace Vehicles.Testing
       UTResult result = new();
       IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
       VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
       VehiclePositionManager positionManager =
         TestMap.GetCachedMapComponent<VehiclePositionManager>();
       GenSpawn.Spawn(vehicle, root, TestMap);
-      HitboxTester<VehiclePawn> positionTester = new(vehicle, TestMap, root,
+      HitboxTester<VehiclePawn> positionTester = new(vehicle, root,
         positionManager.ClaimedBy,
         (claimant) => claimant == vehicle);
       positionTester.Start();

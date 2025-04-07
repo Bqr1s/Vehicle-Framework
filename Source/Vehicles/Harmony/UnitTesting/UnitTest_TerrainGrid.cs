@@ -1,12 +1,11 @@
-﻿using SmashTools;
-using SmashTools.Debugging;
-using UnityEngine;
+﻿using DevTools;
+using SmashTools;
+using SmashTools.UnitTesting;
 using Verse;
-using Verse.AI;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestTerrainGrid : UnitTestMapTest
+  internal class UnitTest_TerrainGrid : UnitTest_MapTest
   {
     public override string Name => "TerrainGrid";
 

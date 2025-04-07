@@ -1,16 +1,20 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using LudeonTK;
-using RimWorld;
+﻿using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
 using Verse;
+using DevTools;
 
 namespace Vehicles;
 
 public class WorldGridOwners : GridOwnerList<WorldGridOwners.PathConfig>
 {
+  protected override bool CanTransferOwnershipTo(VehicleDef vehicleDef)
+  {
+    Assert.Fail("Trying to transfer ownership of world grid. This is not set up yet.");
+    return false;
+  }
+
   // Accessed from Init, already locked for the duration of owner generation
   protected override void GenerateConfigs()
   {

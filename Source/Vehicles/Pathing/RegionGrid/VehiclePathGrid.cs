@@ -101,7 +101,7 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Recalculate path cost for tile <paramref name="vehicle"/> is registered on
+    /// Recalculate path cost for each cell in CellRect.
     /// </summary>
     public void RecalculatePerceivedPathCostUnderRect(CellRect cellRect)
     {

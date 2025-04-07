@@ -1,11 +1,12 @@
-﻿using RimWorld;
+﻿using DevTools;
+using RimWorld;
 using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestVehicleHandler : UnitTestMapTest
+  internal class UnitTest_VehicleHandler : UnitTest_MapTest
   {
     public override string Name => "VehicleHandler";
 
@@ -52,7 +53,7 @@ namespace Vehicles.Testing
       if (ModsConfig.BiotechActive)
       {
         Pawn mechanoid = PawnGenerator.GeneratePawn(PawnKindDefOf.Mech_Warqueen, Faction.OfPlayer);
-        Assert.IsTrue(mechanoid.Faction == Faction.OfPlayer, "Unable to generate mech");
+        Assert.IsNotNull(mechanoid, "Unable to generate mech");
         result.Add("VehicleHandler (Mech)", vehicle.TryAddPawn(mechanoid));
       }
 

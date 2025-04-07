@@ -1,18 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using RimWorld;
-using RimWorld.Planet;
-using SmashTools;
-using SmashTools.Debugging;
-using UnityEngine;
+﻿using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestMaterialPool : UnitTestMapTest
+  internal class UnitTest_MaterialPool : UnitTest_MapTest
   {
-    public override TestType ExecuteOn => TestType.GameLoaded;
+    public override TestType ExecuteOn => TestType.Playing;
 
     public override string Name => "MaterialPool_Instances";
 

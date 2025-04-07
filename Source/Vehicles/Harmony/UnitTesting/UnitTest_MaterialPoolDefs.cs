@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestMaterialPoolDefs : UnitTest
+  internal class UnitTest_MaterialPoolDefs : UnitTest
   {
     public override string Name => "MaterialPool_Defs";
 

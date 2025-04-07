@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Vehicles</RootNamespace>
     <AssemblyName>Vehicles</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <LangVersion>preview</LangVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -56,6 +56,11 @@
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevTools, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\1.5\Assemblies\DevTools.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SmashTools, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -214,6 +219,8 @@
     <Compile Include="Graphics\ITab\WITab_AerialVehicle.cs" />
     <Compile Include="Graphics\ITab\WITab_AerialVehicle_Health.cs" />
     <Compile Include="Graphics\ITab\WITab_AerialVehicle_Items.cs" />
+    <Compile Include="Harmony\Benchmarking\Benchmark_RegionGridGeneration.cs" />
+    <Compile Include="Harmony\Benchmarking\Benchmark_PathGridGeneration.cs" />
     <Compile Include="Harmony\ConditionalPatches\AerialVehicleCompatibility.cs" />
     <Compile Include="Harmony\ConditionalPatches\Compatibility_CombatExtended.cs" />
     <Compile Include="Harmony\ConditionalPatches\Compatibility_BulkCarrier.cs" />
@@ -234,26 +241,27 @@
     <Compile Include="Harmony\PatchCategories\NpcAi.cs" />
     <Compile Include="Harmony\UnitTesting\MaterialPoolWatcher.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\RaidTesting.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_VehicleTest.cs" />
     <Compile Include="Utility\Performance\ThreadEnabler.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMapGridOwners.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestWorldReachability.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestHotReloadDefs.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMaterialPoolDefs.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMaterialPool.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestDeferredGeneration.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestSpawnPlacement.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestTerrainGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestRegions.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMapDeinit.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestPathGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestCoverGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestGasGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestVehicleHandler.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestThingGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestPositionManager.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestStashedVehicle.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestAerialVehicle.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMapTest.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MapGridOwners.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_WorldReachability.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_HotReloadDefs.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MaterialPoolDefs.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MaterialPool.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_DeferredGeneration.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_SpawnPlacement.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_TerrainGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_Regions.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MapDeinit.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_PathGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_CoverGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_GasGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_VehicleHandler.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_ThingGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_PositionManager.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_StashedVehicle.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_AerialVehicle.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MapTest.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\WorldTesting.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\UITesting.cs" />
     <Compile Include="Misc\Attributes\ActionOnSettingsInputAttribute.cs" />

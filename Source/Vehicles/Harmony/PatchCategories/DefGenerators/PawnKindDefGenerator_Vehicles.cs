@@ -17,8 +17,8 @@ namespace Vehicles
       {
         string defName = vehicleDef.defName + "_PawnKind";
         kindDef = !hotReload ?
-                    new PawnKindDef() :
-                    DefDatabase<PawnKindDef>.GetNamed(defName, false) ?? new PawnKindDef();
+          new PawnKindDef() :
+          DefDatabase<PawnKindDef>.GetNamed(defName, false) ?? new PawnKindDef();
         kindDef.defName = defName;
         kindDef.label = vehicleDef.label;
         kindDef.description = vehicleDef.description;
@@ -26,6 +26,7 @@ namespace Vehicles
         kindDef.race = vehicleDef;
         kindDef.ignoresPainShock = true;
         kindDef.lifeStages = [new PawnKindLifeStage() { bodyGraphicData = vehicleDef.graphicData }];
+        kindDef.canBeSapper = true;
         vehicleDef.kindDef = kindDef;
         return true;
       }

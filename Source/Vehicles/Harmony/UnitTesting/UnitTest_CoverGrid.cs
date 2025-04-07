@@ -1,25 +1,25 @@
 ﻿using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestCoverGrid : UnitTestMapTest
+  internal class UnitTest_CoverGrid : UnitTest_MapTest
   {
     public override string Name => "CoverGrid";
 
     protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
     {
       int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
-      UTResult result = new();
+      UTResult result = new("CoverGrid");
       IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
       VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
       VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
       CoverGrid coverGrid = TestMap.coverGrid;
       GenSpawn.Spawn(vehicle, root, TestMap);
-      HitboxTester<Thing> coverTester = new(vehicle, TestMap, root,
+      HitboxTester<Thing> coverTester = new(vehicle, root,
         (cell) => coverGrid[cell],
         (thing) => thing == vehicle);
       coverTester.Start();

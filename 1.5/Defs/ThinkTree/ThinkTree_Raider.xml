@@ -16,6 +16,7 @@
 							</subNodes>
 						</li>
 
+            <!-- Eject all if disabled and no target in range -->
             <li Class="Vehicles.ThinkNode_ConditionalVehicleState">
               <canMove>false</canMove>
               <hasPassengers>true</hasPassengers>
@@ -25,6 +26,7 @@
                 </li>
 							</subNodes>
 						</li>
+
 						<!-- Run down targets within distance -->
 
 						<!-- Carry pawns closer before deploying -->
@@ -39,6 +41,70 @@
 						<li Class= "Vehicles.JobGiver_AwaitOrders"/>
 					</subNodes>
 				</li>
+        <!-- Sabotage Vehicle -->
+        <li Class="ThinkNode_ConditionalIntelligence">
+          <minIntelligence>ToolUser</minIntelligence>
+          <subNodes>
+            <li Class="ThinkNode_ConditionalCapableOfWorkTag">
+              <workTags>Violent,Constructing</workTags>
+              <subNodes>
+                <li Class="Vehicles.JobGiver_SabotageVehicle"/>
+              </subNodes>
+            </li>
+          </subNodes>
+        </li>
+			</subNodes>
+		</thinkRoot>
+	</ThinkTreeDef>
+
+  <ThinkTreeDef>
+		<defName>Vehicle_Sapper</defName>
+		<thinkRoot Class="ThinkNode_Priority">
+			<subNodes>
+				<li Class="Vehicles.ThinkNode_ConditionalVehicle">
+					<subNodes>
+						<!-- Run down targets that are too close -->
+
+						<!-- Shoot targets within range -->
+						<li Class="Vehicles.ThinkNode_ConditionalHasTurret">
+							<subNodes>
+								<li Class = "Vehicles.JobGiver_RangedSupport"/>
+							</subNodes>
+						</li>
+
+            <!-- Sapper -->
+            <li Class="Vehicles.ThinkNode_ConditionalHasTurret">
+							<subNodes>
+								<li Class = "Vehicles.JobGiver_RangedSupport"/>
+							</subNodes>
+						</li>
+
+            <!-- Eject all if disabled and no target in range -->
+            <li Class="Vehicles.ThinkNode_ConditionalVehicleState">
+              <canMove>false</canMove>
+              <hasPassengers>true</hasPassengers>
+							<subNodes>
+								<li Class = "Vehicles.ThinkNode_ExecuteAction">
+                  <action>Vehicles.VehicleActions.DisembarkAll</action>
+                </li>
+							</subNodes>
+						</li>
+
+						<!-- Run down targets within distance -->
+
+						<!-- Carry pawns closer before deploying -->
+						<li Class="Vehicles.JobGiver_GotoNearestHostile">
+							<urgency>Walk</urgency>
+							<overrideExpiryInterval>60</overrideExpiryInterval>
+						</li>
+
+						<!-- Provide overwatch -->
+						
+						<!-- Idle rather than continue to humanlike nodes -->
+						<li Class= "Vehicles.JobGiver_AwaitOrders"/>
+					</subNodes>
+				</li>
+        <!-- Sabotage Vehicle -->
         <li Class="ThinkNode_ConditionalIntelligence">
           <minIntelligence>ToolUser</minIntelligence>
           <subNodes>
@@ -69,7 +135,7 @@
 		</thinkRoot>
 	</ThinkTreeDef>
 
-    <ThinkTreeDef>
+  <ThinkTreeDef>
 		<defName>Vehicle_ExitMapRandom</defName>
 		<thinkRoot Class="ThinkNode_Priority">
 			<subNodes>

@@ -1,19 +1,18 @@
 ﻿using RimWorld;
-using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestThingGrid : UnitTestMapTest
+  internal class UnitTest_ThingGrid : UnitTest_MapTest
   {
     public override string Name => "ThingGrid";
 
     protected override bool ShouldTest(VehicleDef vehicleDef)
     {
       return vehicleDef.vehicleType == VehicleType.Land &&
-             VehiclePathGrid.PassableTerrainCost(vehicleDef, TerrainDefOf.Concrete, out _);
+        VehiclePathGrid.PassableTerrainCost(vehicleDef, TerrainDefOf.Concrete, out _);
     }
 
     protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
@@ -21,11 +20,9 @@ namespace Vehicles.Testing
       int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
       UTResult result = new();
       IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
-      VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
       ThingGrid thingGrid = TestMap.thingGrid;
-      HitboxTester<VehiclePawn> positionTester = new(vehicle, TestMap, root,
+      HitboxTester<VehiclePawn> positionTester = new(vehicle, root,
         (cell) => thingGrid.ThingAt(cell, ThingCategory.Pawn) as VehiclePawn,
         (thing) => thing == vehicle);
       positionTester.Start();

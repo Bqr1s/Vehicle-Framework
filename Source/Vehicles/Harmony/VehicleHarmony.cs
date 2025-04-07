@@ -6,7 +6,7 @@ using System.Reflection;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using UpdateLogTool;
 using Verse;
 
@@ -74,7 +74,9 @@ internal static class VehicleHarmony
 
     Utilities.InvokeWithLogging(RegisterVehicleAreas);
 
+#if DEBUG || UNIT_TESTING
     UnitTestManager.OnUnitTestStateChange += SuppressDebugLogging;
+#endif
 
     DebugProperties.Init();
   }

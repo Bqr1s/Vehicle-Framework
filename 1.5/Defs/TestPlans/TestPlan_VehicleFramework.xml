@@ -1,42 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <Defs>
-	<SmashTools.Debugging.TestPlanDef>
+	<SmashTools.UnitTesting.TestSuiteDef>
 		<defName>VF_TestPlan_Local</defName>
 		<label>Local</label>
 		<plan>
       <li>
         <type>MainMenu</type>
         <tests>
-          <li>Vehicles.Testing.UnitTestMaterialPoolDefs</li>
+          <li>Vehicles.Testing.UnitTest_MaterialPoolDefs</li>
         </tests>
       </li>
       <li>
-        <type>GameLoaded</type>
+        <type>Playing</type>
         <tests>
           <!-- Core Vehicle Mechanics -->
-          <li>Vehicles.Testing.UnitTestVehicleHandler</li>
+          <li>Vehicles.Testing.UnitTest_VehicleHandler</li>
           <!-- World-->
-          <li>Vehicles.Testing.UnitTestWorldReachability</li>
-          <li>Vehicles.Testing.UnitTestAerialVehicle</li>
-          <li>Vehicles.Testing.UnitTestStashedVehicle</li>
+          <li>Vehicles.Testing.UnitTest_WorldReachability</li>
+          <li>Vehicles.Testing.UnitTest_AerialVehicle</li>
+          <li>Vehicles.Testing.UnitTest_StashedVehicle</li>
           <!-- Vehicle Grids -->
-          <li>Vehicles.Testing.UnitTestDeferredGeneration</li>
-          <li>Vehicles.Testing.UnitTestMapGridOwners</li>
-          <!--
-          <li>Vehicles.Testing.UnitTestSpawnPlacement</li>
-          <li>Vehicles.Testing.UnitTestPositionManager</li>
-          <li>Vehicles.Testing.UnitTestCoverGrid</li>
-          <li>Vehicles.Testing.UnitTestGasGrid</li>
-          <li>Vehicles.Testing.UnitTestTerrainGrid</li>
-          <li>Vehicles.Testing.UnitTestThingGrid</li>
-          <li>Vehicles.Testing.UnitTestPathGrid</li>
-          <li>Vehicles.Testing.UnitTestRegions</li>
-          -->
+          <li>Vehicles.Testing.UnitTest_DeferredGeneration</li>
+          <li>Vehicles.Testing.UnitTest_MapGridOwners</li>
+          <li>Vehicles.Testing.UnitTest_SpawnPlacement</li>
+          <li>Vehicles.Testing.UnitTest_PositionManager</li>
+          <li>Vehicles.Testing.UnitTest_CoverGrid</li>
+          <li>Vehicles.Testing.UnitTest_GasGrid</li>
+          <li>Vehicles.Testing.UnitTest_TerrainGrid</li>
+          <li>Vehicles.Testing.UnitTest_ThingGrid</li>
+          <li>Vehicles.Testing.UnitTest_PathGrid</li>
+          <li>Vehicles.Testing.UnitTest_Regions</li>
           <!-- Resources -->
-          <li>Vehicles.Testing.UnitTestMaterialPool</li>
-          <li>Vehicles.Testing.UnitTestHotReloadDefs</li>
-          <li>Vehicles.Testing.UnitTestMapDeinit</li>
+          <li>Vehicles.Testing.UnitTest_MaterialPool</li>
+          <li>Vehicles.Testing.UnitTest_HotReloadDefs</li>
+          <li>Vehicles.Testing.UnitTest_MapDeinit</li>
         </tests>
       </li>
       <li>
@@ -44,5 +42,5 @@
         <tests/>
       </li>
     </plan>
-	</SmashTools.Debugging.TestPlanDef>
+	</SmashTools.UnitTesting.TestSuiteDef>
 </Defs>

@@ -1,18 +1,16 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using LudeonTK;
-using SmashTools;
-using SmashTools.Debugging;
-using SmashTools.Performance;
+using DevTools;
+using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing;
 
-internal class UnitTestHotReloadDefs : UnitTest
+internal class UnitTest_HotReloadDefs : UnitTest
 {
   public override string Name => "Hot Reload Defs";
 
-  public override TestType ExecuteOn => TestType.GameLoaded;
+  public override TestType ExecuteOn => TestType.Playing;
 
   public override IEnumerable<UTResult> Execute()
   {

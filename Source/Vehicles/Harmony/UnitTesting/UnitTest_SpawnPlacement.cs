@@ -1,4 +1,4 @@
-﻿using SmashTools.Debugging;
+﻿using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
@@ -6,7 +6,7 @@ namespace Vehicles.Testing
   // NOTE - Both GenAdj.OccupiedRect and GenSpawn.Spawn have patches that adjust positions for
   // vehicles. We can verify the adjustment keeps the vehicle stable (and doesn't shift positions)
   // by comparing the CellRects of entity-based occupied rect vs. size based (which is not patched)
-  internal class UnitTestSpawnPlacement : UnitTestMapTest
+  internal class UnitTest_SpawnPlacement : UnitTest_MapTest
   {
     public override string Name => "SpawnPlacement";
 
@@ -14,7 +14,7 @@ namespace Vehicles.Testing
     {
       IntVec2 size = vehicle.VehicleDef.Size;
 
-      UTResult result = new();
+      UTResult result = new("Spawn Placement");
 
       result.Add($"SpawnPlacement_{vehicle.def.defName} (Unspawned)", !vehicle.Spawned);
 

@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using LudeonTK;
+using DevTools;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using SmashTools.Performance;
-using UnityEngine;
 using Verse;
-using Verse.Sound;
 
 namespace Vehicles;
 
@@ -478,173 +473,6 @@ public sealed class VehicleMapping : MapComponent
     pathData.ReachabilityData.ChangeOwner(toVehicleDef);
   }
 
-  [DebugOutput(VehicleHarmony.VehiclesLabel, name = "Benchmark PathGrid",
-    onlyWhenPlaying = true)]
-  private static void BenchmarkPathGridGeneration()
-  {
-    const int IterationsPerTest = 10;
-    const int MaxTimeForBenchmark = 10; // minutes
-
-    CameraJumper.TryHideWorld();
-    Map map = Find.CurrentMap;
-    if (map is null)
-    {
-      Assert.Fail("Trying to perform region benchmark with null map.");
-      return;
-    }
-
-    LongEventHandler.QueueLongEvent(delegate
-    {
-      List<VehicleDef> vehicleDefs = DefDatabase<VehicleDef>.AllDefsListForReading;
-      int total = vehicleDefs.Count;
-
-      // Results will be useless if we don't have at least 5 owners for varied results
-      Assert.IsTrue(total > 5);
-
-      VehicleMapping mapping = Find.CurrentMap.GetCachedMapComponent<VehicleMapping>();
-
-      // x2 since we're testing both sync and async region generation per count
-      int totalVehiclesTested = Ext_Math.ArithmeticSeries(total, IterationsPerTest * 2);
-      int tested = 0;
-
-      CancellationTokenSource cts = new(TimeSpan.FromMinutes(MaxTimeForBenchmark));
-      Benchmark.StartCheckingForCancellation(KeyCode.Space, cts);
-
-      // Rerun test incrementing how many vehicles to generate path grids for
-      // and log results from benchmarking.
-      for (int i = 1; i <= total; i++)
-      {
-        List<VehicleDef> defsToTest = vehicleDefs.Take(i).ToList();
-
-        Benchmark.Results asyncResult = Benchmark.Run(IterationsPerTest, delegate
-        {
-          // delegate will add a little bit of overhead from but this is how the original method
-          // is written so it's accurate.
-          Parallel.ForEach(defsToTest, delegate(VehicleDef vehicleDef)
-          {
-            VehiclePathData vehiclePathData = mapping[vehicleDef];
-            vehiclePathData.VehiclePathGrid.RecalculateAllPerceivedPathCosts();
-
-            Interlocked.Increment(ref tested);
-            LongEventHandler
-             .SetCurrentEventText(
-                $"Running Benchmark {tested}/{totalVehiclesTested}\n" +
-                $"{(!cts.IsCancellationRequested ? "Press Space to abort" : "Aborting")}");
-          });
-        });
-
-        Benchmark.Results syncResult = Benchmark.Run(IterationsPerTest, delegate
-        {
-          foreach (VehicleDef vehicleDef in defsToTest)
-          {
-            VehiclePathData vehiclePathData = mapping[vehicleDef];
-            vehiclePathData.VehiclePathGrid.RecalculateAllPerceivedPathCosts();
-
-            Interlocked.Increment(ref tested);
-            LongEventHandler
-             .SetCurrentEventText(
-                $"Running Benchmark {tested}/{totalVehiclesTested}\n" +
-                $"{(!cts.IsCancellationRequested ? "Press Space to abort" : "Aborting")}");
-          }
-        });
-
-        Log.Message($"{i} | Async({asyncResult.TotalString}) Sync({syncResult.TotalString})");
-        if (cts.IsCancellationRequested) break;
-      }
-
-      // We still need to request cancellation so the coroutine can exit if the benchmark
-      // completed naturally and wasn't aborted.
-      cts.Cancel();
-      SoundDefOf.TinyBell.PlayOneShotOnCamera();
-    }, string.Empty, true, null);
-  }
-
-  [DebugOutput(VehicleHarmony.VehiclesLabel, name = "Benchmark RegionGen",
-    onlyWhenPlaying = true)]
-  private static void BenchmarkRegionGeneration()
-  {
-    const int IterationsPerTest = 50;
-    const int MaxTimeForBenchmark = 10; // minutes
-
-    CameraJumper.TryHideWorld();
-    Map map = Find.CurrentMap;
-    if (map is null)
-    {
-      Assert.Fail("Trying to perform region benchmark with null map.");
-      return;
-    }
-
-    LongEventHandler.QueueLongEvent(delegate
-    {
-      VehicleMapping mapping = Find.CurrentMap.GetCachedMapComponent<VehicleMapping>();
-      List<VehicleDef> regionOwners =
-        mapping.GridOwners.AllOwners.Where(PathingHelper.ShouldCreateRegions).ToList();
-      int total = regionOwners.Count;
-      // Results will be useless if we don't have at least 5 owners for varied results
-      Assert.IsTrue(total > 5);
-      // No need for testing more than 10 owners. Test will stall for far too long and we
-      // already know that parallelization will be far superior at >10. We're just
-      // benchmarking for what vehicle count is the cutoff for async performance gains.
-      total = Mathf.Min(total, 10);
-
-      // x2 since we're testing both sync and async region generation per count
-      int totalVehiclesTested = Ext_Math.ArithmeticSeries(total, IterationsPerTest * 2);
-      int tested = 0;
-
-      CancellationTokenSource cts = new(TimeSpan.FromMinutes(MaxTimeForBenchmark));
-      Benchmark.StartCheckingForCancellation(KeyCode.Space, cts);
-
-      // Rerun test incrementing how many vehicles to generate regions for
-      // and log results from benchmarking.
-      for (int i = 1; i <= total; i++)
-      {
-        List<VehicleDef> defsToTest = regionOwners.Take(i).ToList();
-
-        Benchmark.Results asyncResult = Benchmark.Run(IterationsPerTest, delegate
-        {
-          // delegate will add a little bit of overhead from but this is how the original method
-          // is written so it's accurate.
-          Parallel.ForEach(defsToTest, delegate(VehicleDef vehicleDef)
-          {
-            VehiclePathData vehiclePathData = mapping[vehicleDef];
-            vehiclePathData.VehicleRegionAndRoomUpdater.Init();
-            vehiclePathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
-
-            Interlocked.Increment(ref tested);
-            LongEventHandler
-             .SetCurrentEventText(
-                $"Running Benchmark {tested}/{totalVehiclesTested}\n" +
-                $"{(!cts.IsCancellationRequested ? "Press Space to abort" : "Aborting")}");
-          });
-        });
-
-        Benchmark.Results syncResult = Benchmark.Run(IterationsPerTest, delegate
-        {
-          foreach (VehicleDef vehicleDef in defsToTest)
-          {
-            VehiclePathData vehiclePathData = mapping[vehicleDef];
-            vehiclePathData.VehicleRegionAndRoomUpdater.Init();
-            vehiclePathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
-
-            Interlocked.Increment(ref tested);
-            LongEventHandler
-             .SetCurrentEventText(
-                $"Running Benchmark {tested}/{totalVehiclesTested}\n" +
-                $"{(!cts.IsCancellationRequested ? "Press Space to abort" : "Aborting")}");
-          }
-        });
-
-        Log.Message($"{i} | Async({asyncResult.TotalString}) Sync({syncResult.TotalString})");
-        if (cts.IsCancellationRequested) break;
-      }
-
-      // We still need to request cancellation so the coroutine can exit if the benchmark
-      // completed naturally and wasn't aborted.
-      cts.Cancel();
-      SoundDefOf.TinyBell.PlayOneShotOnCamera();
-    }, string.Empty, true, null);
-  }
-
   [Flags]
   public enum GridSelection
   {
@@ -676,13 +504,6 @@ public sealed class VehicleMapping : MapComponent
   /// <remarks>Stores data strictly for deviations from vanilla regarding impassable values</remarks>
   public class VehiclePathData
   {
-    public VehiclePathData()
-    {
-      VehiclePathGrid = null;
-      VehiclePathFinder = null;
-      ReachabilityData = null;
-    }
-
     // Region grid is currently disabled.
     public bool Suspended => !VehicleRegionAndRoomUpdater.Enabled;
 

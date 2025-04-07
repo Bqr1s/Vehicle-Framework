@@ -1,18 +1,18 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using RimWorld;
+using DevTools;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.Debugging;
 using SmashTools.Pathfinding;
+using SmashTools.UnitTesting;
 using Verse;
 using WorldRegionGrid = Vehicles.WorldVehicleReachability.WorldRegionGrid;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestWorldReachability : UnitTest
+  internal class UnitTest_WorldReachability : UnitTest
   {
-    public override TestType ExecuteOn => TestType.GameLoaded;
+    public override TestType ExecuteOn => TestType.Playing;
 
     public override string Name => "WorldReachability";
 

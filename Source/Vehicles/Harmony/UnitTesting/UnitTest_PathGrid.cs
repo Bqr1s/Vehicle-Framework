@@ -1,12 +1,12 @@
 ﻿using SmashTools;
-using SmashTools.Debugging;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
 using Verse.AI;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTestPathGrid : UnitTestMapTest
+  internal class UnitTest_PathGrid : UnitTest_MapTest
   {
     public override string Name => "PathGrid";
 
@@ -24,7 +24,7 @@ namespace Vehicles.Testing
       GenSpawn.Spawn(vehicle, root, TestMap);
       result.Add($"VehiclePathGrid_{vehicle.def} Spawned", vehicle.Spawned);
 
-      HitboxTester<int> positionTester = new(vehicle, TestMap, root,
+      HitboxTester<int> positionTester = new(vehicle, root,
         (cell) => pathGrid.CalculatedCostAt(cell),
         (cost) => cost == VehiclePathGrid.TerrainCostAt(vehicle.VehicleDef, terrainDef));
       positionTester.Start();
@@ -52,7 +52,7 @@ namespace Vehicles.Testing
 
       // Vanilla PathGrid costs should take vehicles into account
       PathGrid vanillaPathGrid = TestMap.pathing.Normal.pathGrid;
-      positionTester = new(vehicle, TestMap, root,
+      positionTester = new(vehicle, root,
         (cell) => vanillaPathGrid.CalculatedCostAt(cell, true, IntVec3.Invalid),
         (cost) => cost == terrainDef.pathCost ||
           (cost == PathGrid.ImpassableCost &&
