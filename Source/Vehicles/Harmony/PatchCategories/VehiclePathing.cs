@@ -174,21 +174,18 @@ namespace Vehicles
           return false;
         }
 
-        VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(vehicle.Map);
-
         if (PathingHelper.TryFindNearestStandableCell(vehicle, clickCell, out IntVec3 result))
         {
           __result = new FloatMenuOption("GoHere".Translate(),
-            delegate() { VehicleOrientationController.StartOrienting(vehicle, result, clickCell); },
-            MenuOptionPriority.GoHere, null, null, 0f, null, null)
+            delegate { VehicleOrientationController.StartOrienting(vehicle, result, clickCell); },
+            MenuOptionPriority.GoHere)
           {
             autoTakeable = true,
             autoTakeablePriority = 10f
           };
         }
 
-        if (!VehicleReachabilityUtility.CanReachVehicle(vehicle, clickCell, PathEndMode.OnCell,
-          Danger.Deadly, TraverseMode.ByPawn))
+        if (!vehicle.CanReachVehicle(clickCell, PathEndMode.OnCell, Danger.Deadly))
         {
           __result = new FloatMenuOption("VF_CannotMoveToCell".Translate(vehicle.LabelCap), null);
         }
@@ -199,8 +196,7 @@ namespace Vehicles
       {
         if (PathingHelper.VehicleImpassableInCell(pawn.Map, clickCell))
         {
-          __result = new FloatMenuOption("CannotGoNoPath".Translate(), null,
-            MenuOptionPriority.Default, null, null, 0f, null, null);
+          __result = new FloatMenuOption("CannotGoNoPath".Translate(), null);
           return false;
         }
       }
@@ -396,7 +392,7 @@ namespace Vehicles
 
     private static void ImpassableThroughVehicle(IntVec3 c, Map map, ref bool __result)
     {
-      if (!__result && !PathingHelper.RegionWorking(map))
+      if (!__result && !PathingHelper.regionAndRoomUpdaterWorking(map.regionAndRoomUpdater))
       {
         __result = PathingHelper.VehicleImpassableInCell(map, c);
       }
@@ -404,7 +400,7 @@ namespace Vehicles
 
     private static void WalkableThroughVehicle(IntVec3 loc, ref bool __result, Map ___map)
     {
-      if (__result && !PathingHelper.RegionWorking(___map))
+      if (__result && !PathingHelper.regionAndRoomUpdaterWorking(___map.regionAndRoomUpdater))
       {
         __result = !PathingHelper.VehicleImpassableInCell(___map, loc);
       }
@@ -413,7 +409,7 @@ namespace Vehicles
     private static void WalkableFastThroughVehicleIntVec3(IntVec3 loc, ref bool __result,
       Map ___map)
     {
-      if (__result && !PathingHelper.RegionWorking(___map))
+      if (__result && !PathingHelper.regionAndRoomUpdaterWorking(___map.regionAndRoomUpdater))
       {
         __result = !PathingHelper.VehicleImpassableInCell(___map, loc);
       }
@@ -421,7 +417,7 @@ namespace Vehicles
 
     private static void WalkableFastThroughVehicleInt2(int x, int z, ref bool __result, Map ___map)
     {
-      if (__result && !PathingHelper.RegionWorking(___map))
+      if (__result && !PathingHelper.regionAndRoomUpdaterWorking(___map.regionAndRoomUpdater))
       {
         __result = !PathingHelper.VehicleImpassableInCell(___map, new IntVec3(x, 0, z));
       }
@@ -429,7 +425,7 @@ namespace Vehicles
 
     private static void WalkableFastThroughVehicleInt(int index, ref bool __result, Map ___map)
     {
-      if (__result && !PathingHelper.RegionWorking(___map))
+      if (__result && !PathingHelper.regionAndRoomUpdaterWorking(___map.regionAndRoomUpdater))
       {
         __result =
           !PathingHelper.VehicleImpassableInCell(___map, ___map.cellIndices.IndexToCell(index));

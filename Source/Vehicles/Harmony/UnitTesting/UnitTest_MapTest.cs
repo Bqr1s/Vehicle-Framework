@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using DevTools;
+using DevTools.UnitTesting;
 using RimWorld;
 using SmashTools;
-using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
 
@@ -11,61 +11,83 @@ namespace Vehicles.Testing;
 
 internal abstract class UnitTest_MapTest : UnitTest_VehicleTest
 {
-  protected virtual Map TestMap => Find.CurrentMap;
+  private ThreadDisabler threadDisabler;
+
+  protected Map map;
+  protected IntVec3 root;
+  protected List<VehiclePawn> vehicles;
 
   protected virtual Faction Faction => Faction.OfPlayer;
-
-  public override TestType ExecuteOn => TestType.Playing;
-
-  protected virtual bool RefreshGrids => true;
 
   protected virtual bool ShouldTest(VehicleDef vehicleDef)
   {
     return true;
   }
 
-  protected virtual CellRect TestArea(VehicleDef vehicleDef, IntVec3 root)
+  protected virtual CellRect TestArea(VehicleDef vehicleDef)
   {
     int maxSize = Mathf.Max(vehicleDef.Size.x, vehicleDef.Size.z);
     return CellRect.CenteredOn(root, maxSize).ExpandedBy(5);
   }
 
-  public override IEnumerable<UTResult> Execute()
+  [Prepare]
+  private void GenerateVehicles()
   {
-    CameraJumper.TryHideWorld();
-    Assert.IsNotNull(TestMap);
+    map = Find.CurrentMap;
+    Assert.IsNotNull(map);
     Assert.IsTrue(DefDatabase<VehicleDef>.AllDefsListForReading.Count > 0,
       "No vehicles to test with");
+    root = map.Center;
 
     // All map-based tests should be run synchronously, otherwise 
     // we would have race conditions when validating grids.
-    using ThreadDisabler td = new();
+    threadDisabler = new ThreadDisabler();
 
-    VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
-
+    VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+    vehicles.Clear();
     foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
     {
-      if (!ShouldTest(vehicleDef)) continue;
-
-      if (RefreshGrids)
-        mapping.RequestGridsFor(vehicleDef, DeferredGridGeneration.Urgency.Urgent);
+      if (!ShouldTest(vehicleDef))
+        continue;
 
       // Path and region grids should all be initialized before starting any map-based test.
-      Assert.IsTrue(!mapping[vehicleDef].Suspended);
+      Assert.IsFalse(mapping[vehicleDef].Suspended);
       Assert.IsTrue(mapping[vehicleDef].VehiclePathGrid.Enabled);
       if (!mapping.GridOwners.IsOwner(vehicleDef))
         Assert.IsTrue(mapping[mapping.GridOwners.GetOwner(vehicleDef)].VehiclePathGrid.Enabled);
 
       VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction);
+      vehicles.Add(vehicle);
+    }
+  }
+
+  [CleanUp, ExecutionPriority(Priority.Last)]
+  private void EnableDedicatedThreads()
+  {
+    threadDisabler.Dispose();
+    threadDisabler = null;
+  }
+
+  protected readonly struct VehicleTestCase : IDisposable
+  {
+    private readonly VehiclePawn vehicle;
+    private readonly Test.Group group;
+
+    public VehicleTestCase(VehiclePawn vehicle, UnitTest_MapTest test)
+    {
+      this.vehicle = vehicle;
+      this.group = new Test.Group(vehicle.VehicleDef.defName);
+
+      VehicleDef vehicleDef = vehicle.VehicleDef;
       TerrainDef terrainDef = DefDatabase<TerrainDef>.AllDefsListForReading
        .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _) &&
           def.affordances.Contains(vehicleDef.buildDef.terrainAffordanceNeeded));
+      DebugHelper.DestroyArea(test.TestArea(vehicleDef), test.map, terrainDef);
+    }
 
-      IntVec3 root = TestMap.Center;
-      DebugHelper.DestroyArea(TestArea(vehicleDef, root), TestMap, terrainDef);
-
-      CameraJumper.TryJump(root, TestMap, mode: CameraJumper.MovementMode.Cut);
-      yield return TestVehicle(vehicle, root);
+    void IDisposable.Dispose()
+    {
+      group.Dispose();
 
       // Ensure vehicles are completely cleared from caches to not interfere with other tests.
       if (!vehicle.Destroyed)
@@ -73,15 +95,8 @@ internal abstract class UnitTest_MapTest : UnitTest_VehicleTest
 
       Find.WorldPawns.RemoveAndDiscardPawnViaGC(vehicle);
       Assert.IsFalse(Find.WorldPawns.Contains(vehicle));
-
-      // Grids from owners shouldn't interfere with their piggies. If we don't clear, we don't
-      // be able to validate incorrect grid updating between owner and piggy.
-      if (RefreshGrids)
-        mapping.deferredGridGeneration.DoPass();
     }
   }
-
-  protected abstract UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root);
 
   /// <summary>
   /// Test class for validating cells within a vehicle's hitbox.

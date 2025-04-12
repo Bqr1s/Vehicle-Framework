@@ -35,9 +35,15 @@ namespace Vehicles
     // Position to post up, may start shooting before / after arriving.
     protected abstract bool TryFindCombatPosition(VehiclePawn vehicle, out IntVec3 dest);
 
-    protected virtual float TargetAcquireRadius(VehiclePawn vehicle) => 56;
+    protected virtual float TargetAcquireRadius(VehiclePawn vehicle)
+    {
+      return 56;
+    }
 
-    protected virtual bool CanRam(VehiclePawn vehicle) => false;
+    protected virtual bool CanRam(VehiclePawn vehicle)
+    {
+      return false;
+    }
 
     // How far vehicle can wander from escortee / defense point
     protected virtual float GetFlagRadius(VehiclePawn vehicle)
@@ -108,8 +114,7 @@ namespace Vehicles
       if (!enemyTarget.Destroyed && enemyTarget.Spawned &&
         Find.TickManager.TicksGame - vehicle.mindState.lastEngageTargetTick <=
         TicksSinceEngageToLoseTarget &&
-        vehicle.CanReachVehicle(enemyTarget, PathEndMode.Touch, Danger.Deadly,
-          TraverseMode.ByPawn) &&
+        vehicle.CanReachVehicle(enemyTarget, PathEndMode.Touch, Danger.Deadly) &&
         (vehicle.Position - enemyTarget.Position).LengthHorizontalSquared <= keepRadiusSqrd)
       {
         return enemyTarget is IAttackTarget attackTarget && attackTarget.ThreatDisabled(vehicle);

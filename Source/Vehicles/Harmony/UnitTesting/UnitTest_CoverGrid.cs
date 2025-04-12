@@ -1,50 +1,47 @@
-﻿using SmashTools;
-using SmashTools.UnitTesting;
+﻿using DevTools.UnitTesting;
 using UnityEngine;
 using Verse;
+using TestType = DevTools.UnitTesting.TestType;
 
 namespace Vehicles.Testing
 {
+  [UnitTest(TestType.Playing)]
   internal class UnitTest_CoverGrid : UnitTest_MapTest
   {
-    public override string Name => "CoverGrid";
-
-    protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
+    [Test]
+    private void CoverGrid()
     {
-      int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
-      UTResult result = new("CoverGrid");
-      IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
-      VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
+      foreach (VehiclePawn vehicle in vehicles)
+      {
+        using VehicleTestCase vtc = new(vehicle, this);
 
-      CoverGrid coverGrid = TestMap.coverGrid;
-      GenSpawn.Spawn(vehicle, root, TestMap);
-      HitboxTester<Thing> coverTester = new(vehicle, root,
-        (cell) => coverGrid[cell],
-        (thing) => thing == vehicle);
-      coverTester.Start();
+        int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
 
-      // Validate spawned vehicle shows up in cover grid
-      bool success = coverTester.Hitbox(true);
-      result.Add("Cover Grid (Spawn)", success);
+        IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
+        CoverGrid coverGrid = map.coverGrid;
+        GenSpawn.Spawn(vehicle, root, map);
+        HitboxTester<Thing> coverTester = new(vehicle, root,
+          (cell) => coverGrid[cell],
+          (thing) => thing == vehicle);
+        coverTester.Start();
 
-      // Validate position set moves vehicle in cover grid
-      vehicle.Position = reposition;
-      success = coverTester.Hitbox(true);
-      vehicle.Position = root;
-      result.Add("Cover Grid (set_Position)", success);
+        // Validate spawned vehicle shows up in cover grid
+        Expect.IsTrue("Cover Grid (Spawn)", coverTester.Hitbox(true));
 
-      // Validate rotation set moves vehicle in cover grid
-      vehicle.Rotation = Rot4.East;
-      success = coverTester.Hitbox(true);
-      vehicle.Rotation = Rot4.North;
-      result.Add("Cover Grid (set_Rotation)", success);
+        // Validate position set moves vehicle in cover grid
+        vehicle.Position = reposition;
+        Expect.IsTrue("Cover Grid (set_Position)", coverTester.Hitbox(true));
+        vehicle.Position = root;
 
-      // Validate despawning reverts back to thing before vehicle was spawned
-      vehicle.DeSpawn();
-      success = coverTester.All(false);
-      result.Add("Cover Grid (DeSpawn)", success);
-      return result;
+        // Validate rotation set moves vehicle in cover grid
+        vehicle.Rotation = Rot4.East;
+        Expect.IsTrue("Cover Grid (set_Rotation)", coverTester.Hitbox(true));
+        vehicle.Rotation = Rot4.North;
+
+        // Validate despawning reverts back to thing before vehicle was spawned
+        vehicle.DeSpawn();
+        Expect.IsTrue("Cover Grid (DeSpawn)", coverTester.All(false));
+      }
     }
   }
 }

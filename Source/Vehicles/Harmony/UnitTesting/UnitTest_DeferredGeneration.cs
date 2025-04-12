@@ -1,95 +1,101 @@
 ﻿using System;
 using System.Threading;
 using DevTools;
+using DevTools.UnitTesting;
 using SmashTools;
 using SmashTools.Performance;
-using SmashTools.UnitTesting;
 using Verse;
+using TestType = DevTools.UnitTesting.TestType;
 
 namespace Vehicles.Testing
 {
+  [UnitTest(TestType.Playing)]
   internal class UnitTest_DeferredGeneration : UnitTest_MapTest
   {
     private const double MaxWaitTime = 5000; // ms
-
-    public override string Name => "DeferredGridGeneration";
 
     protected override bool ShouldTest(VehicleDef vehicleDef)
     {
       return PathingHelper.ShouldCreateRegions(vehicleDef);
     }
 
-    protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
+    [Test]
+    private void TestVehicle()
     {
-      VehicleDef vehicleDef = vehicle.VehicleDef;
+      foreach (VehiclePawn vehicle in vehicles)
+      {
+        using VehicleTestCase vtc = new(vehicle, this);
 
-      UTResult result = new();
+        VehicleDef vehicleDef = vehicle.VehicleDef;
 
-      VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
+        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+        VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
 
-      if (mapping.deferredGridGeneration == null || !mapping.ThreadAlive)
-        return UTResult.For("DeferredGeneration", UTResult.Result.Skipped);
+        Assert.IsNotNull(mapping.deferredGridGeneration);
+        if (!mapping.ThreadAlive)
+        {
+          Test.Skip("Thread not available.");
+          return;
+        }
 
-      mapping.deferredGridGeneration.DoPassExpectClear();
-      Assert.IsTrue(pathData.Suspended);
+        mapping.deferredGridGeneration.DoPassExpectClear();
+        Assert.IsTrue(pathData.Suspended);
 
-      // We're specifically testing thread enqueueing with deferred grid generation, we need the 
-      // dedicated thread available in order to test this. Will return to suspended after test
-      // since we're running this as a UnitTestMapTest.
-      using ThreadEnabler te = new();
-      ManualResetEventSlim mres = new(false);
+        // We're specifically testing thread enqueueing with deferred grid generation, we need the 
+        // dedicated thread available in order to test this. Will return to suspended after test
+        // since we're running this as a UnitTestMapTest.
+        using ThreadEnabler te = new();
+        ManualResetEventSlim mres = new(false);
 
-      GenSpawn.Spawn(vehicle, root, TestMap);
-      // Faction.OfPlayer
-      result.Add($"DeferredGeneration_{vehicleDef} (Spawned)", vehicle.Spawned);
-      result.Add("DeferredGeneration (Player Deferred)",
-        DeferredGridGeneration.UrgencyFor(vehicle) == DeferredGridGeneration.Urgency.Deferred);
+        GenSpawn.Spawn(vehicle, root, map);
+        // Faction.OfPlayer
+        Expect.IsTrue($"{vehicleDef} (Spawned)", vehicle.Spawned);
+        Expect.IsTrue("Player Deferred",
+          DeferredGridGeneration.UrgencyFor(vehicle) == DeferredGridGeneration.Urgency.Deferred);
 
-      // We need to wait for the dedicated thread to finish generating vehicle's grids so we can
-      // validate that every grid is initialized.
-      AsyncLongOperationAction longOp = AsyncPool<AsyncLongOperationAction>.Get();
-      longOp.OnInvoke += () => NotifyReadyToContinue(mres);
-      mapping.dedicatedThread.Enqueue(longOp);
-      mres.Wait(TimeSpan.FromMilliseconds(MaxWaitTime));
+        // We need to wait for the dedicated thread to finish generating vehicle's grids so we can
+        // validate that every grid is initialized.
+        AsyncLongOperationAction longOp = AsyncPool<AsyncLongOperationAction>.Get();
+        longOp.OnInvoke += () => NotifyReadyToContinue(mres);
+        mapping.dedicatedThread.Enqueue(longOp);
+        mres.Wait(TimeSpan.FromMilliseconds(MaxWaitTime));
 
-      result.Add("DeferredGeneration (Player PathGrid Generated)",
-        pathData.VehiclePathGrid.Enabled);
-      result.Add("DeferredGeneration (Player Regions Generated)",
-        pathData.VehicleRegionAndRoomUpdater.Enabled);
-      result.Add("DeferredGeneration (Player PathData Status)", !pathData.Suspended);
+        Expect.IsTrue("Player PathGrid Generated",
+          pathData.VehiclePathGrid.Enabled);
+        Expect.IsTrue("Player Regions Generated",
+          pathData.VehicleRegionAndRoomUpdater.Enabled);
+        Expect.IsFalse("Player PathData Status", pathData.Suspended);
 
-      vehicle.DeSpawn();
-      Assert.IsTrue(!vehicle.Spawned);
-      mapping.deferredGridGeneration.DoPassExpectClear();
-      Assert.IsTrue(pathData.Suspended);
+        vehicle.DeSpawn();
+        Assert.IsFalse(vehicle.Spawned);
+        mapping.deferredGridGeneration.DoPassExpectClear();
+        Assert.IsTrue(pathData.Suspended);
 
-      // Block dedicated thread without flagging as suspended so we can still validate that
-      // grid generation is not being sent to the dedicated thread for deferred generation of
-      // map grids. This is equivalent to clogging up the dedicated thread until we decide we're
-      // ready or we hit the timeout threshold.
-      mres.Reset();
-      AsyncLongOperationAction blockingOp = AsyncPool<AsyncLongOperationAction>.Get();
-      blockingOp.OnInvoke += () => WaitForSignal(mres);
-      mapping.dedicatedThread.Enqueue(blockingOp);
+        // Block dedicated thread without flagging as suspended so we can still validate that
+        // grid generation is not being sent to the dedicated thread for deferred generation of
+        // map grids. This is equivalent to clogging up the dedicated thread until we decide we're
+        // ready or we hit the timeout threshold.
+        mres.Reset();
+        AsyncLongOperationAction blockingOp = AsyncPool<AsyncLongOperationAction>.Get();
+        blockingOp.OnInvoke += () => WaitForSignal(mres);
+        mapping.dedicatedThread.Enqueue(blockingOp);
 
-      Assert.IsNotNull(Find.World.factionManager.OfAncientsHostile);
-      vehicle.SetFactionDirect(Find.World.factionManager.OfAncientsHostile);
-      GenSpawn.Spawn(vehicle, root, TestMap);
-      result.Add($"DeferredGeneration_{vehicleDef} (Spawned Enemy)", vehicle.Spawned);
-      result.Add($"DeferredGeneration (Enemy Urgent)",
-        DeferredGridGeneration.UrgencyFor(vehicle) == DeferredGridGeneration.Urgency.Urgent);
+        Assert.IsNotNull(Find.World.factionManager.OfAncientsHostile);
+        vehicle.SetFactionDirect(Find.World.factionManager.OfAncientsHostile);
+        GenSpawn.Spawn(vehicle, root, map);
+        Expect.IsTrue($"{vehicleDef} (Spawned Enemy)", vehicle.Spawned);
+        Expect.IsTrue("Enemy Urgent",
+          DeferredGridGeneration.UrgencyFor(vehicle) == DeferredGridGeneration.Urgency.Urgent);
 
-      result.Add($"DeferredGeneration (Enemy Regions Generated)",
-        pathData.VehicleRegionAndRoomUpdater.Enabled);
-      result.Add($"DeferredGeneration (Enemy PathGrid Generated)",
-        pathData.VehiclePathGrid.Enabled);
-      result.Add($"DeferredGeneration (Enemy PathData Status)", !pathData.Suspended);
+        Expect.IsTrue("Enemy Regions Generated",
+          pathData.VehicleRegionAndRoomUpdater.Enabled);
+        Expect.IsTrue("Enemy PathGrid Generated",
+          pathData.VehiclePathGrid.Enabled);
+        Expect.IsFalse("Enemy PathData Status", pathData.Suspended);
 
-      // Unblock dedicated thread
-      mres.Set();
-
-      return result;
+        // Unblock dedicated thread
+        mres.Set();
+      }
     }
 
     private static void WaitForSignal(ManualResetEventSlim mre)

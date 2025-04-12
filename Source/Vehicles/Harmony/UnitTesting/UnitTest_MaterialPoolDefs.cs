@@ -1,133 +1,177 @@
 ﻿using System.Collections.Generic;
-using SmashTools.UnitTesting;
+using DevTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTest_MaterialPoolDefs : UnitTest
+  [UnitTest(TestType.MainMenu)]
+  internal class UnitTest_MaterialPoolDefs
   {
-    public override string Name => "MaterialPool_Defs";
-
-    public override TestType ExecuteOn => TestType.MainMenu;
-
-    public override ExecutionPriority Priority => ExecutionPriority.First;
-
-    public override IEnumerable<UTResult> Execute()
+    [Test]
+    private void VehicleDefs()
     {
-      int count = 0;
       foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
       {
-        yield return TestVehicleDef(vehicleDef, ref count);
-      }
+        using Test.Group group = new(vehicleDef.defName);
 
-      foreach (PatternDef patternDef in DefDatabase<PatternDef>.AllDefsListForReading)
-      {
-        yield return TestPattern(patternDef, ref count);
-      }
-
-      yield return UTResult.For("MaterialPool (Total Count)",
-        count == RGBMaterialPool.TotalMaterials);
-    }
-
-    private UTResult TestVehicleDef(VehicleDef vehicleDef, ref int count)
-    {
-      UTResult result = new();
-      if (vehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
-      {
-        count += vehicleDef.MaterialCount;
-        result.Add($"MaterialPool_{vehicleDef} (Cached)", RGBMaterialPool.TargetCached(vehicleDef));
-        result.Add($"MaterialPool_{vehicleDef} (Generated)",
-          RGBMaterialPool.GetAll(vehicleDef)?.Length == vehicleDef.MaterialCount);
-      }
-
-      // Overlays
-      if (vehicleDef.drawProperties != null && !vehicleDef.drawProperties.overlays.NullOrEmpty())
-      {
-        foreach (GraphicOverlay overlay in vehicleDef.drawProperties.overlays)
+        if (vehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
         {
-          if (overlay.data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+          Expect.IsTrue("Target Cached", RGBMaterialPool.TargetCached(vehicleDef));
+          Expect.IsTrue("Materials Allocated",
+            RGBMaterialPool.GetAll(vehicleDef)?.Length == vehicleDef.MaterialCount);
+        }
+
+        // Overlays
+        if (vehicleDef.drawProperties != null && !vehicleDef.drawProperties.overlays.NullOrEmpty())
+        {
+          for (int i = 0; i < vehicleDef.drawProperties.overlays.Count; i++)
           {
-            count += overlay.MaterialCount;
-            result.Add($"MaterialPool_{overlay.Name} (Cached)",
-              RGBMaterialPool.TargetCached(overlay));
-            result.Add($"MaterialPool_{overlay.Name} (Generated)",
+            GraphicOverlay overlay = vehicleDef.drawProperties.overlays[i];
+            if (!overlay.data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+              continue;
+
+            Expect.IsTrue($"Overlay[{i}] Target Cached", RGBMaterialPool.TargetCached(overlay));
+            Expect.IsTrue($"Overlay[{i}] Materials Allocated",
               RGBMaterialPool.GetAll(overlay)?.Length == overlay.MaterialCount);
           }
         }
-      }
 
-      // Turrets
-      if (vehicleDef.GetCompProperties<CompProperties_VehicleTurrets>() is
-          CompProperties_VehicleTurrets compTurrets && !compTurrets.turrets.NullOrEmpty())
-      {
-        foreach (VehicleTurret turret in compTurrets.turrets)
+        // Turrets
+        CompProperties_VehicleTurrets compTurrets =
+          vehicleDef.GetCompProperties<CompProperties_VehicleTurrets>();
+        if (compTurrets is not null && !compTurrets.turrets.NullOrEmpty())
         {
-          if (!turret.NoGraphic &&
-            turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+          foreach (VehicleTurret turret in compTurrets.turrets)
           {
-            count += turret.MaterialCount;
-
-            result.Add($"MaterialPool_{turret.Name} (Cached)",
-              RGBMaterialPool.TargetCached(turret));
-            result.Add($"MaterialPool_{turret.Name} (Generated)",
-              RGBMaterialPool.GetAll(turret)?.Length == turret.MaterialCount);
-          }
-
-          if (!turret.TurretGraphics.NullOrEmpty())
-          {
-            foreach (VehicleTurret.TurretDrawData drawData in turret.TurretGraphics)
+            if (!turret.NoGraphic &&
+              turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
             {
-              if (drawData.graphicData.shaderType.Shader.SupportsRGBMaskTex())
-              {
-                count += drawData.MaterialCount;
+              Expect.IsTrue($"{turret.key ?? turret.turretDef.defName} TargetCached",
+                RGBMaterialPool.TargetCached(turret));
+              Expect.IsTrue($"{turret.key ?? turret.turretDef.defName} Materials Allocated",
+                RGBMaterialPool.GetAll(turret)?.Length == turret.MaterialCount);
+            }
 
-                result.Add($"MaterialPool_{drawData.Name} (Cached)",
-                  RGBMaterialPool.TargetCached(drawData));
-                result.Add($"MaterialPool_{drawData.Name} (Generated)",
-                  RGBMaterialPool.GetAll(drawData)?.Length == drawData.MaterialCount);
+            if (!turret.TurretGraphics.NullOrEmpty())
+            {
+              foreach (VehicleTurret.TurretDrawData drawData in turret.TurretGraphics)
+              {
+                if (drawData.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+                {
+                  Expect.IsTrue($"{turret.key ?? turret.turretDef.defName} DrawData TargetCached",
+                    RGBMaterialPool.TargetCached(drawData));
+                  Expect.IsTrue($"{turret.key ?? turret.turretDef.defName} Materials Allocated",
+                    RGBMaterialPool.GetAll(drawData)?.Length == drawData.MaterialCount);
+                }
               }
             }
           }
         }
-      }
 
-      // Upgrades
-      CompProperties_UpgradeTree compUpgrade =
-        vehicleDef.GetCompProperties<CompProperties_UpgradeTree>();
-      if (compUpgrade?.def != null && !compUpgrade.def.nodes.NullOrEmpty())
-      {
-        foreach (UpgradeNode node in compUpgrade.def.nodes)
+        // Upgrades
+        CompProperties_UpgradeTree compUpgrade =
+          vehicleDef.GetCompProperties<CompProperties_UpgradeTree>();
+        if (compUpgrade?.def != null && !compUpgrade.def.nodes.NullOrEmpty())
         {
-          List<GraphicOverlay> overlays = compUpgrade.TryGetOverlays(node);
-          if (!overlays.NullOrEmpty())
+          foreach (UpgradeNode node in compUpgrade.def.nodes)
           {
-            foreach (GraphicOverlay overlay in overlays)
+            List<GraphicOverlay> overlays = compUpgrade.TryGetOverlays(node);
+            if (!overlays.NullOrEmpty())
             {
-              if (overlay.data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+              foreach (GraphicOverlay overlay in overlays)
               {
-                count += overlay.MaterialCount;
-                result.Add($"MaterialPool_{node.label}_{overlay.Name} (Cached)",
-                  RGBMaterialPool.TargetCached(overlay));
-                result.Add($"MaterialPool_{node.label}_{overlay.Name} (Generated)",
+                if (!overlay.data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+                  continue;
+
+                Expect.IsTrue($"{node.key} TargetCached", RGBMaterialPool.TargetCached(overlay));
+                Expect.IsTrue($"{node.key} Materials Allocated",
                   RGBMaterialPool.GetAll(overlay)?.Length == overlay.MaterialCount);
               }
             }
           }
         }
       }
-
-      return result;
     }
 
-    private UTResult TestPattern(PatternDef patternDef, ref int count)
+    [Test]
+    private void PatternDefs()
     {
-      UTResult result = new();
-      count += patternDef.MaterialCount;
-      result.Add($"MaterialPool_{patternDef} (Cached)", RGBMaterialPool.TargetCached(patternDef));
-      result.Add($"MaterialPool_{patternDef} (Generated)",
-        RGBMaterialPool.GetAll(patternDef)?.Length == patternDef.MaterialCount);
+      foreach (PatternDef patternDef in DefDatabase<PatternDef>.AllDefsListForReading)
+      {
+        Expect.IsTrue($"{patternDef} TargetCached", RGBMaterialPool.TargetCached(patternDef));
+        Expect.IsTrue($"{patternDef} Materials Allocated",
+          RGBMaterialPool.GetAll(patternDef)?.Length == patternDef.MaterialCount);
+      }
+    }
 
-      return result;
+    [Test]
+    private void Total()
+    {
+      int count = 0;
+      foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
+      {
+        // Base Vehicle
+        if (vehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+          count += vehicleDef.MaterialCount;
+
+        // Overlays
+        if (vehicleDef.drawProperties != null && !vehicleDef.drawProperties.overlays.NullOrEmpty())
+        {
+          foreach (GraphicOverlay overlay in vehicleDef.drawProperties.overlays)
+          {
+            if (overlay.data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+              count += overlay.MaterialCount;
+          }
+        }
+
+        // Turrets
+        CompProperties_VehicleTurrets compTurrets =
+          vehicleDef.GetCompProperties<CompProperties_VehicleTurrets>();
+        if (compTurrets is not null && !compTurrets.turrets.NullOrEmpty())
+        {
+          foreach (VehicleTurret turret in compTurrets.turrets)
+          {
+            if (!turret.NoGraphic &&
+              turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+            {
+              count += turret.MaterialCount;
+            }
+            if (!turret.TurretGraphics.NullOrEmpty())
+            {
+              foreach (VehicleTurret.TurretDrawData drawData in turret.TurretGraphics)
+              {
+                if (drawData.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+                  count += drawData.MaterialCount;
+              }
+            }
+          }
+        }
+
+        CompProperties_UpgradeTree compUpgrade =
+          vehicleDef.GetCompProperties<CompProperties_UpgradeTree>();
+        if (compUpgrade?.def != null && !compUpgrade.def.nodes.NullOrEmpty())
+        {
+          foreach (UpgradeNode node in compUpgrade.def.nodes)
+          {
+            List<GraphicOverlay> overlays = compUpgrade.TryGetOverlays(node);
+            if (overlays.NullOrEmpty())
+              continue;
+
+            foreach (GraphicOverlay overlay in overlays)
+            {
+              if (overlay.data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+                count += overlay.MaterialCount;
+            }
+          }
+        }
+      }
+
+      foreach (PatternDef patternDef in DefDatabase<PatternDef>.AllDefsListForReading)
+      {
+        count += patternDef.MaterialCount;
+      }
+
+      Expect.IsTrue("MaterialPool (Total Count)", count == RGBMaterialPool.TotalMaterials);
     }
   }
 }

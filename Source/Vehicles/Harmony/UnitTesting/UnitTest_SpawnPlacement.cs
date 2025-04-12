@@ -1,4 +1,5 @@
-﻿using SmashTools.UnitTesting;
+﻿using DevTools;
+using DevTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
@@ -6,54 +7,61 @@ namespace Vehicles.Testing
   // NOTE - Both GenAdj.OccupiedRect and GenSpawn.Spawn have patches that adjust positions for
   // vehicles. We can verify the adjustment keeps the vehicle stable (and doesn't shift positions)
   // by comparing the CellRects of entity-based occupied rect vs. size based (which is not patched)
+  [UnitTest(TestType.Playing)]
   internal class UnitTest_SpawnPlacement : UnitTest_MapTest
   {
-    public override string Name => "SpawnPlacement";
-
-    protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
+    [Test]
+    private void PlacementDrift()
     {
-      IntVec2 size = vehicle.VehicleDef.Size;
+      foreach (VehiclePawn vehicle in vehicles)
+      {
+        using VehicleTestCase vtc = new(vehicle, this);
 
-      UTResult result = new("Spawn Placement");
+        IntVec2 size = vehicle.VehicleDef.Size;
 
-      result.Add($"SpawnPlacement_{vehicle.def.defName} (Unspawned)", !vehicle.Spawned);
+        // North
+        CellRect occupiedRect = GenAdj.OccupiedRect(root, Rot4.North, size);
+        GenSpawn.Spawn(vehicle, root, map, Rot4.North);
+        Expect.IsTrue("North OccupiedRect", occupiedRect == vehicle.OccupiedRect());
+        Expect.IsTrue("North Position", vehicle.Position == root);
 
-      // North
-      CellRect occupiedRect = GenAdj.OccupiedRect(root, Rot4.North, size);
-      GenSpawn.Spawn(vehicle, root, TestMap, Rot4.North);
-      result.Add("SpawnPlacement (North)", occupiedRect == vehicle.OccupiedRect());
-      result.Add("SpawnPlacement (Position)",
-        (vehicle.Position - root).LengthHorizontalSquared <= 2);
+        vehicle.DeSpawn();
+        Assert.IsFalse(vehicle.Spawned);
+        Assert.IsFalse(vehicle.Destroyed);
+        Assert.IsFalse(vehicle.Discarded);
 
-      vehicle.DeSpawn();
+        // East
+        occupiedRect = GenAdj.OccupiedRect(root, Rot4.East, size);
+        GenSpawn.Spawn(vehicle, root, map, Rot4.East);
+        Expect.IsTrue("East OccupiedRect", occupiedRect == vehicle.OccupiedRect());
+        Expect.IsTrue("East Position", vehicle.Position == root);
 
-      // East
-      occupiedRect = GenAdj.OccupiedRect(root, Rot4.East, size);
-      GenSpawn.Spawn(vehicle, root, TestMap, Rot4.East);
-      result.Add("SpawnPlacement (East)", occupiedRect == vehicle.OccupiedRect());
-      result.Add("SpawnPlacement (Position)",
-        (vehicle.Position - root).LengthHorizontalSquared <= 2);
+        vehicle.DeSpawn();
+        Assert.IsFalse(vehicle.Spawned);
+        Assert.IsFalse(vehicle.Destroyed);
+        Assert.IsFalse(vehicle.Discarded);
 
-      vehicle.DeSpawn();
+        // South
+        occupiedRect = GenAdj.OccupiedRect(root, Rot4.South, size);
+        GenSpawn.Spawn(vehicle, root, map, Rot4.South);
+        Expect.IsTrue("South OccupiedRect", occupiedRect == vehicle.OccupiedRect());
+        Expect.IsTrue("South Position", vehicle.Position == root);
 
-      // South
-      occupiedRect = GenAdj.OccupiedRect(root, Rot4.South, size);
-      GenSpawn.Spawn(vehicle, root, TestMap, Rot4.South);
-      result.Add("SpawnPlacement (South)", occupiedRect == vehicle.OccupiedRect());
-      result.Add("SpawnPlacement (Position)",
-        (vehicle.Position - root).LengthHorizontalSquared <= 2);
+        vehicle.DeSpawn();
+        Assert.IsFalse(vehicle.Spawned);
+        Assert.IsFalse(vehicle.Destroyed);
+        Assert.IsFalse(vehicle.Discarded);
 
-      vehicle.DeSpawn();
+        // West
+        occupiedRect = GenAdj.OccupiedRect(root, Rot4.West, size);
+        GenSpawn.Spawn(vehicle, root, map, Rot4.West);
+        Expect.IsTrue("West OccupiedRect", occupiedRect == vehicle.OccupiedRect());
+        Expect.IsTrue("West Position", vehicle.Position == root);
 
-      // West
-      occupiedRect = GenAdj.OccupiedRect(root, Rot4.West, size);
-      GenSpawn.Spawn(vehicle, root, TestMap, Rot4.West);
-      result.Add("SpawnPlacement (West)", occupiedRect == vehicle.OccupiedRect());
-      result.Add("SpawnPlacement (Position)",
-        (vehicle.Position - root).LengthHorizontalSquared <= 2);
-
-      // Vehicle will get destroyed from parent, we can just pass it off
-      return result;
+        vehicle.Destroy();
+        Assert.IsFalse(vehicle.Spawned);
+        Assert.IsTrue(vehicle.Destroyed);
+      }
     }
   }
 }

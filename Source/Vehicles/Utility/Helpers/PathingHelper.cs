@@ -14,31 +14,32 @@ using Verse.AI.Group;
 
 namespace Vehicles
 {
+  [StaticConstructorOnStartup]
   public static class PathingHelper
   {
-    public const string AllowTerrainWithTag = "PassableVehicles";
-    public const string DisallowTerrainWithTag = "ImpassableVehicles";
+    private const string AllowTerrainWithTag = "PassableVehicles";
+    private const string DisallowTerrainWithTag = "ImpassableVehicles";
 
     internal static readonly Dictionary<ThingDef, List<VehicleDef>> regionEffectors = [];
 
     /// <summary>
-    /// VehicleDef , &lt;TerrainDef Tag,pathCost&gt;
+    /// VehicleDef, (TerrainDef, pathCost)
     /// </summary>
-    public static readonly Dictionary<string, Dictionary<string, int>> allTerrainCostsByTag =
-      new Dictionary<string, Dictionary<string, int>>();
+    public static readonly Dictionary<string, Dictionary<string, int>> allTerrainCostsByTag = [];
+
+    internal static AccessTools.FieldRef<RegionAndRoomUpdater, bool> regionAndRoomUpdaterWorking;
+
+    static PathingHelper()
+    {
+      regionAndRoomUpdaterWorking =
+        AccessTools.FieldRefAccess<bool>(typeof(RegionAndRoomUpdater), "working");
+    }
 
     public static bool IsRegionEffector(VehicleDef vehicleDef, ThingDef thingDef)
     {
       return regionEffectors.TryGetValue(thingDef, out List<VehicleDef> vehicleDefs) &&
         vehicleDefs.Contains(vehicleDef);
     }
-
-    /// <summary>
-    /// Quick retrieval of region updating status
-    /// </summary>
-    /// <param name="map"></param>
-    public static bool RegionWorking(Map map) => (bool)AccessTools
-     .Field(typeof(RegionAndRoomUpdater), "working").GetValue(map.regionAndRoomUpdater);
 
     public static bool ShouldCreateRegions(VehicleDef vehicleDef)
     {
@@ -47,6 +48,38 @@ namespace Vehicles
         VehiclePermissions.NotAllowed;
     }
 
+#region Raiders
+
+    public static Thing FirstBlockingBuilding(VehiclePawn vehicle, PawnPath path)
+    {
+      if (!path.Found)
+      {
+        return null;
+      }
+      List<IntVec3> nodesReversed = path.NodesReversed;
+      if (nodesReversed.Count == 1)
+      {
+        return null;
+      }
+      VehicleDef vehicleDef = vehicle.VehicleDef;
+      // -2 since we don't care about vehicle's starting position
+      for (int i = nodesReversed.Count - 2; i >= 0; i--)
+      {
+        Building edifice = nodesReversed[i].GetEdifice(vehicle.Map);
+        if (edifice != null)
+        {
+          bool fenceBlocked = edifice.def.IsFence && !vehicleDef.race.CanPassFences;
+          if (fenceBlocked || IsRegionEffector(vehicleDef, edifice.def))
+          {
+            return edifice;
+          }
+        }
+      }
+      return null;
+    }
+
+#endregion Raiders
+
     public static bool TryGetStandableCell(VehiclePawn vehicle, IntVec3 cell)
     {
       int num = GenRadial.NumCellsInRadius(2.9f);
@@ -54,7 +87,7 @@ namespace Vehicles
       for (int i = 0; i < num; i++)
       {
         curLoc = GenRadial.RadialPattern[i] + cell;
-        if (GenGridVehicles.Standable(curLoc, vehicle, vehicle.Map) &&
+        if (curLoc.Standable(vehicle, vehicle.Map) &&
           (!VehicleMod.settings.main.fullVehiclePathing || vehicle.DrivableRectOnCell(curLoc)))
         {
           if (curLoc == vehicle.Position || vehicle.beached)
@@ -566,7 +599,7 @@ namespace Vehicles
 
       if (vehicle.Spawned)
       {
-        vehicle.DeSpawn(DestroyMode.Vanish);
+        vehicle.DeSpawn();
       }
 
       vehicle.inventory.UnloadEverything = false;

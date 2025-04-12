@@ -320,8 +320,7 @@ namespace Vehicles
       this.vehicle = vehicle;
       this.target = target;
       this.validator = validator;
-      range = vehicle.CompVehicleTurrets.MaxRange *
-        vehicle.VehicleDef.npcProperties.targetPositionRadiusPercent;
+      range = vehicle.CompVehicleTurrets.OptimalDistance;
     }
 
     public CastPositionRequest(VehiclePawn vehicle, LocalTargetInfo target,
@@ -353,12 +352,12 @@ namespace Vehicles
 
     public bool HasThing => target.HasThing;
 
-    public static CastPositionRequest For(VehiclePawn vehicle)
+    public static CastPositionRequest For(VehiclePawn vehicle, Thing target)
     {
       VehicleNPCProperties npcProps = vehicle.VehicleDef.npcProperties;
-      return new CastPositionRequest(vehicle, vehicle.mindState.enemyTarget, vehicle.Position,
+      return new CastPositionRequest(vehicle, target, vehicle.Position,
         npcProps.targetAcquireRadius,
-        vehicle.CompVehicleTurrets.MaxRange * npcProps.targetPositionRadiusPercent,
+        vehicle.CompVehicleTurrets.OptimalDistance,
         npcProps.targetAcquireRadius);
     }
   }

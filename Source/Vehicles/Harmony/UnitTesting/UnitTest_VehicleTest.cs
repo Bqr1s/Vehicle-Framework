@@ -1,16 +1,12 @@
-﻿using SmashTools.UnitTesting;
+﻿using DevTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing;
 
-internal abstract class UnitTest_VehicleTest : UnitTest
+internal abstract class UnitTest_VehicleTest
 {
-  public override void CleanUp()
-  {
-    EmptyWorldAndMapOfVehicles();
-  }
-
-  private static void EmptyWorldAndMapOfVehicles()
+  [CleanUp, ExecutionPriority(Priority.Last)]
+  private void EmptyWorldAndMapOfVehicles()
   {
     foreach (Pawn pawn in Find.World.worldPawns.AllPawnsAliveOrDead)
     {

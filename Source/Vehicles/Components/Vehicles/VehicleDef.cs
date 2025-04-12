@@ -1,18 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using UnityEngine;
-using HarmonyLib;
-using Verse;
-using RimWorld;
-using RimWorld.Planet;
-using SmashTools;
-using static Vehicles.VehicleUpgrade;
 using System.Text;
+using JetBrains.Annotations;
+using RimWorld;
+using SmashTools;
+using UnityEngine;
+using Verse;
+using static Vehicles.VehicleUpgrade;
 
 namespace Vehicles
 {
+  [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
   public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget, ITweakFields
   {
     [PostToSettings]
@@ -273,6 +272,8 @@ namespace Vehicles
       });
 
       base.PostLoad();
+
+      npcProperties ??= new VehicleNPCProperties();
     }
 
     /// <summary>
@@ -587,10 +588,6 @@ namespace Vehicles
       }
     }
 
-    /// <summary>
-    /// Retrieve all <see cref="VehicleStatCategoryDef"/>'s for this VehicleDef
-    /// </summary>
-    /// <returns></returns>
     public IEnumerable<VehicleStatDef> StatCategoryDefs()
     {
       yield return VehicleStatDefOf.BodyIntegrity;
@@ -606,9 +603,12 @@ namespace Vehicles
         yield return statModifier.statDef;
       }
 
-      foreach (VehicleCompProperties props in comps.Where(c => c is VehicleCompProperties))
+      foreach (CompProperties props in comps)
       {
-        foreach (VehicleStatDef statCategoryDef in props.StatCategoryDefs())
+        if (props is not VehicleCompProperties vehicleCompProps)
+          continue;
+
+        foreach (VehicleStatDef statCategoryDef in vehicleCompProps.StatCategoryDefs())
         {
           yield return statCategoryDef;
         }
@@ -618,8 +618,6 @@ namespace Vehicles
     /// <summary>
     /// Better performant CompProperties retrieval for VehicleDefs
     /// </summary>
-    /// <remarks>Can only be called after all references have been resolved. If a CompProperties is needed beforehand, use <see cref="GetCompProperties{T}"/></remarks>
-    /// <typeparam name="T"></typeparam>
     public T GetSortedCompProperties<T>() where T : CompProperties
     {
       for (int i = 0; i < cachedComps.Count; i++)
@@ -630,8 +628,7 @@ namespace Vehicles
           return t;
         }
       }
-
-      return default;
+      return null;
     }
   }
 }

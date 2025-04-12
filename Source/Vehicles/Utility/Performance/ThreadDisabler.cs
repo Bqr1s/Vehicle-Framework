@@ -13,7 +13,7 @@ namespace Vehicles
   /// so that further actions are executed synchronously rather than getting enqueued to
   /// the dedicated thread.
   /// </summary>
-  public readonly struct ThreadDisabler : IDisposable
+  public class ThreadDisabler : IDisposable
   {
     // True = thread was active before disabling
     private readonly Dictionary<Map, bool> threadStates = [];
@@ -34,7 +34,7 @@ namespace Vehicles
       }
     }
 
-    void IDisposable.Dispose()
+    public void Dispose()
     {
       // Need to dispose from main thread, Find.Maps is not thread safe
       Assert.IsTrue(ThreadManager.InMainOrEventThread);

@@ -1,95 +1,92 @@
-﻿using SmashTools;
-using SmashTools.UnitTesting;
+﻿using DevTools;
+using DevTools.UnitTesting;
+using SmashTools;
 using UnityEngine;
 using Verse;
 using Verse.AI;
 
 namespace Vehicles.Testing
 {
+  [UnitTest(TestType.Playing)]
   internal class UnitTest_PathGrid : UnitTest_MapTest
   {
-    public override string Name => "PathGrid";
-
-    protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
+    [Test]
+    private void PathGrid()
     {
-      int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
+      foreach (VehiclePawn vehicle in vehicles)
+      {
+        using VehicleTestCase vtc = new(vehicle, this);
 
-      UTResult result = new();
-      IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
-      VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
-      TerrainDef terrainDef = TestMap.terrainGrid.TerrainAt(root);
+        int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
 
-      VehiclePathGrid pathGrid = pathData.VehiclePathGrid;
-      GenSpawn.Spawn(vehicle, root, TestMap);
-      result.Add($"VehiclePathGrid_{vehicle.def} Spawned", vehicle.Spawned);
+        IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
+        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+        VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
+        TerrainDef terrainDef = map.terrainGrid.TerrainAt(root);
 
-      HitboxTester<int> positionTester = new(vehicle, root,
-        (cell) => pathGrid.CalculatedCostAt(cell),
-        (cost) => cost == VehiclePathGrid.TerrainCostAt(vehicle.VehicleDef, terrainDef));
-      positionTester.Start();
+        VehiclePathGrid pathGrid = pathData.VehiclePathGrid;
+        GenSpawn.Spawn(vehicle, root, map);
+        Assert.IsTrue(vehicle.Spawned);
 
-      // Spawn
-      bool success = positionTester.All(true);
-      result.Add("VehiclePathGrid (Spawn)", success);
+        HitboxTester<int> positionTester = new(vehicle, root,
+          (cell) => pathGrid.CalculatedCostAt(cell),
+          (cost) => cost == VehiclePathGrid.TerrainCostAt(vehicle.VehicleDef, terrainDef));
+        positionTester.Start();
 
-      // set_Position
-      vehicle.Position = reposition;
-      success = positionTester.All(true);
-      vehicle.Position = root;
-      result.Add("VehiclePathGrid (set_Position)", success);
+        // Spawn
+        Expect.IsTrue("VehiclePathGrid (Spawn)", positionTester.All(true));
 
-      // set_Rotation
-      vehicle.Rotation = Rot4.East;
-      success = positionTester.All(true);
-      vehicle.Rotation = Rot4.North;
-      result.Add("VehiclePathGrid (set_Rotation)", success);
+        // set_Position
+        vehicle.Position = reposition;
+        Expect.IsTrue("VehiclePathGrid (set_Position)", positionTester.All(true));
+        vehicle.Position = root;
 
-      // Despawn
-      vehicle.DeSpawn();
-      success = positionTester.All(true);
-      result.Add("VehiclePathGrid (DeSpawn)", success);
+        // set_Rotation
+        vehicle.Rotation = Rot4.East;
+        Expect.IsTrue("VehiclePathGrid (set_Rotation)", positionTester.All(true));
+        vehicle.Rotation = Rot4.North;
 
-      // Vanilla PathGrid costs should take vehicles into account
-      PathGrid vanillaPathGrid = TestMap.pathing.Normal.pathGrid;
-      positionTester = new(vehicle, root,
-        (cell) => vanillaPathGrid.CalculatedCostAt(cell, true, IntVec3.Invalid),
-        (cost) => cost == terrainDef.pathCost ||
-          (cost == PathGrid.ImpassableCost &&
-            terrainDef.passability == Traversability.Impassable));
-      positionTester.Start();
+        // Despawn
+        vehicle.DeSpawn();
+        Expect.IsTrue("VehiclePathGrid (DeSpawn)", positionTester.All(true));
 
-      GenSpawn.Spawn(vehicle, root, TestMap);
-      result.Add($"{vehicle.def.defName} Spawned", vehicle.Spawned);
+        // Vanilla PathGrid costs should take vehicles into account
+        PathGrid vanillaPathGrid = map.pathing.Normal.pathGrid;
+        positionTester = new HitboxTester<int>(vehicle, root,
+          (cell) => vanillaPathGrid.CalculatedCostAt(cell, true, IntVec3.Invalid),
+          (cost) => cost == terrainDef.pathCost ||
+            (cost == Verse.AI.PathGrid.ImpassableCost &&
+              terrainDef.passability == Traversability.Impassable));
+        positionTester.Start();
 
-      // Spawn
-      success = terrainDef.passability == Traversability.Impassable ?
-        positionTester.All(true) :
-        positionTester.Hitbox(false);
-      result.Add("PathGrid (Spawn)", success);
+        GenSpawn.Spawn(vehicle, root, map);
+        Expect.IsTrue($"{vehicle.def.defName} Spawned", vehicle.Spawned);
 
-      // set_Position
-      vehicle.Position = reposition;
-      success = terrainDef.passability == Traversability.Impassable ?
-        positionTester.All(true) :
-        positionTester.Hitbox(false);
-      vehicle.Position = root;
-      result.Add("PathGrid (set_Position)", success);
+        // Spawn
+        Expect.IsTrue("PathGrid (Spawn)", terrainDef.passability == Traversability.Impassable ?
+          positionTester.All(true) :
+          positionTester.Hitbox(false));
 
-      // set_Rotation
-      vehicle.Rotation = Rot4.East;
-      success = terrainDef.passability == Traversability.Impassable ?
-        positionTester.All(true) :
-        positionTester.Hitbox(false);
-      vehicle.Rotation = Rot4.North;
-      result.Add("PathGrid (set_Rotation)", success);
+        // set_Position
+        vehicle.Position = reposition;
+        Expect.IsTrue("PathGrid (set_Position)",
+          terrainDef.passability == Traversability.Impassable ?
+            positionTester.All(true) :
+            positionTester.Hitbox(false));
+        vehicle.Position = root;
 
-      // Despawn
-      vehicle.DeSpawn();
-      success = positionTester.All(true);
-      result.Add("PathGrid (DeSpawn)", success);
+        // set_Rotation
+        vehicle.Rotation = Rot4.East;
+        Expect.IsTrue("PathGrid (set_Rotation)",
+          terrainDef.passability == Traversability.Impassable ?
+            positionTester.All(true) :
+            positionTester.Hitbox(false));
+        vehicle.Rotation = Rot4.North;
 
-      return result;
+        // Despawn
+        vehicle.DeSpawn();
+        Expect.IsTrue("PathGrid (DeSpawn)", positionTester.All(true));
+      }
     }
   }
 }

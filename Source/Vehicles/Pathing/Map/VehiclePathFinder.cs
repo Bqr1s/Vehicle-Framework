@@ -14,9 +14,9 @@ namespace Vehicles
   /// </summary>
   public class VehiclePathFinder : VehicleGridManager
   {
-    public const float RoadCostMultiplier = 0.5f;
-    public const float RoadAvoidalCost = 250;
-    public const float RoadHeuristicWeight = 0.15f;
+    private const float RoadCostMultiplier = 0.5f;
+    private const float RoadAvoidalCost = 250;
+    private const float RoadHeuristicWeight = 0.15f;
 
     private const int NodesToOpenBeforeRegionBasedPathing = 100000;
     public const int DefaultMoveTicksCardinal = 13;
@@ -27,33 +27,33 @@ namespace Vehicles
 
     private const float RootPosWeight = 0.75f;
 
-    private Dictionary<IntVec3, float> postCalculatedCells = [];
+    private readonly Dictionary<IntVec3, float> postCalculatedCells = [];
 
-    private FastPriorityQueue<CostNode> openList;
-    private VehiclePathFinderNodeFast[] calcGrid;
+    private readonly FastPriorityQueue<CostNode> openList;
+    private readonly VehiclePathFinderNodeFast[] calcGrid;
 
     private ushort statusOpenValue = 1;
     private ushort statusClosedValue = 2;
 
-    private int mapSizeX;
-    private int mapSizeZ;
+    private readonly int mapSizeX;
+    private readonly int mapSizeZ;
 
     private VehiclePathGrid vehiclePathGrid;
-    private VehicleRegionCostCalculatorWrapper regionCostCalculator;
+    private readonly VehicleRegionCostCalculatorWrapper regionCostCalculator;
 
     private Area_Road roadGrid;
     private Area_RoadAvoidal roadAvoidalGrid;
-    private EdificeGrid edificeGrid;
-    private BlueprintGrid blueprintGrid;
+    private readonly EdificeGrid edificeGrid;
+    private readonly BlueprintGrid blueprintGrid;
 
-    private CellIndices cellIndices;
-    private List<int> disallowedCornerIndices = new List<int>(4);
+    private readonly CellIndices cellIndices;
+    private readonly List<int> disallowedCornerIndices = new(4);
 
     /// <summary>
     /// 8 directional x,y adjacent offsets
     /// </summary>
-    private static readonly int[] directions = new int[]
-    {
+    private static readonly int[] directions =
+    [
       //x coord
       0, //North
       1, //East
@@ -72,67 +72,31 @@ namespace Vehicles
       1, //SouthEast
       1, //SouthWest
       -1 //NorthWest
-    };
+    ];
 
-    private static readonly SimpleCurve nonRegionBasedHeuristicCurve = new SimpleCurve
-    {
-      {
-        new CurvePoint(50f, 1f),
-        true
-      },
-      {
-        new CurvePoint(120f, 2f),
-        true
-      }
-    };
+    private static readonly SimpleCurve nonRegionBasedHeuristicCurve =
+    [
+      new CurvePoint(50f, 1f),
+      new CurvePoint(120f, 2f)
+    ];
 
-    private static readonly SimpleCurve heuristicWeightByNodesOpened = new SimpleCurve
-    {
-      {
-        new CurvePoint(0, 0),
-        true
-      },
-      {
-        new CurvePoint(25, 0),
-        true
-      },
-      {
-        new CurvePoint(50, 0.5f),
-        true
-      },
-      {
-        new CurvePoint(150, 1f),
-        true
-      },
-    };
+    private static readonly SimpleCurve heuristicWeightByNodesOpened =
+    [
+      new CurvePoint(0, 0),
+      new CurvePoint(25, 0),
+      new CurvePoint(50, 0.5f),
+      new CurvePoint(150, 1f),
+    ];
 
-    private static readonly SimpleCurve regionHeuristicWeightByNodesOpened = new SimpleCurve
-    {
-      {
-        new CurvePoint(0f, 0),
-        true
-      },
-      {
-        new CurvePoint(250, 0),
-        true
-      },
-      {
-        new CurvePoint(3500f, 1f),
-        true
-      },
-      {
-        new CurvePoint(4500f, 5f),
-        true
-      },
-      {
-        new CurvePoint(30000f, 50f),
-        true
-      },
-      {
-        new CurvePoint(100000f, 500f),
-        true
-      }
-    };
+    private static readonly SimpleCurve regionHeuristicWeightByNodesOpened =
+    [
+      new CurvePoint(0f, 0),
+      new CurvePoint(250, 0),
+      new CurvePoint(3500f, 1f),
+      new CurvePoint(4500f, 5f),
+      new CurvePoint(30000f, 50f),
+      new CurvePoint(100000f, 500f),
+    ];
 
     public VehiclePathFinder(VehicleMapping mapping, VehicleDef vehicleDef) : base(mapping,
       vehicleDef)
@@ -222,7 +186,7 @@ namespace Vehicles
       int nodesOpened = 0;
       bool drawPaths = VehicleMod.settings.debug.debugDrawPathfinderSearch;
       bool allowedRegionTraversal = !passAllDestroyableThings &&
-        VehicleRegionAndRoomQuery.RegionAt(start, mapping, createdFor, RegionType.Set_Passable) !=
+        VehicleRegionAndRoomQuery.RegionAt(start, mapping, createdFor) !=
         null && freeTraversal;
       bool weightedHeuristics = false;
       bool drafted = vehicle.Drafted;
@@ -254,13 +218,12 @@ namespace Vehicles
       bool useHPA = VehicleMod.settings.main.hierarchalPathfinding && chunks != null &&
         !chunks.NullOrEmpty();
 
-      //CalculateAndAddDisallowedCorners(traverseParms, peMode, cellRect);
       InitStatusesAndPushStartNode(ref startIndex, start);
       while (openList.Count > 0)
       {
         if (token.IsCancellationRequested)
         {
-          Debug.Message($"Path request cancelled. Exiting...");
+          Debug.Message("Path request cancelled. Exiting...");
           return PawnPath.NotFound;
         }
 
@@ -437,18 +400,7 @@ namespace Vehicles
 
             if (!blueprintGrid.InnerArray[cellIndex].NullOrEmpty())
             {
-              int blueprintCost = 0;
-              foreach (Blueprint blueprint in blueprintGrid.InnerArray[cellIndex])
-              {
-                blueprintCost = Mathf.Max(blueprintCost, GetBlueprintCost(blueprint, vehicle));
-              }
-
-              if (blueprintCost == int.MaxValue)
-              {
-                goto SkipNode;
-              }
-
-              tickCost += blueprintCost;
+              tickCost += 1000;
             }
 
             float calculatedCost = tickCost + calcGrid[startIndex].knownCost;
@@ -554,7 +506,7 @@ namespace Vehicles
       VehiclePawn vehicle = traverseParms.pawn as VehiclePawn;
       if (vehicle is null)
       {
-        Log.Error($"Tried to find Vehicle path for null vehicle.");
+        Log.Error("Tried to find Vehicle path for null vehicle.");
         return false;
       }
       else if (vehicle.Map != mapping.map)
@@ -678,23 +630,6 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Cost to path over blueprint
-    /// </summary>
-    /// <param name="b"></param>
-    /// <param name="pawn"></param>
-    private int GetBlueprintCost(Blueprint blueprint, VehiclePawn vehicle)
-    {
-      if (vehicle != null)
-      {
-        return
-          VehiclePathGrid
-           .ImpassableCost; //blueprint.PathFindCostFor(vehicle) (need implementation for vehicles that should path over blueprints)
-      }
-
-      return 0;
-    }
-
-    /// <summary>
     /// Can path through <paramref name="thing"/> by destroying
     /// </summary>
     /// <param name="thing"></param>
@@ -707,10 +642,6 @@ namespace Vehicles
     /// <summary>
     /// Diagonal movement is blocked
     /// </summary>
-    /// <param name="map"></param>
-    /// <param name="vehicle"></param>
-    /// <param name="x"></param>
-    /// <param name="z"></param>
     public static bool BlocksDiagonalMovement(Map map, VehicleDef vehicleDef, int x, int z)
     {
       return BlocksDiagonalMovement(map, vehicleDef, map.cellIndices.CellToIndex(x, z));
@@ -719,9 +650,6 @@ namespace Vehicles
     /// <summary>
     /// Diagonal movement is blocked
     /// </summary>
-    /// <param name="map"></param>
-    /// <param name="vehicle"></param>
-    /// <param name="index"></param>
     public static bool BlocksDiagonalMovement(Map map, VehicleDef vehicleDef, int index)
     {
       return map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehiclePathGrid
@@ -731,9 +659,6 @@ namespace Vehicles
     /// <summary>
     /// Diagonal movement is blocked
     /// </summary>
-    /// <param name="vehicle"></param>
-    /// <param name="x"></param>
-    /// <param name="z"></param>
     public static bool BlocksDiagonalMovement(VehiclePawn vehicle, int x, int z)
     {
       return BlocksDiagonalMovement(vehicle, vehicle.Map.cellIndices.CellToIndex(x, z));
@@ -904,64 +829,6 @@ namespace Vehicles
         dest.Thing.OccupiedRect();
       result = (peMode == PathEndMode.Touch) ? result.ExpandedBy(1) : result;
       return result;
-    }
-
-    /// <summary>
-    /// Calculate disallowed corners at <paramref name="destinationRect"/>
-    /// </summary>
-    /// <param name="traverseParms"></param>
-    /// <param name="peMode"></param>
-    /// <param name="destinationRect"></param>
-    private void CalculateAndAddDisallowedCorners(TraverseParms traverseParms, PathEndMode peMode,
-      CellRect destinationRect)
-    {
-      disallowedCornerIndices.Clear();
-      if (peMode == PathEndMode.Touch)
-      {
-        int minX = destinationRect.minX;
-        int minZ = destinationRect.minZ;
-        int maxX = destinationRect.maxX;
-        int maxZ = destinationRect.maxZ;
-        //if (!IsCornerTouchAllowed(minX + 1, minZ + 1, minX + 1, minZ, minX, minZ + 1))
-        //{
-        //	disallowedCornerIndices.Add(mapping.map.cellIndices.CellToIndex(minX, minZ));
-        //}
-        //if (!IsCornerTouchAllowed(minX + 1, maxZ - 1, minX + 1, maxZ, minX, maxZ - 1))
-        //{
-        //	disallowedCornerIndices.Add(mapping.map.cellIndices.CellToIndex(minX, maxZ));
-        //}
-        //if (!IsCornerTouchAllowed(maxX - 1, maxZ - 1, maxX - 1, maxZ, maxX, maxZ - 1))
-        //{
-        //	disallowedCornerIndices.Add(mapping.map.cellIndices.CellToIndex(maxX, maxZ));
-        //}
-        //if (!IsCornerTouchAllowed(maxX - 1, minZ + 1, maxX - 1, minZ, maxX, minZ + 1))
-        //{
-        //	disallowedCornerIndices.Add(mapping.map.cellIndices.CellToIndex(maxX, minZ));
-        //}
-      }
-    }
-
-    /// <summary>
-    /// Corner touching is allowed at relevant coordinates
-    /// </summary>
-    /// <param name="cornerX"></param>
-    /// <param name="cornerZ"></param>
-    /// <param name="adjCardinal1X"></param>
-    /// <param name="adjCardinal1Z"></param>
-    /// <param name="adjCardinal2X"></param>
-    /// <param name="adjCardinal2Z"></param>
-    private bool IsCornerTouchAllowed(VehiclePathGrid vehiclePathGrid, int cornerX, int cornerZ,
-      int adjCardinal1X, int adjCardinal1Z, int adjCardinal2X, int adjCardinal2Z)
-    {
-      //Building building = pc.map.edificeGrid[new IntVec3(cornerX, 0, cornerZ)];
-      //if (building != null && TouchPathEndModeUtility.MakesOccupiedCellsAlwaysReachableDiagonally(building.def))
-      //{
-      //	return true;
-      //}
-      //IntVec3 intVec = new IntVec3(adjCardinal1X, 0, adjCardinal1Z);
-      //IntVec3 intVec2 = new IntVec3(adjCardinal2X, 0, adjCardinal2Z);
-      //return (vehiclePathGrid.Walkable(intVec) && intVec.GetDoor(pc.map) == null) || (pc.pathGrid.Walkable(intVec2) && intVec2.GetDoor(pc.map) == null);
-      return false;
     }
 
     /// <summary>

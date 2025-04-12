@@ -22,36 +22,36 @@
     <DebugType>portable</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;RAIDERS;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;RAIDERS;DEV_TOOLS;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <NoWarn>CS0649</NoWarn>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>RELEASE;</DefineConstants>
+    <DefineConstants>TRACE;RELEASE;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <Prefer32Bit>false</Prefer32Bit>
     <NoWarn>CS0649</NoWarn>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unstable|AnyCPU' ">
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;UNSTABLE;RAIDERS</DefineConstants>
-    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;UNSTABLE;RAIDERS;DEV_TOOLS;</DefineConstants>
+    <Optimize>false</Optimize>
     <NoWarn>CS0649</NoWarn>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <LangVersion>preview</LangVersion>
     <ErrorReport>prompt</ErrorReport>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
@@ -119,8 +119,7 @@
     <Compile Include="AI\JobGivers\NPC\JobGiver_RangedSupport.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_CombatFormation.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_SabotageVehicle.cs" />
-    <Compile Include="AI\JobGivers\NPC\JobGiver_VehicleAI.cs" />
-    <Compile Include="AI\JobGivers\NPC\JobGiver_AIBreachWalls.cs" />
+    <Compile Include="AI\JobGivers\NPC\JobGiver_BreachWalls.cs" />
     <Compile Include="AI\Lords\LordToil_PrepareCaravan_GatherAnimalsForVehicles.cs" />
     <Compile Include="AI\ThinkNode\ThinkNode_ConditionalHasTurret.cs" />
     <Compile Include="AI\ThinkNode\ThinkNode_ConditionalVehicleState.cs" />
@@ -243,9 +242,9 @@
     <Compile Include="Harmony\UnitTesting\StartupActions\RaidTesting.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTest_VehicleTest.cs" />
     <Compile Include="Utility\Performance\ThreadEnabler.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTest_MapGridOwners.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_GridOwners.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTest_WorldReachability.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTest_HotReloadDefs.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_HotReload.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTest_MaterialPoolDefs.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTest_MaterialPool.cs" />
     <Compile Include="Harmony\UnitTesting\UnitTest_DeferredGeneration.cs" />
@@ -282,7 +281,6 @@
     <Compile Include="Misc\Enums\UI\WorldPathingDebugType.cs" />
     <Compile Include="Misc\Enums\Vehicle\UpgradeType.cs" />
     <Compile Include="Misc\Enums\Vehicle\VehicleEMPSeverity.cs" />
-    <Compile Include="Misc\Enums\Vehicle\VehicleStrategy.cs" />
     <Compile Include="Misc\Enums\Vehicle\VehicleTracksFriendlyFire.cs" />
     <Compile Include="Misc\Interfaces\IDebugLordMeetingPoint.cs" />
     <Compile Include="Misc\Interfaces\IMaterialCacheTarget.cs" />

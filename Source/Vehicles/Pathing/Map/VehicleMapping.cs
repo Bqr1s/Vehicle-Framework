@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
 using DevTools;
+using DevTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.UnitTesting;
 using SmashTools.Performance;
 using Verse;
 
@@ -148,8 +148,10 @@ public sealed class VehicleMapping : MapComponent
     // Unit tests need all grids generated before execution. Dedicated thread would also be
     // getting suspended sporadically during unit testing so using deferred grid generation would
     // lead to inconsistent results.
+#if DEV_TOOLS
     if (UnitTestManager.RunningUnitTests)
       deferment = GridDeferment.Forced;
+#endif
 
     switch (deferment)
     {

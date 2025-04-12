@@ -1,21 +1,16 @@
-﻿using System.Collections.Generic;
-using DevTools;
+﻿using DevTools;
+using DevTools.UnitTesting;
 using SmashTools;
 using SmashTools.Performance;
-using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
-  internal class UnitTest_MapDeinit : UnitTest
+  [UnitTest(TestType.Playing)]
+  internal class UnitTest_MapDeinit
   {
-    public override TestType ExecuteOn => TestType.Playing;
-
-    public override ExecutionPriority Priority => ExecutionPriority.Last;
-
-    public override string Name => "Map Deinit";
-
-    public override IEnumerable<UTResult> Execute()
+    [Test]
+    private void ReleaseThreads()
     {
       Assert.IsNotNull(Current.Game);
       Assert.IsNotNull(Find.CurrentMap);
@@ -29,11 +24,11 @@ namespace Vehicles.Testing
       ThreadManager.CreateNew();
 
       // Threads have been registered in thread manager.
-      yield return UTResult.For("Threads Created", !ThreadManager.AllThreadsTerminated);
+      Expect.IsFalse("Created", ThreadManager.AllThreadsTerminated);
 
       // Validate all threads terminate and Thread::Join wait handles don't time out.
       ThreadManager.ReleaseThreadsAndClearCache();
-      yield return UTResult.For("Threads Terminated", ThreadManager.AllThreadsTerminated);
+      Expect.IsTrue("Terminated", ThreadManager.AllThreadsTerminated);
     }
   }
 }

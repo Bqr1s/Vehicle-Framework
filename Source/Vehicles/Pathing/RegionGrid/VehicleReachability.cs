@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
@@ -185,10 +186,9 @@ namespace Vehicles
       if ((peMode == PathEndMode.OnCell || peMode == PathEndMode.Touch ||
           peMode == PathEndMode.ClosestTouch) && freeTraversal)
       {
-        VehicleRoom room = VehicleRegionAndRoomQuery.RoomAtFast(start, mapping.map, createdFor,
-          RegionType.Set_Passable);
-        if (room != null && room == VehicleRegionAndRoomQuery.RoomAtFast(dest.Cell, mapping.map,
-          createdFor, RegionType.Set_Passable))
+        VehicleRoom room = VehicleRegionAndRoomQuery.RoomAtFast(start, mapping.map, createdFor);
+        if (room != null &&
+          room == VehicleRegionAndRoomQuery.RoomAtFast(dest.Cell, mapping.map, createdFor))
         {
           return true;
         }
@@ -196,15 +196,16 @@ namespace Vehicles
 
       if (traverseParms.mode == TraverseMode.PassAllDestroyableThings)
       {
-        TraverseParms traverseParms2 = traverseParms;
-        traverseParms.mode = TraverseMode.PassDoors;
-        if (CanReachVehicle(start, dest, peMode, traverseParms2))
+        // NOTE - I don't know if I'll ever enable door-capabilities for vehicles but right now the
+        // region type will never be Portal so this is essentially just TraverseMode.ByPawn. Keeping
+        // TraverseMode.PassDoors to retain what would be a vanilla entry point for door reachability.
+        if (CanReachVehicle(start, dest, peMode,
+          traverseParms with { mode = TraverseMode.PassDoors }))
         {
           return true;
         }
       }
 
-      //Try to use parms vehicle if possible for pathgrid check
       dest = (LocalTargetInfo)GenPathVehicles.ResolvePathMode(vehicleDef, mapping.map,
         dest.ToTargetInfo(mapping.map), ref peMode);
       CalculatingReachability = true;
@@ -214,8 +215,7 @@ namespace Vehicles
         destRegions.Clear();
         if (peMode == PathEndMode.OnCell)
         {
-          VehicleRegion region = VehicleRegionAndRoomQuery.RegionAt(dest.Cell, mapping, createdFor,
-            RegionType.Set_Passable);
+          VehicleRegion region = VehicleRegionAndRoomQuery.RegionAt(dest.Cell, mapping, createdFor);
           if (region != null && region.Allows(traverseParms, true))
           {
             destRegions.Add(region);
@@ -248,8 +248,17 @@ namespace Vehicles
         if (startingRegions.Any() && destRegions.Any() && CanUseCache(traverseParms.mode))
         {
           BoolUnknown cachedResult = GetCachedResult(traverseParms);
-          if (cachedResult == BoolUnknown.True) return true;
-          if (cachedResult == BoolUnknown.False) return false;
+          switch (cachedResult)
+          {
+            case BoolUnknown.True:
+              return true;
+            case BoolUnknown.False:
+              return false;
+            case BoolUnknown.Unknown:
+              break;
+            default:
+              throw new NotImplementedException(nameof(BoolUnknown));
+          }
         }
 
         if (traverseParms.mode == TraverseMode.PassAllDestroyableThings ||

@@ -1,51 +1,49 @@
-﻿using SmashTools;
-using SmashTools.UnitTesting;
+﻿using DevTools.UnitTesting;
+using SmashTools;
 using UnityEngine;
 using Verse;
 
 namespace Vehicles.Testing
 {
+  [UnitTest(TestType.Playing)]
   internal class UnitTest_PositionManager : UnitTest_MapTest
   {
-    public override string Name => "PositionManager";
-
-    protected override UTResult TestVehicle(VehiclePawn vehicle, IntVec3 root)
+    [Test]
+    private void Registration()
     {
-      int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
+      foreach (VehiclePawn vehicle in vehicles)
+      {
+        using VehicleTestCase vtc = new(vehicle, this);
 
-      UTResult result = new();
-      IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
-      VehicleMapping mapping = TestMap.GetCachedMapComponent<VehicleMapping>();
+        int maxSize = Mathf.Max(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z);
 
-      VehiclePositionManager positionManager =
-        TestMap.GetCachedMapComponent<VehiclePositionManager>();
-      GenSpawn.Spawn(vehicle, root, TestMap);
-      HitboxTester<VehiclePawn> positionTester = new(vehicle, root,
-        positionManager.ClaimedBy,
-        (claimant) => claimant == vehicle);
-      positionTester.Start();
+        IntVec3 reposition = root + new IntVec3(maxSize, 0, 0);
 
-      // Validate spawned vehicle claims rect in position manager
-      bool success = positionTester.Hitbox(true);
-      result.Add("Position Manager (Spawn)", success);
+        VehiclePositionManager positionManager =
+          map.GetCachedMapComponent<VehiclePositionManager>();
+        GenSpawn.Spawn(vehicle, root, map);
+        HitboxTester<VehiclePawn> positionTester = new(vehicle, root,
+          positionManager.ClaimedBy,
+          (claimant) => claimant == vehicle);
+        positionTester.Start();
 
-      // Validate position set updates valid claims
-      vehicle.Position = reposition;
-      success = positionTester.Hitbox(true);
-      vehicle.Position = root;
-      result.Add("Position Manager (set_Position)", success);
+        // Validate spawned vehicle claims rect in position manager
+        Expect.IsTrue("Position Manager (Spawn)", positionTester.Hitbox(true));
 
-      // Validate rotation set updates valid claims
-      vehicle.Rotation = Rot4.East;
-      success = positionTester.Hitbox(true);
-      vehicle.Rotation = Rot4.North;
-      result.Add("Position Manager (set_Rotation)", success);
+        // Validate position set updates valid claims
+        vehicle.Position = reposition;
+        Expect.IsTrue("Position Manager (set_Position)", positionTester.Hitbox(true));
+        vehicle.Position = root;
 
-      // Validate despawning releases claim in position manager
-      vehicle.DeSpawn();
-      success = positionTester.All(false);
-      result.Add("Position Manager (DeSpawn)", success);
-      return result;
+        // Validate rotation set updates valid claims
+        vehicle.Rotation = Rot4.East;
+        Expect.IsTrue("Position Manager (set_Rotation)", positionTester.Hitbox(true));
+        vehicle.Rotation = Rot4.North;
+
+        // Validate despawning releases claim in position manager
+        vehicle.DeSpawn();
+        Expect.IsTrue("Position Manager (DeSpawn)", positionTester.All(false));
+      }
     }
   }
 }

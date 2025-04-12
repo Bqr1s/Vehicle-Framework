@@ -298,13 +298,6 @@ public class Section_Debug : SettingsSection
         WorldPathingDebugMenu();
       }
 
-#if DEBUG || UNIT_TESTING
-      if (listingStandard.ButtonText("Unit Tests"))
-      {
-        UnitTestManager.ShowMenu();
-      }
-#endif
-
 #if DEBUG
       if (listingStandard.ButtonText("Profiling"))
       {

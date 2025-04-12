@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using DevTools.UnitTesting;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
-using SmashTools.UnitTesting;
 using UpdateLogTool;
 using Verse;
 
@@ -74,11 +74,11 @@ internal static class VehicleHarmony
 
     Utilities.InvokeWithLogging(RegisterVehicleAreas);
 
-#if DEBUG || UNIT_TESTING
+    DebugProperties.Init();
+
+#if DEV_TOOLS
     UnitTestManager.OnUnitTestStateChange += SuppressDebugLogging;
 #endif
-
-    DebugProperties.Init();
   }
 
   private static void RunAllPatches()

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using DevTools;
+using DevTools.UnitTesting;
 using LudeonTK;
 using RimWorld;
 using SmashTools;
@@ -237,8 +238,10 @@ public class DeferredGridGeneration
     if (pathData.Suspended)
       return;
 
+#if DEV_TOOLS
     Assert.IsTrue(UnitTestManager.RunningUnitTests,
       "Failed to release region grid from path grid ownership transfer outside of unit test scenario.");
+#endif
     pathData.VehicleRegionAndRoomUpdater.Release();
 
 #if DEBUG

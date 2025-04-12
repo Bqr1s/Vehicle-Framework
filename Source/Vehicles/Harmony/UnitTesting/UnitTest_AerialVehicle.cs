@@ -1,132 +1,138 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using DevTools;
+using DevTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.UnitTesting;
 using Verse;
 
 namespace Vehicles.Testing
 {
+  [UnitTest(TestType.Playing)]
   internal class UnitTest_AerialVehicle : UnitTest_VehicleTest
   {
-    public override TestType ExecuteOn => TestType.Playing;
+    private readonly List<AerialVehicleInFlight> aerialVehicles = [];
 
-    public override string Name => "AerialVehicle";
-
-    public override IEnumerable<UTResult> Execute()
+    [Prepare]
+    private void GenerateVehicles()
     {
       World world = Find.World;
       Assert.IsNotNull(world);
       Map map = Find.CurrentMap;
       Assert.IsNotNull(map);
 
+      aerialVehicles.Clear();
+
       foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
       {
         if (vehicleDef.vehicleType != VehicleType.Air) continue;
         if (!vehicleDef.properties.roles.NotNullAndAny(role => role.SlotsToOperate > 0)) continue;
 
-        // TODO - Add material pool watcher, and material pool unit tests
         VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);
         AerialVehicleInFlight aerialVehicle = AerialVehicleInFlight.Create(vehicle, map.Tile);
-
-        yield return TestAerialVehicleInit(aerialVehicle);
-        yield return TestAerialVehicleGC(aerialVehicle);
-
-        vehicle.Destroy();
-        aerialVehicle.Destroy();
-        Find.WorldPawns.RemoveAndDiscardPawnViaGC(vehicle);
+        aerialVehicles.Add(aerialVehicle);
       }
     }
 
-    private UTResult TestAerialVehicleInit(AerialVehicleInFlight aerialVehicle)
+    [Test, ExecutionPriority(Priority.First)]
+    private void AerialVehicleInit()
     {
-      UTResult result = new("AerialVehicle Init");
+      foreach (AerialVehicleInFlight aerialVehicle in aerialVehicles)
+      {
+        using Test.Group group = new(aerialVehicle.vehicle.def.defName);
+        VehiclePawn vehicle = aerialVehicle.vehicle;
+        Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
+        Assert.IsNotNull(colonist);
+        Assert.IsTrue(colonist.Faction == Faction.OfPlayer);
+        Pawn animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Alphabeaver, Faction.OfPlayer);
+        Assert.IsNotNull(animal);
+        Assert.IsTrue(animal.Faction == Faction.OfPlayer);
 
-      VehiclePawn vehicle = aerialVehicle.vehicle;
-      Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
-      Assert.IsTrue(colonist != null && colonist.Faction == Faction.OfPlayer,
-        "Unable to generate colonist");
-      Pawn animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Alphabeaver, Faction.OfPlayer);
-      Assert.IsTrue(animal != null && animal.Faction == Faction.OfPlayer, "Unable to generate pet");
-
-      VehicleHandler handler = vehicle.handlers.FirstOrDefault();
-      Assert.IsNotNull(handler, "Testing with aerial vehicle which has no roles");
-      result.Add("AerailVehicle (Add Pawn)", vehicle.TryAddPawn(colonist, handler));
-      result.Add("AerialVehicle (Add Pet)", vehicle.inventory.innerContainer
-       .TryAddOrTransfer(animal, canMergeWithExistingStacks: false));
-      result.Add("AerialVehicle (Vehicle Destroyed)", !vehicle.Destroyed);
-      result.Add("AerialVehicle (Vehicle Discarded)", !vehicle.Discarded);
-
-      return result;
+        VehicleHandler handler = vehicle.handlers.FirstOrDefault();
+        Assert.IsNotNull(handler, "Testing with aerial vehicle which has no roles");
+        Expect.IsTrue("AerailVehicle (Add Pawn)", vehicle.TryAddPawn(colonist, handler));
+        Expect.IsTrue("AerialVehicle (Add Pet)", vehicle.inventory.innerContainer
+         .TryAddOrTransfer(animal, canMergeWithExistingStacks: false));
+        Expect.IsFalse("AerialVehicle (Vehicle Destroyed)", vehicle.Destroyed);
+        Expect.IsFalse("AerialVehicle (Vehicle Discarded)", vehicle.Discarded);
+      }
     }
 
-    private UTResult TestAerialVehicleGC(AerialVehicleInFlight aerialVehicle)
+    [Test]
+    private void AerialVehicleGC()
     {
-      UTResult result = new("AerialVehicle WorldPawnGC", onFail: Find.WorldPawns.gc.LogGC);
-
-      VehiclePawn vehicle = aerialVehicle.vehicle;
-
-      // Pass vehicle and passengers to world
-      Find.WorldPawns.PassToWorld(vehicle);
-      foreach (Pawn pawn in vehicle.AllPawnsAboard)
+      foreach (AerialVehicleInFlight aerialVehicle in aerialVehicles)
       {
-        result.Add("AerialVehicle (Pawn Destroyed)", !pawn.Destroyed);
-        result.Add("AerialVehicle (Pawn Discarded)", !pawn.Discarded);
-        if (!pawn.IsWorldPawn())
+        using Test.Group group = new(aerialVehicle.vehicle.def.defName);
+
+        VehiclePawn vehicle = aerialVehicle.vehicle;
+
+        // Pass vehicle and passengers to world
+        Find.WorldPawns.PassToWorld(vehicle);
+        foreach (Pawn pawn in vehicle.AllPawnsAboard)
         {
-          Find.WorldPawns.PassToWorld(pawn);
+          Expect.IsFalse("AerialVehicle (Pawn Destroyed)", pawn.Destroyed);
+          Expect.IsFalse("AerialVehicle (Pawn Discarded)", pawn.Discarded);
+          if (!pawn.IsWorldPawn())
+          {
+            Find.WorldPawns.PassToWorld(pawn);
+          }
         }
-      }
-      // Pass inventory pawns to world
-      foreach (Thing thing in vehicle.inventory.innerContainer)
-      {
-        if (thing is Pawn pawn && !pawn.IsWorldPawn())
+        // Pass inventory pawns to world
+        foreach (Thing thing in vehicle.inventory.innerContainer)
         {
-          result.Add("AerialVehicle (InvPawn Destroyed)", !pawn.Destroyed);
-          result.Add("AerialVehicle (InvPawn Discarded)", !pawn.Discarded);
-          Find.WorldPawns.PassToWorld(pawn);
+          if (thing is Pawn pawn && !pawn.IsWorldPawn())
+          {
+            Expect.IsFalse("AerialVehicle (InvPawn Destroyed)", pawn.Destroyed);
+            Expect.IsFalse("AerialVehicle (InvPawn Discarded)", pawn.Discarded);
+            Find.WorldPawns.PassToWorld(pawn);
+          }
         }
+        Expect.IsTrue("AerialVehicle (ParentHolder)",
+          vehicle.ParentHolder is AerialVehicleInFlight aerialWorldObject &&
+          aerialWorldObject == aerialVehicle);
+
+        Expect.IsTrue("AerialVehicle (Pawn ParentHolder)",
+          vehicle.AllPawnsAboard.All(pawn => ThingInVehicle(vehicle, pawn)));
+        Expect.IsTrue("AerialVehicle (Thing ParentHolder)",
+          vehicle.inventory.innerContainer.All(pawn => ThingInVehicle(vehicle, pawn)));
+
+        Find.WorldPawns.gc.CancelGCPass();
+        _ = Find.WorldPawns.gc.PawnGCPass();
+
+        Find.WorldPawns.gc.PawnGCDebugResults();
+        Expect.IsFalse("AerialVehicle (Vehicle GC Destroyed)", vehicle.Destroyed);
+        Expect.IsFalse("AerialVehicle (Vehicle GC Discarded)", vehicle.Discarded);
+        Expect.IsTrue("AerialVehicle (Pawn GC Destroyed)",
+          vehicle.AllPawnsAboard.All(pawn => !pawn.Destroyed));
+        Expect.IsTrue("AerialVehicle (Pawn GC Discarded)",
+          vehicle.AllPawnsAboard.All(pawn => !pawn.Discarded));
+        Expect.IsTrue("AerialVehicle (Thing GC Destroyed)",
+          vehicle.inventory.innerContainer.All(thing => !thing.Destroyed));
+        Expect.IsTrue("AerialVehicle (Thing GC Discarded)",
+          vehicle.inventory.innerContainer.All(thing => !thing.Discarded));
       }
-      result.Add("AerialVehicle (ParentHolder)",
-        vehicle.ParentHolder is AerialVehicleInFlight aerialWorldObject &&
-        aerialWorldObject == aerialVehicle);
+      return;
 
-      result.Add("AerialVehicle (Pawn ParentHolder)", vehicle.AllPawnsAboard.All(PawnInVehicle));
-      result.Add("AerialVehicle (Thing ParentHolder)",
-        vehicle.inventory.innerContainer.All(ThingInVehicle));
-
-      Find.WorldPawns.gc.CancelGCPass();
-      _ = Find.WorldPawns.gc.PawnGCPass();
-
-      Find.WorldPawns.gc.PawnGCDebugResults();
-      result.Add("AerialVehicle (Vehicle GC Destroyed)", !vehicle.Destroyed);
-      result.Add("AerialVehicle (Vehicle GC Discarded)", !vehicle.Discarded);
-      result.Add("AerialVehicle (Pawn GC Destroyed)",
-        vehicle.AllPawnsAboard.All(pawn => !pawn.Destroyed));
-      result.Add("AerialVehicle (Pawn GC Discarded)",
-        vehicle.AllPawnsAboard.All(pawn => !pawn.Discarded));
-      result.Add("AerialVehicle (Thing GC Destroyed)",
-        vehicle.inventory.innerContainer.All(thing => !thing.Destroyed));
-      result.Add("AerialVehicle (Thing GC Discarded)",
-        vehicle.inventory.innerContainer.All(thing => !thing.Discarded));
-
-      return result;
-
-      bool PawnInVehicle(Pawn pawn)
-      {
-        return pawn.GetVehicle() == vehicle;
-      }
-
-      bool ThingInVehicle(Thing thing)
+      static bool ThingInVehicle(VehiclePawn vehicle, Thing thing)
       {
         if (thing is Pawn pawn)
         {
           return pawn.ParentHolder is Pawn_InventoryTracker inventoryTracker &&
             inventoryTracker.pawn == vehicle;
         }
-        return thing.ParentHolder == vehicle.inventory.innerContainer;
+        // ReSharper disable PossibleUnintendedReferenceComparison
+        return thing.ParentHolder == vehicle.inventory;
+      }
+    }
+
+    [CleanUp, ExecutionPriority(Priority.AboveNormal)]
+    private void DestroyAll()
+    {
+      foreach (AerialVehicleInFlight aerialVehicle in aerialVehicles)
+      {
+        aerialVehicle.Destroy();
       }
     }
   }

@@ -74,6 +74,15 @@ namespace Vehicles
       }
     }
 
+    public float OptimalDistance
+    {
+      get
+      {
+        // TODO - set max range based on explosive / breach turrets
+        return MaxRange * Vehicle.VehicleDef.npcProperties.targetPositionRadiusPercent;
+      }
+    }
+
     public void FlagAllTurretsForAlignment()
     {
       foreach (VehicleTurret turret in turrets)

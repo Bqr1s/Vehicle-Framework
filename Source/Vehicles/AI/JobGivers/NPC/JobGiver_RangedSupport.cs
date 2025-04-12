@@ -9,7 +9,8 @@ namespace Vehicles
   {
     protected override bool TryFindCombatPosition(VehiclePawn vehicle, out IntVec3 dest)
     {
-      return CombatPositionFinder.TryFindCastPosition(CastPositionRequest.For(vehicle), out dest);
+      return CombatPositionFinder.TryFindCastPosition(
+        CastPositionRequest.For(vehicle, vehicle.mindState.enemyTarget), out dest);
     }
 
     protected override void UpdateEnemyTarget(VehiclePawn vehicle)
