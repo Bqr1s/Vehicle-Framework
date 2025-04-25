@@ -84,15 +84,6 @@ namespace Vehicles
       return Ext_Math.RotatePointClockwise(offsetX, offsetY, rot.AsAngle + additionalRotation);
     }
 
-    /// <summary>
-    /// Draw VehicleTurret on vehicle
-    /// </summary>
-    /// <param name="turret"></param>
-    public static void DrawTurret(VehicleTurret turret, Rot8 rot)
-    {
-      DrawTurret(turret, turret.vehicle.DrawPos, rot);
-    }
-
     public static void DrawTurret(VehicleTurret turret, Vector3 drawPos, Rot8 rot)
     {
       try
@@ -103,13 +94,13 @@ namespace Vehicles
         Vector3 parentRecoilOffset = Vector3.zero;
         if (turret.recoilTracker != null && turret.recoilTracker.Recoil > 0f)
         {
-          recoilOffset = Ext_Math.PointFromAngle(Vector3.zero, turret.recoilTracker.Recoil,
-            turret.recoilTracker.Angle);
+          recoilOffset =
+            Vector3.zero.PointFromAngle(turret.recoilTracker.Recoil, turret.recoilTracker.Angle);
         }
         if (turret.attachedTo?.recoilTracker != null && turret.attachedTo.recoilTracker.Recoil > 0f)
         {
-          parentRecoilOffset = Ext_Math.PointFromAngle(Vector3.zero,
-            turret.attachedTo.recoilTracker.Recoil, turret.attachedTo.recoilTracker.Angle);
+          parentRecoilOffset = Vector3.zero.PointFromAngle(turret.attachedTo.recoilTracker.Recoil,
+            turret.attachedTo.recoilTracker.Angle);
         }
         Mesh cannonMesh = turret.CannonGraphic.MeshAt(rot);
         Graphics.DrawMesh(cannonMesh, rootPos + recoilOffset + parentRecoilOffset,
@@ -489,15 +480,15 @@ namespace Vehicles
           {
             Rect turretRect = TurretRect(rect, vehicleDef, turretRef, rot);
             Material material = null;
-            if (turretDrawData.graphic.Shader.SupportsMaskTex())
-            {
-              //material = turretDrawData.graphic.MatAt(Rot8.North);
-            }
-            else if (patternData != null && turretDrawData.graphic.Shader.SupportsRGBMaskTex())
+            if (patternData != null && turretDrawData.graphic.Shader.SupportsRGBMaskTex())
             {
               material = RGBMaterialPool.Get(turretDrawData, Rot8.North);
               RGBMaterialPool.SetProperties(turretDrawData, patternData,
                 turretDrawData.graphic.TexAt, turretDrawData.graphic.MaskAt);
+            }
+            else if (turretDrawData.graphic.Shader.SupportsMaskTex())
+            {
+              material = turretDrawData.graphic.MatAt(Rot8.North);
             }
             yield return new RenderData(turretRect, turretDrawData.graphic.TexAt(Rot8.North),
               material,
@@ -513,15 +504,15 @@ namespace Vehicles
     {
       Rect turretRect = TurretRect(rect, vehicleDef, turret, rot);
       Material material = null;
-      if (turret.CannonGraphic.Shader.SupportsMaskTex())
-      {
-        //material = turret.CannonGraphic.MatAt(Rot8.North);
-      }
-      else if (patternData != null && turret.CannonGraphic.Shader.SupportsRGBMaskTex())
+      if (patternData != null && turret.CannonGraphic.Shader.SupportsRGBMaskTex())
       {
         material = RGBMaterialPool.Get(turret, Rot8.North);
         RGBMaterialPool.SetProperties(turret, patternData, turret.CannonGraphic.TexAt,
           turret.CannonGraphic.MaskAt);
+      }
+      else if (turret.CannonGraphic.Shader.SupportsMaskTex())
+      {
+        material = turret.CannonGraphic.MatAt(Rot8.North);
       }
       return new RenderData(turretRect, turret.CannonTexture, material,
         turret.CannonGraphicData.DrawOffsetFull(rot).y + turret.DrawLayerOffset,

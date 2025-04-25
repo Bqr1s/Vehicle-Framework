@@ -6,21 +6,24 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Animations;
+using SmashTools.Rendering;
 using UnityEngine;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
 using Verse.Sound;
+using Transform = SmashTools.Rendering.Transform;
 
 namespace Vehicles;
 
 /// <summary>
 /// Rendering & Graphics
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public partial class VehiclePawn
 {
   [Unsaved]
-  private VehicleDrawTracker vDrawer;
+  private VehicleDrawTracker drawTracker;
 
   [Unsaved]
   [AnimationProperty]
@@ -29,16 +32,13 @@ public partial class VehiclePawn
   public PatternData patternData;
   private RetextureDef retextureDef;
 
-  private float angle = 0f; // -45 is left, 45 is right : relative to Rot4 direction
-  private bool reverse = false;
+  // -45 is left, 45 is right : relative to Rot4 direction
+  private float angle;
+  private bool reverse;
 
-  [UsedImplicitly]
-  [AnimationProperty(Name = "Position")]
-  private Vector3 position = Vector3.zero;
-
-  [UsedImplicitly]
-  [AnimationProperty(Name = "Rotation")]
-  private float rotation = 0;
+  // Transform relative to map position, excluding tweener offset
+  [AnimationProperty(Name = "Transform")]
+  private readonly Transform transform = new();
 
   public AnimationManager animator;
   private Graphic_Vehicle graphic;
@@ -49,7 +49,7 @@ public partial class VehiclePawn
 
   public float CachedAngle { get; set; }
 
-  private List<VehicleHandler> HandlersWithPawnRenderer { get; set; }
+  private List<VehicleHandler> HandlersWithPawnRenderer { get; set; } = [];
 
   public bool NorthSouthRotation => VehicleGraphic.EastDiagonalRotated &&
     (FullRotation == Rot8.NorthEast ||
@@ -62,7 +62,7 @@ public partial class VehiclePawn
   public bool Nameable => SettingsCache.TryGetValue(VehicleDef, typeof(VehicleDef),
     nameof(VehicleDef.nameable), VehicleDef.nameable);
 
-  public override Vector3 DrawPos => Drawer.DrawPos + position;
+  public override Vector3 DrawPos => DrawTracker.DrawPos + transform.position;
 
   public (Vector3 drawPos, float rotation) DrawData => (DrawPos, Angle);
 
@@ -168,12 +168,15 @@ public partial class VehiclePawn
     }
   }
 
-  public new VehicleDrawTracker Drawer
+  [Obsolete("Vehicles should call DrawTracker instead of the vanilla implementation", true)]
+  public new VehicleDrawTracker Drawer => DrawTracker;
+
+  public VehicleDrawTracker DrawTracker
   {
     get
     {
-      vDrawer ??= new VehicleDrawTracker(this);
-      return vDrawer;
+      drawTracker ??= new VehicleDrawTracker(this);
+      return drawTracker;
     }
   }
 
@@ -237,7 +240,7 @@ public partial class VehiclePawn
   {
     get
     {
-      float movePercent = Drawer.tweener.MovedPercent();
+      float movePercent = DrawTracker.tweener.MovedPercent();
       return GenThing.TrueCenter(Position, Rotation, VehicleDef.Size, VehicleDef.Altitude);
     }
   }
@@ -360,7 +363,7 @@ public partial class VehiclePawn
 
   protected override void DrawAt(Vector3 drawLoc, bool flip = false)
   {
-    DrawAt(new TransformData(drawLoc, FullRotation, rotation));
+    DrawAt(new TransformData(drawLoc, FullRotation, transform.rotation));
   }
 
   public virtual void Draw()
@@ -369,26 +372,17 @@ public partial class VehiclePawn
 
     if (VehicleDef.drawerType == DrawerType.RealtimeOnly)
     {
-      TransformData transform = new(DrawPos, FullRotation, 0);
-      DrawAt(in transform, compDraw: false);
+      TransformData transformData = new(DrawPos, FullRotation, 0);
+      DrawAt(in transformData, compDraw: false);
     }
 
     Comps_PostDraw();
   }
 
-  /// <summary>
-  /// Draw vehicle regardless of spawn status
-  /// </summary>
-  [Obsolete]
-  public virtual void DrawAt(Vector3 drawLoc, Rot8 rot, float extraRotation, bool flip = false,
-    bool compDraw = true)
-  {
-    DrawAt(new TransformData(drawLoc, rot, extraRotation), compDraw: compDraw);
-  }
-
+  // Main draw function
   public virtual void DrawAt(in TransformData transform, bool compDraw = true)
   {
-    Drawer.Draw(in transform);
+    DrawTracker.Draw(in transform);
 
     foreach (VehicleHandler handler in HandlersWithPawnRenderer)
     {
@@ -404,21 +398,6 @@ public partial class VehiclePawn
     {
       // Must be rendered with the vehicle or the field edges will not render quickly enough
       statHandler.DrawHitbox(HighlightedComponent);
-    }
-  }
-
-  [Obsolete]
-  public virtual void Comps_PostDrawUnspawned(Vector3 drawLoc, Rot8 rot, float rotation)
-  {
-    if (AllComps != null)
-    {
-      foreach (ThingComp thingComp in AllComps)
-      {
-        if (thingComp is VehicleComp vehicleComp)
-        {
-          vehicleComp.PostDrawUnspawned(drawLoc, rot, rotation);
-        }
-      }
     }
   }
 
@@ -454,7 +433,7 @@ public partial class VehiclePawn
     {
       if (Current.ProgramState != ProgramState.Playing || viewRect.Contains(Position))
       {
-        Drawer.ProcessPostTickVisuals(ticksPassed);
+        DrawTracker.ProcessPostTickVisuals(ticksPassed);
       }
 
       rotationTracker.ProcessPostTickVisuals(ticksPassed);
@@ -463,12 +442,13 @@ public partial class VehiclePawn
 
   public void ResetRenderStatus()
   {
-    HandlersWithPawnRenderer = handlers.Where(h => h.role.PawnRenderer != null).ToList();
+    HandlersWithPawnRenderer.Clear();
+    HandlersWithPawnRenderer.AddRange(handlers.Where(h => h.role.PawnRenderer != null));
   }
 
   public override void Notify_ColorChanged()
   {
-    ResetGraphicCache();
+    ResetMaterialProperties();
     overlayRenderer.Notify_ColorChanged();
     base.Notify_ColorChanged();
   }
@@ -478,8 +458,7 @@ public partial class VehiclePawn
     graphic = GenerateGraphic();
   }
 
-  //TODO 1.6 - Make private and rename to ResetMaterialProperties
-  internal void ResetGraphicCache()
+  private void ResetMaterialProperties()
   {
     if (UnityData.IsInMainThread)
     {
@@ -607,13 +586,13 @@ public partial class VehiclePawn
 
   public override void DrawGUIOverlay()
   {
-    Drawer.ui.DrawPawnGUIOverlay();
+    // TODO - UI Overlays could still apply to vehicles
   }
 
   public override void DrawExtraSelectionOverlays()
   {
     base.DrawExtraSelectionOverlays();
-    if (vehiclePather.curPath != null && vehiclePather.curPath.NodesLeftCount > 0)
+    if (vehiclePather.curPath is { NodesLeft: > 0 })
     {
       vehiclePather.curPath.DrawPath(this);
     }
@@ -995,7 +974,7 @@ public partial class VehiclePawn
         defaultLabel = "Kill Random Pawn",
         action = delegate()
         {
-          Pawn pawn = AllPawnsAboard.RandomElementWithFallback(null);
+          Pawn pawn = AllPawnsAboard.RandomElementWithFallback();
           pawn?.Kill(null);
         }
       };
@@ -1008,11 +987,13 @@ public partial class VehiclePawn
           {
             IntVec3 prevCell = Position;
             Rot8 rot = FullRotation;
-            HashSet<IntVec3> cellsToHighlight = new HashSet<IntVec3>();
-            foreach (IntVec3 cell in vehiclePather.curPath.NodesReversed)
+            HashSet<IntVec3> cellsToHighlight = [];
+            foreach (IntVec3 cell in vehiclePather.curPath.Nodes)
             {
-              if (prevCell != cell) rot = Rot8.DirectionFromCells(prevCell, cell);
-              if (!rot.IsValid) rot = Rot8.North;
+              if (prevCell != cell)
+                rot = Rot8.DirectionFromCells(prevCell, cell);
+              if (!rot.IsValid)
+                rot = Rot8.North;
               foreach (IntVec3 occupiedCell in this.VehicleRect(cell, rot).Cells)
               {
                 if (occupiedCell.InBounds(Map) && cellsToHighlight.Add(occupiedCell))
@@ -1067,30 +1048,22 @@ public partial class VehiclePawn
   public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Pawn selPawn)
   {
     if (selPawn is null)
-    {
       yield break;
-    }
 
     if (selPawn.Faction != Faction)
-    {
       yield break;
-    }
 
     if (!selPawn.RaceProps.ToolUser)
-    {
       yield break;
-    }
 
-    if (!selPawn.CanReserveAndReach(this, PathEndMode.InteractionCell, Danger.Deadly, 1, -1, null,
-      false))
-    {
+    if (selPawn is VehiclePawn)
       yield break;
-    }
+
+    if (!selPawn.CanReserveAndReach(this, PathEndMode.InteractionCell, Danger.Deadly))
+      yield break;
 
     if (movementStatus is VehicleMovementStatus.Offline)
-    {
       yield break;
-    }
 
     if (!IdeoAllowsBoarding(selPawn))
     {
@@ -1115,12 +1088,12 @@ public partial class VehiclePawn
       {
         VehicleReservationManager reservationManager =
           Map.GetCachedMapComponent<VehicleReservationManager>();
-        FloatMenuOption opt = new FloatMenuOption("VF_EnterVehicle".Translate(LabelShort,
+        FloatMenuOption opt = new("VF_EnterVehicle".Translate(LabelShort,
             handler.role.label,
             (handler.role.Slots - (handler.handlers.Count +
               reservationManager.GetReservation<VehicleHandlerReservation>(this)
               ?.ClaimantsOnHandler(handler) ?? 0)).ToString()),
-          delegate() { PromptToBoardVehicle(selPawn, handler); });
+          delegate { PromptToBoardVehicle(selPawn, handler); });
         yield return opt;
       }
     }

@@ -5,20 +5,24 @@ using SmashTools;
 
 namespace Vehicles
 {
-	public class WorkGiver_RepairVehicle : VehicleWorkGiver
-	{
-		public override JobDef JobDef => JobDefOf_Vehicles.RepairVehicle;
+  public class WorkGiver_RepairVehicle : VehicleWorkGiver
+  {
+    public override JobDef JobDef => JobDefOf_Vehicles.RepairVehicle;
 
-		public override IEnumerable<Thing> PotentialWorkThingsGlobal(Pawn pawn) => pawn.Map.GetCachedMapComponent<ListerVehiclesRepairable>().RepairsForFaction(pawn.Faction);
+    public override IEnumerable<Thing> PotentialWorkThingsGlobal(Pawn pawn)
+    {
+      return pawn.Map.GetCachedMapComponent<ListerVehiclesRepairable>()
+       .RepairsForFaction(pawn.Faction);
+    }
 
-		public override Danger MaxPathDanger(Pawn pawn)
-		{
-			return Danger.Deadly;
-		}
+    public override Danger MaxPathDanger(Pawn pawn)
+    {
+      return Danger.Deadly;
+    }
 
-		public override bool CanBeWorkedOn(VehiclePawn vehicle)
-		{
-			return vehicle.statHandler.NeedsRepairs;
-		}
-	}
+    public override bool CanBeWorkedOn(VehiclePawn vehicle)
+    {
+      return vehicle.statHandler.NeedsRepairs;
+    }
+  }
 }

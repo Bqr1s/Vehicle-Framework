@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
-using UnityEngine;
-using Verse;
-using Verse.AI;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using Verse;
 
 namespace Vehicles
 {
@@ -17,26 +14,20 @@ namespace Vehicles
   {
     public void PatchMethods()
     {
+      // TODO 1.6 - test map generation for these 2
       VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(BeachMaker), nameof(BeachMaker.Init)),
-        transpiler: new HarmonyMethod(typeof(MapHandling),
-          nameof(BeachMakerTranspiler)));
+        original: AccessTools.PropertyGetter(typeof(TileMutatorWorker_Coast), "CoastOffset"),
+        postfix: new HarmonyMethod(typeof(MapHandling),
+          nameof(CoastSizeMultiplier)));
       VehicleHarmony.Patch(
-        original: AccessTools.Constructor(typeof(RiverMaker),
-          parameters: [typeof(Vector3), typeof(float), typeof(RiverDef)]),
-        transpiler: new HarmonyMethod(typeof(MapHandling),
-          nameof(RiverMakerTranspiler)));
-      //Compiler generated method from GenStep_Terrain.GenerateRiverLookupTexture
-      MethodInfo delegateInfo = typeof(GenStep_Terrain).GetNestedTypes(AccessTools.all)
-       .SelectMany(AccessTools.GetDeclaredMethods)
-       .First(methodInfo => methodInfo.ReturnType == typeof(float) &&
-          methodInfo.GetParameters()[0].ParameterType == typeof(RiverDef));
-      VehicleHarmony.Patch(original: delegateInfo,
-        transpiler: new HarmonyMethod(typeof(MapHandling),
-          nameof(RiverLookupTextureTranspiler)));
+        original: AccessTools.Method(typeof(TileMutatorWorker_River), "GetRiverWidthAt"),
+        postfix: new HarmonyMethod(typeof(MapHandling),
+          nameof(RiverNodeWidth)));
       VehicleHarmony.Patch(
         original: AccessTools.Method(typeof(TileFinder),
-          nameof(TileFinder.RandomSettlementTileFor)),
+          nameof(TileFinder.RandomSettlementTileFor),
+          parameters:
+          [typeof(PlanetLayer), typeof(Faction), typeof(bool), typeof(Predicate<PlanetTile>)]),
         transpiler: new HarmonyMethod(typeof(MapHandling),
           nameof(PushSettlementToCoastTranspiler)));
       VehicleHarmony.Patch(
@@ -64,78 +55,20 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Modify the pseudorandom beach value used and insert custom value within the mod settings.
+    /// Modify the randomized coastline width to enable coastal travel to operate more smoothly.
     /// </summary>
-    /// <param name="instructions"></param>
-    /// <returns></returns>
-    private static IEnumerable<CodeInstruction> BeachMakerTranspiler(
-      IEnumerable<CodeInstruction> instructions)
+    private static void CoastSizeMultiplier(ref FloatRange __result)
     {
-      List<CodeInstruction> instructionList = instructions.ToList();
-
-      MethodInfo propertyGetter =
-        AccessTools.PropertyGetter(typeof(FloatRange), nameof(FloatRange.RandomInRange));
-      for (int i = 0; i < instructionList.Count; i++)
-      {
-        CodeInstruction instruction = instructionList[i];
-
-        if (instruction.Calls(propertyGetter))
-        {
-          yield return instruction;
-          instruction = instructionList[++i]; //FloatRange::get_RandomInRange
-          //yield return new CodeInstruction(opcode: OpCodes.Pop);
-          yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
-          yield return new CodeInstruction(opcode: OpCodes.Call,
-            operand: AccessTools.Method(typeof(ModSettingsHelper),
-              nameof(ModSettingsHelper.BeachMultiplier)));
-        }
-
-        yield return instruction;
-      }
+      __result *= VehicleMod.settings.main.beachMultiplier;
     }
 
-    private static IEnumerable<CodeInstruction> RiverMakerTranspiler(
-      IEnumerable<CodeInstruction> instructions)
+    /// <summary>
+    /// Apply ModSettings multiplier to river size to enable players to tweak the map to
+    /// better suit vehicles. (eg. more water for boats or less for more land vehicle usage)
+    /// </summary>
+    private static void RiverNodeWidth(ref float __result)
     {
-      List<CodeInstruction> instructionList = instructions.ToList();
-
-      FieldInfo widthOnMapField = AccessTools.Field(typeof(RiverDef), nameof(RiverDef.widthOnMap));
-      for (int i = 0; i < instructionList.Count; i++)
-      {
-        CodeInstruction instruction = instructionList[i];
-
-        if (instruction.LoadsField(widthOnMapField))
-        {
-          yield return new CodeInstruction(opcode: OpCodes.Call,
-            operand: AccessTools.Method(typeof(ModSettingsHelper),
-              nameof(ModSettingsHelper.RiverMultiplier)));
-          instruction = instructionList[++i]; //Ldfld : RiverDef::widthOnMap
-        }
-
-        yield return instruction;
-      }
-    }
-
-    private static IEnumerable<CodeInstruction> RiverLookupTextureTranspiler(
-      IEnumerable<CodeInstruction> instructions)
-    {
-      List<CodeInstruction> instructionList = instructions.ToList();
-
-      FieldInfo widthOnMapField = AccessTools.Field(typeof(RiverDef), nameof(RiverDef.widthOnMap));
-      for (int i = 0; i < instructionList.Count; i++)
-      {
-        CodeInstruction instruction = instructionList[i];
-
-        if (instruction.LoadsField(widthOnMapField))
-        {
-          yield return new CodeInstruction(opcode: OpCodes.Call,
-            operand: AccessTools.Method(typeof(ModSettingsHelper),
-              nameof(ModSettingsHelper.RiverMultiplier)));
-          instruction = instructionList[++i]; //Ldfld : RiverDef::widthOnMap
-        }
-
-        yield return instruction;
-      }
+      __result *= VehicleMod.settings.main.riverMultiplier;
     }
 
     /// <summary>
@@ -171,8 +104,6 @@ namespace Vehicles
     /// <summary>
     /// Ensure map is not removed with vehicles that contain pawns or maps currenty being targeted for landing.
     /// </summary>
-    /// <param name="__instance"></param>
-    /// <param name="__result"></param>
     public static void AnyVehicleBlockingMapRemoval(MapPawns __instance, ref bool __result,
       Map ___map)
     {
@@ -208,8 +139,7 @@ namespace Vehicles
                 return;
               }
 
-              if (sailor.relations != null &&
-                sailor.relations.relativeInvolvedInRescueQuest != null)
+              if (sailor.relations?.relativeInvolvedInRescueQuest != null)
               {
                 __result = true;
                 return;
@@ -217,7 +147,7 @@ namespace Vehicles
 
               if (sailor.Faction == Faction.OfPlayer || sailor.HostFaction == Faction.OfPlayer)
               {
-                if (sailor.CurJob != null && sailor.CurJob.exitMapOnArrival)
+                if (sailor is { CurJob.exitMapOnArrival: true })
                 {
                   __result = true;
                   return;
@@ -242,7 +172,7 @@ namespace Vehicles
         {
           VehicleMapping.VehiclePathData pathData = mapping[owner];
           foreach (VehicleRegion region in pathData.VehicleRegionGrid
-           .AllRegions_NoRebuild_InvalidAllowed)
+           .AllRegionsNoRebuildInvalidAllowed)
           {
             if (i == mapIndex)
             {
@@ -269,7 +199,7 @@ namespace Vehicles
 
     public static void DebugUpdateVehicleRegions()
     {
-      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow &&
+      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRendered &&
         DebugHelper.AnyDebugSettings)
       {
         DebugHelper.DebugDrawVehicleRegion(Find.CurrentMap);
@@ -278,7 +208,7 @@ namespace Vehicles
 
     public static void DebugOnGUIVehicleRegions()
     {
-      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow &&
+      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRendered &&
         DebugHelper.AnyDebugSettings)
       {
         DebugHelper.DebugDrawVehiclePathCostsOverlay(Find.CurrentMap);

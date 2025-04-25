@@ -33,7 +33,7 @@ namespace Vehicles
     private float targetFuelLevel; //TODO 1.6 - remove
     private float targetFuelPercent = -1;
 
-    private bool terminateMotes = false;
+    private bool terminateMotes;
     private Vector3 motePosition;
     private float offsetX;
     private float offsetZ;

@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Verse;
+﻿using Verse;
 
-namespace Vehicles
+namespace Vehicles;
+
+public class VehicleTurretEventDef : Def
 {
-	public class VehicleTurretEventDef : Def
-	{
-	}
 }

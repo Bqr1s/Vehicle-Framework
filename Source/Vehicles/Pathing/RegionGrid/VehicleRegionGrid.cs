@@ -1,6 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using DevTools;
+using DevTools.UnitTesting;
 using SmashTools;
 using Verse;
 
@@ -13,8 +16,7 @@ public sealed class VehicleRegionGrid : VehicleGridManager
 {
   private const int CleanSquaresPerFrame = 16;
 
-  //Thread Safe - Only accessed from the same thread within the same method
-  private HashSet<VehicleRegion> allRegionsYielded;
+  private readonly ThreadLocal<HashSet<VehicleRegion>> allRegionsYielded = new(() => []);
 
   //Thread safe - Only used inside UpdateClean
   private int curCleanIndex;
@@ -37,29 +39,29 @@ public sealed class VehicleRegionGrid : VehicleGridManager
   /// <summary>
   /// Yield all non-null regions
   /// </summary>
-  public IEnumerable<VehicleRegion> AllRegions_NoRebuild_InvalidAllowed
+  public IEnumerable<VehicleRegion> AllRegionsNoRebuildInvalidAllowed
   {
     get
     {
-      if (regionUpdater is { Enabled: false } or null) yield break;
+      if (regionUpdater is { Enabled: false } or null)
+        yield break;
 
-      allRegionsYielded.Clear();
+      Assert.IsTrue(allRegionsYielded.Value.Count == 0);
       try
       {
         int count = mapping.map.cellIndices.NumGridCells;
         for (int i = 0; i < count; i++)
         {
           VehicleRegion region = GetRegionAt(i);
-          if (region != null && !allRegionsYielded.Contains(region))
+          if (region != null && allRegionsYielded.Value.Add(region))
           {
             yield return region;
-            allRegionsYielded.Add(region);
           }
         }
       }
       finally
       {
-        allRegionsYielded.Clear();
+        allRegionsYielded.Value.Clear();
       }
     }
   }
@@ -68,6 +70,7 @@ public sealed class VehicleRegionGrid : VehicleGridManager
   {
     get
     {
+      Assert.IsTrue(UnitTestManager.RunningUnitTests);
       if (regionUpdater is not { Enabled: true })
         return false;
 
@@ -83,28 +86,29 @@ public sealed class VehicleRegionGrid : VehicleGridManager
   /// <summary>
   /// All valid regions in grid
   /// </summary>
-  public IEnumerable<VehicleRegion> AllRegions
+  public void GetAllRegions(List<VehicleRegion> regions)
   {
-    get
+    if (regionUpdater is { Enabled: false } or null)
+      return;
+    Assert.IsTrue(allRegionsYielded.Value.Count == 0);
+    try
     {
-      allRegionsYielded.Clear();
-      try
-      {
-        int count = mapping.map.cellIndices.NumGridCells;
-        for (int i = 0; i < count; i++)
+      Parallel.ForEach(Partitioner.Create(0, mapping.map.cellIndices.NumGridCells),
+        (range, _) =>
         {
-          VehicleRegion region = GetRegionAt(i);
-          if (region != null && region.valid && !allRegionsYielded.Contains(region))
+          for (int i = range.Item1; i < range.Item2; i++)
           {
-            yield return region;
-            allRegionsYielded.Add(region);
+            VehicleRegion region = GetRegionAt(i);
+            if (region != null && region.valid && allRegionsYielded.Value.Add(region))
+            {
+              regions.Add(region);
+            }
           }
-        }
-      }
-      finally
-      {
-        allRegionsYielded.Clear();
-      }
+        });
+    }
+    finally
+    {
+      allRegionsYielded.Value.Clear();
     }
   }
 
@@ -119,8 +123,6 @@ public sealed class VehicleRegionGrid : VehicleGridManager
     // RegionGrid is large in size and could still be in-use if rebuild-all is called
     // from debug menu. No need to reallocate the entire array if this is the case.
     regionGrid ??= new VehicleRegion[mapping.map.cellIndices.NumGridCells];
-    allRegionsYielded ??= [];
-    allRooms ??= [];
     regionUpdater ??= mapping[createdFor].VehicleRegionAndRoomUpdater;
   }
 
@@ -242,7 +244,7 @@ public sealed class VehicleRegionGrid : VehicleGridManager
 
     if (DebugProperties.drawAllRegions)
     {
-      foreach (VehicleRegion debugRegion in AllRegions_NoRebuild_InvalidAllowed)
+      foreach (VehicleRegion debugRegion in AllRegionsNoRebuildInvalidAllowed)
       {
         debugRegion.DebugDraw(debugRegionType);
       }

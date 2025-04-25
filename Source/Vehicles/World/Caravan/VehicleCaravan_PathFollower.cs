@@ -17,10 +17,11 @@ namespace Vehicles
     public const float DefaultPathCostToPayPerTick = 1f;
     public const int FinalNoRestPushMaxDurationTicks = 10000;
 
-    private VehicleCaravan caravan;
+    private readonly VehicleCaravan caravan;
+
     private bool moving;
     private bool paused;
-    public int nextTile = -1;
+    public PlanetTile nextTile = -1;
     public int previousTileForDrawingIfInDoubt = -1;
     public float nextTileCostLeft;
     public float nextTileCostTotal = 1f;
@@ -211,8 +212,9 @@ namespace Vehicles
         return false;
       }
       if (GenWorldClosest.TryFindClosestTile(caravan.Tile,
-        (int t) => IsPassable(t) && WorldVehiclePathGrid.Instance.reachability.CanReach(caravan, t),
-        out int tile, 2147483647, true))
+        (PlanetTile t) => IsPassable(t) &&
+          WorldVehiclePathGrid.Instance.reachability.CanReach(caravan, t),
+        out PlanetTile tile))
       {
         Log.Warning($"{caravan} on impassable tile: {caravan.Tile}. Teleporting to {tile}");
         caravan.Tile = tile;
@@ -516,7 +518,7 @@ namespace Vehicles
       Scribe_Values.Look(ref nextTileCostLeft, nameof(nextTileCostLeft));
       Scribe_Values.Look(ref nextTileCostTotal, nameof(nextTileCostTotal));
       Scribe_Values.Look(ref destTile, nameof(destTile));
-      Scribe_Deep.Look(ref arrivalAction, nameof(arrivalAction), Array.Empty<object>());
+      Scribe_Deep.Look(ref arrivalAction, nameof(arrivalAction));
       if (Scribe.mode == LoadSaveMode.PostLoadInit)
       {
         caravan.RecacheVehicles();

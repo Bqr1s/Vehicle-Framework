@@ -4,6 +4,7 @@ using SmashTools;
 using SmashTools.Performance;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 
 namespace Vehicles
 {
@@ -14,7 +15,9 @@ namespace Vehicles
   {
     private const int SampleCount = 11;
     private static readonly int DefaultTicksPerMoveCardinal = Mathf.RoundToInt(60 / 4.5f);
-    private static readonly int DefaultTicksPerMoveDiagonal = Mathf.RoundToInt(DefaultTicksPerMoveCardinal * Ext_Math.Sqrt2);
+
+    private static readonly int DefaultTicksPerMoveDiagonal =
+      Mathf.RoundToInt(DefaultTicksPerMoveCardinal * Ext_Math.Sqrt2);
 
     private static int[] pathCostSamples = new int[SampleCount];
 
@@ -25,7 +28,7 @@ namespace Vehicles
     private readonly VehicleMapping mapping;
     private readonly VehicleDef vehicleDef;
 
-    private ByteGrid avoidGrid;
+    private AvoidGrid avoidGrid;
 
     private TraverseParms traverseParms;
     private IntVec3 destinationCell;
@@ -36,20 +39,30 @@ namespace Vehicles
 
     private Func<int, int, float> preciseRegionLinkDistancesDistanceGetter;
 
-    private readonly Dictionary<int, VehicleRegionLink> regionMinLink = new Dictionary<int, VehicleRegionLink>();
-    private readonly Dictionary<VehicleRegionLink, int> distances = new Dictionary<VehicleRegionLink, int>();
-    private readonly Dictionary<VehicleRegionLink, IntVec3> linkTargetCells = new Dictionary<VehicleRegionLink, IntVec3>();
-    private readonly Dictionary<VehicleRegion, int> minPathCosts = new Dictionary<VehicleRegion, int>();
+    private readonly Dictionary<int, VehicleRegionLink> regionMinLink =
+      new Dictionary<int, VehicleRegionLink>();
 
-    private readonly FastPriorityQueue<RegionLinkQueueEntry> queue = new FastPriorityQueue<RegionLinkQueueEntry>(new DistanceComparer());
+    private readonly Dictionary<VehicleRegionLink, int> distances =
+      new Dictionary<VehicleRegionLink, int>();
 
-    private readonly List<Pair<VehicleRegionLink, int>> preciseRegionLinkDistances = new List<Pair<VehicleRegionLink, int>>();
+    private readonly Dictionary<VehicleRegionLink, IntVec3> linkTargetCells =
+      new Dictionary<VehicleRegionLink, IntVec3>();
+
+    private readonly Dictionary<VehicleRegion, int> minPathCosts =
+      new Dictionary<VehicleRegion, int>();
+
+    private readonly FastPriorityQueue<RegionLinkQueueEntry> queue =
+      new FastPriorityQueue<RegionLinkQueueEntry>(new DistanceComparer());
+
+    private readonly List<Pair<VehicleRegionLink, int>> preciseRegionLinkDistances =
+      new List<Pair<VehicleRegionLink, int>>();
 
     public VehicleRegionCostCalculator(VehicleMapping mapping, VehicleDef vehicleDef)
     {
       this.mapping = mapping;
       this.vehicleDef = vehicleDef;
-      preciseRegionLinkDistancesDistanceGetter = new Func<int, int, float>(PreciseRegionLinkDistancesDistanceGetter);
+      preciseRegionLinkDistancesDistanceGetter =
+        new Func<int, int, float>(PreciseRegionLinkDistancesDistanceGetter);
     }
 
     /// <summary>
@@ -62,7 +75,8 @@ namespace Vehicles
     /// <param name="moveTicksDiagonal"></param>
     /// <param name="avoidGrid"></param>
     /// <param name="drafted"></param>
-    public void Init(CellRect destination, HashSet<VehicleRegion> destRegions, TraverseParms parms, float moveTicksCardinal, float moveTicksDiagonal, ByteGrid avoidGrid, bool drafted)
+    public void Init(CellRect destination, HashSet<VehicleRegion> destRegions, TraverseParms parms,
+      float moveTicksCardinal, float moveTicksDiagonal, AvoidGrid avoidGrid, bool drafted)
     {
       traverseParms = parms;
       destinationCell = destination.CenterCell;
@@ -130,7 +144,7 @@ namespace Vehicles
     /// <param name="minLink"></param>
     public int GetRegionDistance(VehicleRegion region, out VehicleRegionLink minLink)
     {
-      if (regionMinLink.TryGetValue(region.ID, out minLink))
+      if (regionMinLink.TryGetValue(region.Id, out minLink))
       {
         return distances[minLink];
       }
@@ -141,7 +155,8 @@ namespace Vehicles
 
         if (regionLinkQueueEntry.Cost != cachedDistance) continue;
 
-        VehicleRegion otherRegion = regionLinkQueueEntry.Link.GetOtherRegion(regionLinkQueueEntry.From);
+        VehicleRegion otherRegion =
+          regionLinkQueueEntry.Link.GetOtherRegion(regionLinkQueueEntry.From);
         if (otherRegion is null || !otherRegion.valid) continue;
 
         int minPathCost = RegionMedianPathCost(otherRegion);
@@ -149,31 +164,35 @@ namespace Vehicles
         using ListSnapshot<VehicleRegionLink> links = otherRegion.Links;
         foreach (VehicleRegionLink regionLink in links)
         {
-          if (regionLink == regionLinkQueueEntry.Link || !regionLink.GetOtherRegion(otherRegion).type.Passable())
+          if (regionLink == regionLinkQueueEntry.Link ||
+            !regionLink.GetOtherRegion(otherRegion).type.Passable())
             continue;
 
           int linkDistance = RegionLinkDistance(regionLinkQueueEntry.Link, regionLink, minPathCost);
           linkDistance = Math.Max(linkDistance, 1);
           int totalDistance = cachedDistance + linkDistance;
-          int estimatedPathCost = MinimumRegionLinkDistance(destinationCell, regionLink) + totalDistance;
+          int estimatedPathCost =
+            MinimumRegionLinkDistance(destinationCell, regionLink) + totalDistance;
           if (distances.TryGetValue(regionLink, out int num5))
           {
             if (totalDistance < num5)
             {
               distances[regionLink] = totalDistance;
-              queue.Push(new RegionLinkQueueEntry(otherRegion, regionLink, totalDistance, estimatedPathCost));
+              queue.Push(new RegionLinkQueueEntry(otherRegion, regionLink, totalDistance,
+                estimatedPathCost));
             }
           }
           else
           {
             distances.Add(regionLink, totalDistance);
-            queue.Push(new RegionLinkQueueEntry(otherRegion, regionLink, totalDistance, estimatedPathCost));
+            queue.Push(new RegionLinkQueueEntry(otherRegion, regionLink, totalDistance,
+              estimatedPathCost));
           }
         }
 
-        if (!regionMinLink.ContainsKey(otherRegion.ID))
+        if (!regionMinLink.ContainsKey(otherRegion.Id))
         {
-          regionMinLink.Add(otherRegion.ID, regionLinkQueueEntry.Link);
+          regionMinLink.Add(otherRegion.Id, regionLinkQueueEntry.Link);
           if (otherRegion == region)
           {
             minLink = regionLinkQueueEntry.Link;
@@ -191,7 +210,8 @@ namespace Vehicles
     /// <param name="bestLink"></param>
     /// <param name="secondBestLink"></param>
     /// <param name="secondBestCost"></param>
-    public int GetRegionBestDistances(VehicleRegion region, out VehicleRegionLink bestLink, out VehicleRegionLink secondBestLink, out int secondBestCost)
+    public int GetRegionBestDistances(VehicleRegion region, out VehicleRegionLink bestLink,
+      out VehicleRegionLink secondBestLink, out int secondBestCost)
     {
       int regionDistance = GetRegionDistance(region, out bestLink);
       secondBestLink = null;
@@ -239,15 +259,16 @@ namespace Vehicles
     /// <summary>
     /// Fast calculate cell cost from path grid and avoid grid
     /// </summary>
-    /// <param name="index"></param>
     private int GetCellCostFast(int index)
     {
-      int num = mapping[vehicleDef].VehiclePathGrid.pathGrid[index];
+      int num = mapping[vehicleDef].VehiclePathGrid.innerArray[index];
       if (avoidGrid != null)
       {
-        num += avoidGrid[index] * 8;
+        num += avoidGrid.Grid[index] * 8;
       }
-      num += drafted ? mapping.map.terrainGrid.topGrid[index].extraDraftedPerceivedPathCost : mapping.map.terrainGrid.topGrid[index].extraNonDraftedPerceivedPathCost;
+      num += drafted ?
+        mapping.map.terrainGrid.topGrid[index].extraDraftedPerceivedPathCost :
+        mapping.map.terrainGrid.topGrid[index].extraNonDraftedPerceivedPathCost;
       return num;
     }
 
@@ -264,7 +285,9 @@ namespace Vehicles
       IntVec3 intVec = a2 - b2;
       int num = Math.Abs(intVec.x);
       int num2 = Math.Abs(intVec.z);
-      return OctileDistance(num, num2, Mathf.RoundToInt(moveTicksCardinal), Mathf.RoundToInt(moveTicksDiagonal)) + (minPathCost * Math.Max(num, num2)) + (minPathCost * Math.Min(num, num2));
+      return OctileDistance(num, num2, Mathf.RoundToInt(moveTicksCardinal),
+          Mathf.RoundToInt(moveTicksDiagonal)) + (minPathCost * Math.Max(num, num2)) +
+        (minPathCost * Math.Min(num, num2));
     }
 
     /// <summary>
@@ -279,7 +302,9 @@ namespace Vehicles
       IntVec3 intVec = cell - linkTargetCell;
       int num = Math.Abs(intVec.x);
       int num2 = Math.Abs(intVec.z);
-      return OctileDistance(num, num2, Mathf.RoundToInt(moveTicksCardinal), Mathf.RoundToInt(moveTicksDiagonal)) + (minPathCost * Math.Max(num, num2)) + (minPathCost * Math.Min(num, num2));
+      return OctileDistance(num, num2, Mathf.RoundToInt(moveTicksCardinal),
+          Mathf.RoundToInt(moveTicksDiagonal)) + (minPathCost * Math.Max(num, num2)) +
+        (minPathCost * Math.Min(num, num2));
     }
 
     /// <summary>
@@ -317,7 +342,8 @@ namespace Vehicles
     private int MinimumRegionLinkDistance(IntVec3 cell, VehicleRegionLink link)
     {
       IntVec3 intVec = cell - LinkClosestCell(cell, link);
-      return OctileDistance(Math.Abs(intVec.x), Math.Abs(intVec.z), Mathf.RoundToInt(moveTicksCardinal), Mathf.RoundToInt(moveTicksDiagonal));
+      return OctileDistance(Math.Abs(intVec.x), Math.Abs(intVec.z),
+        Mathf.RoundToInt(moveTicksCardinal), Mathf.RoundToInt(moveTicksDiagonal));
     }
 
     /// <summary>
@@ -325,7 +351,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="dx"></param>
     /// <param name="dz"></param>
-    internal static int OctileDistance(int dx, int dz, int moveTicksCardinal = -1, int moveTicksDiagonal = -1)
+    internal static int OctileDistance(int dx, int dz, int moveTicksCardinal = -1,
+      int moveTicksDiagonal = -1)
     {
       if (moveTicksCardinal < 0)
       {
@@ -368,7 +395,8 @@ namespace Vehicles
       }
 
       IntVec3 root = span.root;
-      return new IntVec3(Mathf.Clamp(cell.x, root.x, root.x + num), 0, Mathf.Clamp(cell.z, root.z, root.z + num2));
+      return new IntVec3(Mathf.Clamp(cell.x, root.x, root.x + num), 0,
+        Mathf.Clamp(cell.z, root.z, root.z + num2));
     }
 
     /// <summary>
@@ -377,7 +405,8 @@ namespace Vehicles
     /// <param name="region"></param>
     /// <param name="destination"></param>
     /// <param name="outDistances"></param>
-    private void GetPreciseRegionLinkDistances(VehicleRegion region, CellRect destination, List<Pair<VehicleRegionLink, int>> outDistances)
+    private void GetPreciseRegionLinkDistances(VehicleRegion region, CellRect destination,
+      List<Pair<VehicleRegionLink, int>> outDistances)
     {
       outDistances.Clear();
       tmpCellIndices.Clear();
@@ -395,16 +424,22 @@ namespace Vehicles
           }
         }
       }
-      Dijkstra<int>.Run(tmpCellIndices, (int x) => PreciseRegionLinkDistancesNeighborsGetter(x, region), preciseRegionLinkDistancesDistanceGetter, tmpDistances, null);
+      Dijkstra<int>.Run(tmpCellIndices,
+        (int x) => PreciseRegionLinkDistancesNeighborsGetter(x, region),
+        preciseRegionLinkDistancesDistanceGetter, tmpDistances, null);
       using ListSnapshot<VehicleRegionLink> links = region.Links;
       foreach (VehicleRegionLink regionLink in links)
       {
         if (regionLink.GetOtherRegion(region).Allows(traverseParms, false))
         {
-          if (!tmpDistances.TryGetValue(mapping.map.cellIndices.CellToIndex(linkTargetCells[regionLink]), out float num))
+          if (!tmpDistances.TryGetValue(
+            mapping.map.cellIndices.CellToIndex(linkTargetCells[regionLink]), out float num))
           {
-            Log.ErrorOnce("Dijkstra couldn't reach one of the cells even though they are in the same region. There is most likely something wrong with the " +
-              "neighbor nodes getter.", vehicleDef.GetHashCode() ^ "VehiclesDijkstraRegionLinkDistanceCalculator".GetHashCode());
+            Log.ErrorOnce(
+              "Dijkstra couldn't reach one of the cells even though they are in the same region. There is most likely something wrong with the " +
+              "neighbor nodes getter.",
+              vehicleDef.GetHashCode() ^
+              "VehiclesDijkstraRegionLinkDistanceCalculator".GetHashCode());
             num = 100f;
           }
           outDistances.Add(new Pair<VehicleRegionLink, int>(regionLink, (int)num));
@@ -417,7 +452,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="node"></param>
     /// <param name="region"></param>
-    private IEnumerable<int> PreciseRegionLinkDistancesNeighborsGetter(int node, VehicleRegion region)
+    private IEnumerable<int> PreciseRegionLinkDistancesNeighborsGetter(int node,
+      VehicleRegion region)
     {
       VehicleRegion[] directGrid = mapping[vehicleDef].VehicleRegionGrid.DirectGrid;
       if (directGrid == null || directGrid[node] is null || directGrid[node] != region)
@@ -478,8 +514,10 @@ namespace Vehicles
       {
         tmpPathableNeighborIndices.Add(index + x);
       }
-      bool flag5 = !flag || VehiclePathFinder.BlocksDiagonalMovement(mapping.map, vehicleDef, index - 1);
-      bool flag6 = !flag2 || VehiclePathFinder.BlocksDiagonalMovement(mapping.map, vehicleDef, index + 1);
+      bool flag5 = !flag ||
+        VehiclePathFinder.BlocksDiagonalMovement(mapping.map, vehicleDef, index - 1);
+      bool flag6 = !flag2 ||
+        VehiclePathFinder.BlocksDiagonalMovement(mapping.map, vehicleDef, index + 1);
       if (flag3 && !VehiclePathFinder.BlocksDiagonalMovement(mapping.map, vehicleDef, index - x))
       {
         if (!flag6 && pathGrid.WalkableFast(index - x + 1))
@@ -518,7 +556,8 @@ namespace Vehicles
 
       private readonly int estimatedPathCost;
 
-      public RegionLinkQueueEntry(VehicleRegion from, VehicleRegionLink link, int cost, int estimatedPathCost)
+      public RegionLinkQueueEntry(VehicleRegion from, VehicleRegionLink link, int cost,
+        int estimatedPathCost)
       {
         this.from = from;
         this.link = link;

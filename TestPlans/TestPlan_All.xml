@@ -14,37 +14,37 @@
           <li>SmashTools.UnitTesting.UnitTest_ObjectPool</li>
           <li>SmashTools.UnitTesting.UnitTest_AsyncPool</li>
           <li>SmashTools.UnitTesting.UnitTest_DedicatedThread</li>
-          <li>Vehicles.Testing.UnitTest_MaterialPoolDefs</li>
+          <li>Vehicles.UnitTesting.UnitTest_MaterialPoolDefs</li>
         </tests>
       </li>
       <li>
         <type>Playing</type>
         <tests>
           <!-- Core Vehicle Mechanics -->
-          <li>Vehicles.Testing.UnitTest_VehicleHandler</li>
+          <li>Vehicles.UnitTesting.UnitTest_VehicleHandler</li>
           <!-- World-->
-          <li>Vehicles.Testing.UnitTest_WorldReachability</li>
-          <li>Vehicles.Testing.UnitTest_AerialVehicle</li>
-          <li>Vehicles.Testing.UnitTest_StashedVehicle</li>
+          <li>Vehicles.UnitTesting.UnitTest_WorldReachability</li>
+          <li>Vehicles.UnitTesting.UnitTest_AerialVehicle</li>
+          <li>Vehicles.UnitTesting.UnitTest_StashedVehicle</li>
           <!-- Vehicle Grids -->
-          <li>Vehicles.Testing.UnitTest_DeferredGeneration</li>
-          <li>Vehicles.Testing.UnitTest_GridOwners</li>
-          <li>Vehicles.Testing.UnitTest_SpawnPlacement</li>
-          <li>Vehicles.Testing.UnitTest_PositionManager</li>
-          <li>Vehicles.Testing.UnitTest_CoverGrid</li>
-          <li>Vehicles.Testing.UnitTest_GasGrid</li>
-          <li>Vehicles.Testing.UnitTest_TerrainGrid</li>
-          <li>Vehicles.Testing.UnitTest_ThingGrid</li>
-          <li>Vehicles.Testing.UnitTest_PathGrid</li>
-          <li>Vehicles.Testing.UnitTest_Regions</li>
+          <li>Vehicles.UnitTesting.UnitTest_DeferredGeneration</li>
+          <li>Vehicles.UnitTesting.UnitTest_GridOwners</li>
+          <li>Vehicles.UnitTesting.UnitTest_SpawnPlacement</li>
+          <li>Vehicles.UnitTesting.UnitTest_PositionManager</li>
+          <li>Vehicles.UnitTesting.UnitTest_CoverGrid</li>
+          <li>Vehicles.UnitTesting.UnitTest_GasGrid</li>
+          <li>Vehicles.UnitTesting.UnitTest_TerrainGrid</li>
+          <li>Vehicles.UnitTesting.UnitTest_ThingGrid</li>
+          <li>Vehicles.UnitTesting.UnitTest_PathGrid</li>
+          <li>Vehicles.UnitTesting.UnitTest_Regions</li>
           <!-- Resources -->
-          <li>Vehicles.Testing.UnitTest_MaterialPool</li>
-          <li>Vehicles.Testing.UnitTest_HotReload</li>
-          <li>Vehicles.Testing.UnitTest_MapDeinit</li>
+          <li>Vehicles.UnitTesting.UnitTest_MaterialPool</li>
+          <li>Vehicles.UnitTesting.UnitTest_HotReload</li>
+          <li>Vehicles.UnitTesting.UnitTest_MapDeinit</li>
         </tests>
       </li>
       <li>
-        <type>MainMenu</type>
+        <type>PostGameExit</type>
         <tests>
           <li>SmashTools.UnitTesting.UnitTest_ComponentCache</li>
         </tests>

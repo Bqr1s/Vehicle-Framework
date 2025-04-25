@@ -15,12 +15,12 @@ namespace Vehicles
   {
     public const int ImpassableCost = 10000;
 
-    public int[] pathGrid;
+    public int[] innerArray;
 
     public VehiclePathGrid(VehicleMapping mapping, VehicleDef vehicleDef) : base(mapping,
       vehicleDef)
     {
-      pathGrid = new int[mapping.map.cellIndices.NumGridCells];
+      innerArray = new int[mapping.map.cellIndices.NumGridCells];
     }
 
     public bool Enabled { get; private set; }
@@ -88,7 +88,7 @@ namespace Vehicles
     /// <param name="index"></param>
     public bool WalkableFast(int index)
     {
-      return pathGrid[index] < ImpassableCost;
+      return innerArray[index] < ImpassableCost;
     }
 
     /// <summary>
@@ -97,7 +97,7 @@ namespace Vehicles
     /// <param name="loc"></param>
     public int PerceivedPathCostAt(IntVec3 loc)
     {
-      return pathGrid[mapping.map.cellIndices.CellToIndex(loc)];
+      return innerArray[mapping.map.cellIndices.CellToIndex(loc)];
     }
 
     /// <summary>
@@ -136,7 +136,7 @@ namespace Vehicles
       }
 
       int cost = CalculatedCostAt(cell, debugString);
-      Interlocked.Exchange(ref pathGrid[mapping.map.cellIndices.CellToIndex(cell)], cost);
+      Interlocked.Exchange(ref innerArray[mapping.map.cellIndices.CellToIndex(cell)], cost);
       debugString?.Append($"WalkableNew: {WalkableFast(cell)} WalkableOld: {walkable}");
       bool walkabilityChanged = WalkableFast(cell) != walkable;
 
@@ -247,11 +247,11 @@ namespace Vehicles
           Monitor.Exit(thingGrid);
         }
 
-        SnowCategory snowCategory = map.snowGrid.GetCategory(cell);
-        if (!vehicleDef.properties.customSnowCategoryTicks.TryGetValue(snowCategory,
+        WeatherBuildupCategory weatherBuildupCategory = map.snowGrid.GetCategory(cell);
+        if (!vehicleDef.properties.customWeatherCosts.TryGetValue(weatherBuildupCategory,
           out int snowPathCost))
         {
-          snowPathCost = SnowUtility.MovementTicksAddOn(snowCategory);
+          snowPathCost = WeatherBuildupUtility.MovementTicksAddOn(weatherBuildupCategory);
         }
 
         snowPathCost = snowPathCost.Clamp(0, 450);
@@ -265,7 +265,9 @@ namespace Vehicles
         Log.Error(
           $"Exception thrown while recalculating cost for {vehicleDef} at {cell}.\nException={ex}");
         Log.Error(
-          $"Calculated Cost Report:\n{stringBuilder}\nProps={vehicleDef?.properties is null} Terrain={vehicleDef?.properties?.customTerrainCosts is null} Snow: {vehicleDef?.properties?.customSnowCategoryTicks is null}");
+          $"Calculated Cost Report:\n{stringBuilder}\nProps={vehicleDef?.properties is null} " +
+          $"Terrain={vehicleDef?.properties?.customTerrainCosts is null} Snow: " +
+          $"{vehicleDef?.properties?.customWeatherCosts is null}");
       }
 
       return pathCost;
@@ -295,8 +297,7 @@ namespace Vehicles
       }
       else if (vehicleDef.properties.defaultTerrainImpassable)
       {
-        stringBuilder?.AppendLine(
-          $"defaultTerrain is impassable and no custom pathCost was found.");
+        stringBuilder?.AppendLine("defaultTerrain is impassable and no custom pathCost was found.");
         return ImpassableCost;
       }
 

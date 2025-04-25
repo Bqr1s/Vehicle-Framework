@@ -1,91 +1,89 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using DevTools;
+using JetBrains.Annotations;
 using UnityEngine;
 using Verse;
-using RimWorld;
-using SmashTools;
 
-namespace Vehicles
+namespace Vehicles;
+
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+public class GraphicDataLayered : GraphicData
 {
-	public class GraphicDataLayered : GraphicData
-	{
-		public const int SubLayerCount = 10;
+  public const int SubLayerCount = 10;
 
-		protected int layer = 0;
+  // Simple conversion factor for layering a sprite relative to the
+  // vehicle's body position. Layer is relative to SubLayerCount.
+  private int layer;
 
-		public Vector3? OriginalDrawOffset { get; private set; }
+  private Vector3 originalDrawOffset;
+  private Vector3? originalDrawOffsetNorth;
+  private Vector3? originalDrawOffsetEast;
+  private Vector3? originalDrawOffsetSouth;
+  private Vector3? originalDrawOffsetWest;
 
-		public Vector3? OriginalDrawOffsetNorth { get; private set; }
-		public Vector3? OriginalDrawOffsetEast { get; private set; }
-		public Vector3? OriginalDrawOffsetSouth { get; private set; }
-		public Vector3? OriginalDrawOffsetWest { get; private set; }
+  public bool AboveBody => layer >= 0;
 
-		public bool AboveBody => layer >= 0;
+  public virtual void CopyFrom(GraphicDataLayered graphicData)
+  {
+    base.CopyFrom(graphicData);
+    layer = graphicData.layer;
+    CacheDrawOffsets();
+    RecacheLayerOffsets();
+  }
 
-		public GraphicDataLayered() : base()
-		{
-		}
+  public virtual void Init(IMaterialCacheTarget target)
+  {
+    RecacheLayerOffsets();
+  }
 
-		public virtual void CopyFrom(GraphicDataLayered graphicData)
-		{
-			base.CopyFrom(graphicData);
-			layer = graphicData.layer;
-			ResetDrawOffsetCache();
-		}
+  private void CacheDrawOffsets()
+  {
+    originalDrawOffset = drawOffset;
+    originalDrawOffsetNorth = drawOffsetNorth;
+    originalDrawOffsetEast = drawOffsetEast;
+    originalDrawOffsetSouth = drawOffsetSouth;
+    originalDrawOffsetWest = drawOffsetWest;
+  }
 
-		public virtual void Init(IMaterialCacheTarget target)
-		{
-			RecacheLayerOffsets();
-		}
+  public void RecacheLayerOffsets()
+  {
+    if (layer == 0)
+      return;
 
-		private void ResetDrawOffsetCache()
-		{
-			OriginalDrawOffset = null;
-			OriginalDrawOffsetNorth = null;
-			OriginalDrawOffsetEast = null;
-			OriginalDrawOffsetSouth = null;
-			OriginalDrawOffsetWest = null;
+    float layerOffset = layer * (Altitudes.AltInc / SubLayerCount);
 
-			RecacheLayerOffsets();
-		}
+    drawOffset = originalDrawOffset;
+    drawOffset.y += layerOffset;
 
-		public void RecacheLayerOffsets()
-		{
-			OriginalDrawOffset ??= drawOffset;
-			OriginalDrawOffsetNorth ??= drawOffsetNorth;
-			OriginalDrawOffsetEast ??= drawOffsetEast;
-			OriginalDrawOffsetSouth ??= drawOffsetSouth;
-			OriginalDrawOffsetWest ??= drawOffsetWest;
+    if (drawOffsetNorth != null)
+    {
+      Assert.IsNotNull(originalDrawOffsetNorth);
+      drawOffsetNorth = originalDrawOffsetNorth.Value;
+      drawOffsetNorth = new Vector3(drawOffsetNorth.Value.x, drawOffsetNorth.Value.y + layerOffset,
+        drawOffsetNorth.Value.z);
+    }
 
-			float layerOffset = layer * (Altitudes.AltInc / SubLayerCount);
+    if (drawOffsetEast != null)
+    {
+      Assert.IsNotNull(originalDrawOffsetEast);
+      drawOffsetEast = originalDrawOffsetEast.Value;
+      drawOffsetEast = new Vector3(drawOffsetEast.Value.x, drawOffsetEast.Value.y + layerOffset,
+        drawOffsetEast.Value.z);
+    }
 
-			drawOffset = OriginalDrawOffset.Value;
-			drawOffset.y += layerOffset;
+    if (drawOffsetSouth != null)
+    {
+      Assert.IsNotNull(originalDrawOffsetSouth);
+      drawOffsetSouth = originalDrawOffsetSouth.Value;
+      drawOffsetSouth = new Vector3(drawOffsetSouth.Value.x, drawOffsetSouth.Value.y + layerOffset,
+        drawOffsetSouth.Value.z);
+    }
 
-			if (drawOffsetNorth != null)
-			{
-				drawOffsetNorth = OriginalDrawOffsetNorth.Value;
-				drawOffsetNorth = new Vector3(drawOffsetNorth.Value.x, drawOffsetNorth.Value.y + layerOffset, drawOffsetNorth.Value.z);
-			}
-
-			if (drawOffsetEast != null)
-			{
-				drawOffsetEast = OriginalDrawOffsetEast.Value;
-				drawOffsetEast = new Vector3(drawOffsetEast.Value.x, drawOffsetEast.Value.y + layerOffset, drawOffsetEast.Value.z);
-			}
-
-			if (drawOffsetSouth != null)
-			{
-				drawOffsetSouth = OriginalDrawOffsetSouth.Value;
-				drawOffsetSouth = new Vector3(drawOffsetSouth.Value.x, drawOffsetSouth.Value.y + layerOffset, drawOffsetSouth.Value.z);
-			}
-
-			if (drawOffsetWest != null)
-			{
-				drawOffsetWest = OriginalDrawOffsetWest.Value;
-				drawOffsetWest = new Vector3(drawOffsetWest.Value.x, drawOffsetWest.Value.y + layerOffset, drawOffsetWest.Value.z);
-			}
-		}
-	}
+    if (drawOffsetWest != null)
+    {
+      Assert.IsNotNull(originalDrawOffsetWest);
+      drawOffsetWest = originalDrawOffsetWest.Value;
+      drawOffsetWest = new Vector3(drawOffsetWest.Value.x, drawOffsetWest.Value.y + layerOffset,
+        drawOffsetWest.Value.z);
+    }
+  }
 }

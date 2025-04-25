@@ -6,14 +6,13 @@ using System.Threading.Tasks;
 
 namespace Vehicles
 {
-	public enum VehicleComponentPosition
-	{
-		Empty,
-		Front,
-		Right,
-		Back,
-		Left,
-		Body,
-		BodyNoOverlap
-	}
+  public enum VehicleComponentPosition
+  {
+    Empty,
+    Front,
+    Right,
+    Back,
+    Left,
+    Body,
+  }
 }

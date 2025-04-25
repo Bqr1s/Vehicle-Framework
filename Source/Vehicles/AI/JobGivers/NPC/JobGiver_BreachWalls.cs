@@ -53,13 +53,13 @@ namespace Vehicles
         return null;
       }
       VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(vehicle.Map);
-      using (PawnPath pawnPath = mapping[vehicleDef].VehiclePathFinder.FindVehiclePath(
+      using (VehiclePath vehiclePath = mapping[vehicleDef].VehiclePathFinder.FindPath(
         vehicle.Position, cell,
         TraverseParms.For(vehicle, mode: TraverseMode.PassAllDestroyableThings),
         CancellationToken.None))
       {
         Thing thing =
-          PathingHelper.FirstBlockingBuilding(vehicle, pawnPath);
+          PathingHelper.FirstBlockingBuilding(vehicle, vehiclePath);
         if (thing != null && TryFindCombatPosition(vehicle, out IntVec3 firingPos))
         {
           vehicle.mindState.breachingTarget = new BreachingTargetData(thing, firingPos);
