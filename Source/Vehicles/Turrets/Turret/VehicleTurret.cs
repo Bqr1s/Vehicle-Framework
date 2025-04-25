@@ -9,6 +9,7 @@ using Verse.Sound;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
+using SmashTools.Rendering;
 using Verse.AI;
 
 namespace Vehicles;
@@ -289,8 +290,8 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   public int ReloadTicks => reloadTicks;
 
   public float DrawLayerOffset =>
-    drawLayer * (Altitudes.AltInc / GraphicDataLayered.SubLayerCount) +
-    VehicleRenderer.YOffset_Body;
+    drawLayer * (Altitudes.AltInc / GraphicDataLayered.SubLayerCount) /* +
+    VehicleRenderer.YOffset_Body*/;
 
   public EventManager<VehicleTurretEventDef> EventRegistry { get; set; }
 
@@ -841,10 +842,8 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
         }
       }
     }
-
-    IsManned |=
-      VehicleMod.settings.debug
-       .debugShootAnyTurret; //Only if debug shoot any turret = true, set satisfied to true anyways.
+    // Only if debug shoot any turret = true do we set satisfied to true anyways.
+    IsManned |= VehicleMod.settings.debug.debugShootAnyTurret;
   }
 
   public bool GroupsWith(VehicleTurret turret)
@@ -1377,12 +1376,10 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
       }
 
       turretDef.shotSound?.PlayOneShot(new TargetInfo(vehicle.Position, vehicle.Map));
-      vehicle.Drawer.rTracker.Notify_TurretRecoil(this, Ext_Math.RotateAngle(TurretRotation, 180));
+      vehicle.DrawTracker.recoilTracker.Notify_TurretRecoil(this,
+        Ext_Math.RotateAngle(TurretRotation, 180));
 
-      if (recoilTracker != null)
-      {
-        recoilTracker.Notify_TurretRecoil(Ext_Math.RotateAngle(TurretRotation, 180));
-      }
+      recoilTracker?.Notify_TurretRecoil(Ext_Math.RotateAngle(TurretRotation, 180));
 
       if (!recoilTrackers.NullOrEmpty())
       {
@@ -1493,25 +1490,12 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     }
   }
 
-  // TODO - switch to TransformData
-  public virtual void DrawAt(Vector3 drawPos, Rot8 rot)
+  public virtual void DrawAt(ref readonly TransformData transformData)
   {
     if (!NoGraphic)
     {
-      VehicleGraphics.DrawTurret(this, drawPos, Rot8.North);
+      VehicleGraphics.DrawTurret(this, transformData.position, transformData.orientation);
     }
-
-    DrawTargeter();
-    DrawAimPie();
-  }
-
-  public virtual void Draw()
-  {
-    if (!NoGraphic)
-    {
-      VehicleGraphics.DrawTurret(this, vehicle.FullRotation);
-    }
-
     DrawTargeter();
     DrawAimPie();
   }

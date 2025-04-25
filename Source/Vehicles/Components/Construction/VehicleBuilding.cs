@@ -1,17 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using JetBrains.Annotations;
-using SmashTools;
+﻿using JetBrains.Annotations;
 using UnityEngine;
 using Verse;
 
 namespace Vehicles
 {
   [UsedImplicitly]
-  public class VehicleBuilding : Building, IInspectable
+  public class VehicleBuilding : Building
   {
     public VehiclePawn vehicle;
 
@@ -30,29 +24,10 @@ namespace Vehicles
       {
         vehicle.DrawNowAt(drawLoc, flip);
         vehicle.CompVehicleTurrets?.PostDraw();
+        return;
       }
-      else
-      {
-        Log.ErrorOnce(
-          $"VehicleReference for building {LabelShort} is null. This should not happen unless " +
-          $"spawning VehicleBuildings in DevMode.", GetHashCode());
-        base.DrawAt(drawLoc, flip);
-      }
-    }
-
-    public virtual float DoInspectPaneButtons(float x)
-    {
-      Rect rect = new Rect(x, 0f, Extra.IconBarDim, Extra.IconBarDim);
-      float usedWidth = 0;
-
-      if (Prefs.DevMode)
-      {
-        //rect.x -= rect.width;
-        //usedWidth += rect.width;
-        //TODO - add devmode options related to constructions
-      }
-
-      return usedWidth;
+      Log.ErrorOnce($"VehicleReference for building {LabelShort} is null.", GetHashCode());
+      base.DrawAt(drawLoc, flip);
     }
 
     public override void SpawnSetup(Map map, bool respawningAfterLoad)
@@ -62,7 +37,6 @@ namespace Vehicles
       {
         vehicle = VehicleSpawner.GenerateVehicle(VehicleDef, Faction);
       }
-
       vehicle?.CompVehicleTurrets?.RevalidateTurrets();
     }
 

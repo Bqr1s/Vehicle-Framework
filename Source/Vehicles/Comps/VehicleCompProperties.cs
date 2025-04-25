@@ -4,17 +4,17 @@ using System.Linq;
 using Verse;
 using RimWorld;
 
-namespace Vehicles
-{
-	public abstract class VehicleCompProperties : CompProperties
-	{
-		public virtual IEnumerable<VehicleStatDef> StatCategoryDefs()
-		{
-			yield break;
-		}
+namespace Vehicles;
 
-		public virtual void PostDefDatabase()
-		{
-		}
-	}
+[VehicleSettingsClass]
+public abstract class VehicleCompProperties : CompProperties
+{
+  public virtual IEnumerable<VehicleStatDef> StatCategoryDefs()
+  {
+    yield break;
+  }
+
+  public virtual void PostDefDatabase()
+  {
+  }
 }

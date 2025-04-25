@@ -144,7 +144,7 @@ namespace Vehicles
     protected virtual void RegenerateUnsavedComponents()
     {
       vehicleAI = new VehicleAI(this);
-      vDrawer = new VehicleDrawTracker(this);
+      drawTracker = new VehicleDrawTracker(this);
       overlayRenderer = new GraphicOverlayRenderer(this);
       sustainers ??= new VehicleSustainers(this);
     }
@@ -163,12 +163,14 @@ namespace Vehicles
         overlayRenderer.Init();
       }
 
+#if ANIMATOR
       if (VehicleDef.drawProperties.controller != null)
       {
         animator ??= new AnimationManager(this, VehicleDef.drawProperties.controller);
         animator.SetBool(PropertyIds.Disabled, CanMove);
         animator.PostLoad();
       }
+#endif
 
       // Ensure SustainerTarget and sustainer manager is given a clean slate to work with
       ReleaseSustainerTarget();
@@ -222,7 +224,7 @@ namespace Vehicles
 
       UpdateRotationAndAngle();
 
-      Drawer.Notify_Spawned();
+      DrawTracker.Notify_Spawned();
       InitializeHitbox();
       Map.GetCachedMapComponent<VehicleMapping>().RequestGridsFor(this);
       ReclaimPosition();

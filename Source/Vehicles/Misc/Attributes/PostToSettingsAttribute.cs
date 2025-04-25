@@ -11,7 +11,7 @@ namespace Vehicles
   /// <summary>
   /// Retrieves and saves input values for fields defined in VehicleDef and VehicleComp objects for access in ModSettings
   /// </summary>
-  [AttributeUsage(AttributeTargets.Field, Inherited = true)]
+  [AttributeUsage(AttributeTargets.Field)]
   public class PostToSettingsAttribute : Attribute
   {
     /// <summary>

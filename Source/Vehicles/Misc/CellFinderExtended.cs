@@ -50,7 +50,7 @@ namespace Vehicles
        .Cast<Thing>().ToList();
       if (hostFaction == Faction.OfPlayer)
       {
-        thingsOnMap.AddRange(map.listerBuildings.allBuildingsColonist.Cast<Thing>());
+        thingsOnMap.AddRange(map.listerBuildings.allBuildingsColonist);
       }
       else
       {
@@ -94,7 +94,7 @@ namespace Vehicles
     {
       List<IntVec3> cellsToCheck = CellRect.WholeMap(map).GetEdgeCells(dir).ToList();
       bool riverSpawn = Find.World.CoastDirectionAt(map.Tile) != dir &&
-        !Find.WorldGrid[map.Tile].Rivers.NullOrEmpty();
+        !Find.WorldGrid[map.Tile.tileId].Rivers.NullOrEmpty();
       int padding = (pawn.def.size.z / 2) > 4 ? (pawn.def.size.z / 2 + 1) : 4;
       int startIndex = cellsToCheck.Count / 2;
 

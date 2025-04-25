@@ -2,14 +2,12 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using DevTools;
 using DevTools.UnitTesting;
 using HarmonyLib;
 using LudeonTK;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.UnitTesting;
 using UnityEngine;
 using Verse;
 
@@ -41,7 +39,7 @@ namespace Vehicles
     {
       // Remove singleton reference, we shouldn't rely on reference being overwritten on
       // subsequent playthroughs.
-      GameEvent.onWorldRemoved += () => Instance = null;
+      GameEvent.OnWorldRemoved += () => Instance = null;
 
       MethodInfo hillinessMethod =
         AccessTools.Method(typeof(WorldPathGrid), "HillinessMovementDifficultyOffset");
@@ -108,13 +106,13 @@ namespace Vehicles
 
     private void FlashWorldGrid()
     {
-      if (DebugHelper.World.VehicleDef != null && Find.WorldSelector.selectedTile >= 0 &&
+      if (DebugHelper.World.VehicleDef != null && Find.WorldSelector.SelectedTile >= 0 &&
         Find.TickManager.TicksGame % 30 == 0) //Twice per second at 60fps
       {
         if (DebugHelper.World.DebugType == WorldPathingDebugType.PathCosts)
         {
-          int tile = Find.WorldSelector.selectedTile;
-          List<int> neighbors = [];
+          PlanetTile tile = Find.WorldSelector.SelectedTile;
+          List<PlanetTile> neighbors = [];
           Find.WorldGrid.GetTileNeighbors(tile, neighbors);
 
           float cost = movementDifficulty[DebugHelper.World.VehicleDef.DefIndex][tile];
@@ -129,7 +127,7 @@ namespace Vehicles
         }
         else if (DebugHelper.World.DebugType == WorldPathingDebugType.Reachability)
         {
-          int tile = Find.WorldSelector.selectedTile;
+          PlanetTile tile = Find.WorldSelector.SelectedTile;
           List<int> neighbors = [];
           Ext_World.BFS(tile, neighbors, radius: 10);
 
@@ -151,7 +149,7 @@ namespace Vehicles
         }
         else if (DebugHelper.World.DebugType == WorldPathingDebugType.WinterPct)
         {
-          int tile = Find.WorldSelector.selectedTile;
+          PlanetTile tile = Find.WorldSelector.SelectedTile;
           List<int> neighbors = [];
           Ext_World.BFS(tile, neighbors, radius: 10);
 
@@ -276,21 +274,19 @@ namespace Vehicles
       int? ticksAbs = null, StringBuilder explanation = null, bool coastalTravel = true)
     {
       Tile worldTile = Find.WorldGrid[tile];
-      if (worldTile == null)
+      if (worldTile is not SurfaceTile surfaceTile)
       {
-        Log.Error($"Attempting to calculate difficulty at null tile.");
+        Log.Error("Attempting to calculate movement difficulty for non-surface tile.");
         return ImpassableMovementDifficulty;
       }
 
-      if (explanation != null && explanation.Length > 0)
-      {
+      if (explanation is { Length: > 0 })
         explanation.AppendLine();
-      }
 
-      List<Tile.RiverLink> rivers = worldTile.Rivers;
+      List<SurfaceTile.RiverLink> rivers = surfaceTile.Rivers;
       if (!rivers.NullOrEmpty())
       {
-        Tile.RiverLink riverLink = WorldHelper.BiggestRiverOnTile(rivers);
+        SurfaceTile.RiverLink riverLink = WorldHelper.BiggestRiverOnTile(rivers);
         if (riverLink.river != null &&
           vehicleDef.properties.customRiverCosts.TryGetValue(riverLink.river,
             out float riverCost) && riverCost != ImpassableMovementDifficulty)
@@ -307,7 +303,7 @@ namespace Vehicles
       }
       else
       {
-        BiomeDef biomeDef = worldTile.biome;
+        BiomeDef biomeDef = surfaceTile.PrimaryBiome;
         defaultBiomeCost = biomeDef.impassable ?
           ImpassableMovementDifficulty :
           biomeDef.movementDifficulty;
@@ -320,14 +316,15 @@ namespace Vehicles
       }
 
       float biomeCost =
-        vehicleDef.properties.customBiomeCosts.TryGetValue(worldTile.biome, defaultBiomeCost);
+        vehicleDef.properties.customBiomeCosts.TryGetValue(surfaceTile.PrimaryBiome,
+          defaultBiomeCost);
       float hillinessCost =
-        vehicleDef.properties.customHillinessCosts.TryGetValue(worldTile.hilliness,
-          HillinessMovementDifficultyOffset(worldTile.hilliness));
+        vehicleDef.properties.customHillinessCosts.TryGetValue(surfaceTile.hilliness,
+          HillinessMovementDifficultyOffset(surfaceTile.hilliness));
 
       if (!VehicleMod.settings.main.vehiclePathingBiomesCostOnRoads)
       {
-        if (!worldTile.Roads.NullOrEmpty())
+        if (!surfaceTile.Roads.NullOrEmpty())
         {
           biomeCost = 1;
           hillinessCost = 0;
@@ -341,13 +338,14 @@ namespace Vehicles
         return ImpassableMovementDifficulty;
       }
 
-      explanation?.Append(worldTile.biome.LabelCap + ": " + biomeCost.ToStringWithSign("0.#"));
+      explanation?.Append(surfaceTile.PrimaryBiome.LabelCap + ": " +
+        biomeCost.ToStringWithSign("0.#"));
 
       float totalCost = biomeCost + hillinessCost;
       if (explanation != null && hillinessCost != 0f)
       {
         explanation.AppendLine();
-        explanation.Append(worldTile.hilliness.GetLabelCap() + ": " +
+        explanation.Append(surfaceTile.hilliness.GetLabelCap() + ": " +
           hillinessCost.ToStringWithSign("0.#"));
       }
 

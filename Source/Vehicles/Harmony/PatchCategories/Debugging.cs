@@ -133,7 +133,7 @@ namespace Vehicles
     {
       if (o is Settlement)
       {
-        DebugHelper.tiles.Add(new Pair<int, int>(o.Tile, 0));
+        DebugHelper.tiles.Add((o.Tile, 0));
       }
     }
 
@@ -208,9 +208,9 @@ namespace Vehicles
         }
       }
 
-      foreach (Pair<int, int> t in DebugHelper.tiles)
+      foreach ((PlanetTile tile, int radius) in DebugHelper.tiles)
       {
-        GenDraw.DrawWorldRadiusRing(t.First, t.Second);
+        GenDraw.DrawWorldRadiusRing(tile, radius);
       }
     }
 

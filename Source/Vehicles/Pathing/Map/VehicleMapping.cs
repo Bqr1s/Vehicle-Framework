@@ -181,21 +181,18 @@ public sealed class VehicleMapping : MapComponent
 
   private void GeneratePathGrids()
   {
-    if (vehicleData.NullOrEmpty()) return;
-
     for (int i = 0; i < vehicleData.Length; i++)
     {
       VehiclePathData vehiclePathData = vehicleData[i];
       LongEventHandler.SetCurrentEventText(
         $"{"VF_GeneratingPathGrids".Translate()} {i}/{vehicleData.Length}");
+      //using VehicleRegionConnector.Disabler disabler = new(vehiclePathData.VehicleRegionConnector);
       vehiclePathData.VehiclePathGrid.RecalculateAllPerceivedPathCosts();
     }
   }
 
   private void GenerateRegions()
   {
-    if (!GridOwners.AnyOwners) return;
-
     int total = GridOwners.AllOwners.Length;
     for (int i = 0; i < total; i++)
     {
@@ -205,6 +202,19 @@ public sealed class VehicleMapping : MapComponent
       VehiclePathData vehiclePathData = this[vehicleDef];
       vehiclePathData.VehicleRegionAndRoomUpdater.Init();
       vehiclePathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
+    }
+  }
+
+  private void GenerateGridConnections()
+  {
+    int total = GridOwners.AllOwners.Length;
+    for (int i = 0; i < total; i++)
+    {
+      VehicleDef vehicleDef = GridOwners.AllOwners[i];
+      LongEventHandler.SetCurrentEventText($"{"VF_GeneratingRegions".Translate()} {i}/{total}");
+
+      VehiclePathData vehiclePathData = this[vehicleDef];
+      vehiclePathData.VehicleRegionConnector.RebuildAllConnections();
     }
   }
 
@@ -311,7 +321,7 @@ public sealed class VehicleMapping : MapComponent
     FlashGridType flashGridType = VehicleMod.settings.debug.debugDrawFlashGrid;
     if (flashGridType != FlashGridType.None)
     {
-      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow)
+      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRendered)
       {
         switch (flashGridType)
         {
@@ -443,6 +453,7 @@ public sealed class VehicleMapping : MapComponent
     buildingFor = vehicleDef;
     {
       vehiclePathData.VehiclePathGrid = new VehiclePathGrid(this, vehicleDef);
+      vehiclePathData.VehicleRegionConnector = new VehicleRegionConnector(this, vehicleDef);
       vehiclePathData.VehiclePathFinder = new VehiclePathFinder(this, vehicleDef);
 
       if (isOwner)
@@ -460,6 +471,7 @@ public sealed class VehicleMapping : MapComponent
     buildingFor = null;
 
     vehiclePathData.VehiclePathGrid.PostInit();
+    vehiclePathData.VehicleRegionConnector.PostInit();
     vehiclePathData.VehiclePathFinder.PostInit();
     if (isOwner)
     {
@@ -513,6 +525,8 @@ public sealed class VehicleMapping : MapComponent
 
     public VehiclePathGrid VehiclePathGrid { get; set; }
 
+    public VehicleRegionConnector VehicleRegionConnector { get; set; }
+
     public VehiclePathFinder VehiclePathFinder { get; set; }
 
     public VehicleReachability VehicleReachability => ReachabilityData.reachability;
@@ -525,12 +539,6 @@ public sealed class VehicleMapping : MapComponent
       ReachabilityData.regionAndRoomUpdater;
 
     public VehicleRegionDirtyer VehicleRegionDirtyer => ReachabilityData.regionDirtyer;
-
-    public void PostInit()
-    {
-      VehiclePathGrid.PostInit();
-      ReachabilityData.PostInit();
-    }
   }
 
   public class VehicleReachabilitySettings

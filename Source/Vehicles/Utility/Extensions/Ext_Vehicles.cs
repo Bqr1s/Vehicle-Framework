@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using DevTools;
+using JetBrains.Annotations;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
@@ -17,12 +19,16 @@ namespace Vehicles
   public static class Ext_Vehicles
   {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsRoofed(IntVec3 cell, Map map) => cell.Roofed(map);
+    public static bool IsRoofed(IntVec3 cell, Map map)
+    {
+      return cell.Roofed(map);
+    }
 
     public static bool IsRoofRestricted(VehicleDef vehicleDef, IntVec3 cell, Map map)
     {
-      var compProperties = vehicleDef.GetCompProperties<CompProperties_VehicleLauncher>();
-      if (compProperties == null)
+      CompProperties_VehicleLauncher compProperties =
+        vehicleDef.GetCompProperties<CompProperties_VehicleLauncher>();
+      if (compProperties is null)
       {
         return true;
       }
@@ -34,39 +40,34 @@ namespace Vehicles
       return IsRoofRestricted(cell, map, canRoofPunch);
     }
 
-    public static bool IsRoofRestricted(IntVec3 cell, Map map, bool canRoofPunch)
+    private static bool IsRoofRestricted(IntVec3 cell, Map map, bool canRoofPunch)
     {
       if (!canRoofPunch)
-      {
         return IsRoofed(cell, map);
-      }
 
       RoofDef roofDef = cell.GetRoof(map);
-      return roofDef != null && roofDef.isThickRoof;
+      return roofDef is { isThickRoof: true };
     }
 
     /// <summary>
     /// Rotates <paramref name="cell"/> for vehicle rect.
     /// </summary>
-    ///<remarks>Rotation is opposite of <paramref name="rot"/> ie. rotating 'east' will return a cell as if the cell were rotated counter-clockwise (or rotating based on the vehicle facing east). 
-    ///Set <paramref name="reverseRotate"/> to true if you want the cell to be rotated in the direction of <paramref name="rot"/></remarks>
-    /// <param name="cell"></param>
-    /// <param name="rot"></param>
-    /// <param name="size"></param>
+    ///<remarks>
+    /// Rotation is opposite of <paramref name="rot"/> ie. rotating 'east' will return a cell as if
+    /// the cell were rotated counter-clockwise (or rotating based on the vehicle facing east). 
+    ///</remarks>
     public static IntVec2 RotatedBy(this IntVec2 cell, Rot4 rot, IntVec2 size,
       bool reverseRotate = false)
     {
-      if (size.x == 1 && size.z == 1)
-      {
+      if (size is { x: 1, z: 1 })
         return cell;
-      }
 
       switch (rot.AsInt)
       {
         case 0:
           return cell;
         case 1:
-          IntVec2 east = new IntVec2(-cell.z, cell.x);
+          IntVec2 east = new(-cell.z, cell.x);
           if (reverseRotate)
           {
             east.x *= -1;
@@ -75,7 +76,7 @@ namespace Vehicles
 
           return east;
         case 2:
-          IntVec2 south = new IntVec2(-cell.x, -cell.z);
+          IntVec2 south = new(-cell.x, -cell.z);
           if (size.x.IsEven())
           {
             south.x++;
@@ -88,7 +89,7 @@ namespace Vehicles
 
           return south;
         case 3:
-          IntVec2 west = new IntVec2(cell.z, -cell.x);
+          IntVec2 west = new(cell.z, -cell.x);
           if (size.x.IsEven())
           {
             west.x++;
@@ -127,23 +128,21 @@ namespace Vehicles
     {
       foreach (Pawn pawn in lordJob.lord.ownedPawns)
       {
-        if (pawn is VehiclePawn vehicle)
-        {
-          foreach (Pawn innerPawn in vehicle.AllPawnsAboard)
-          {
-            if (innerPawn.mindState != null)
-            {
-              innerPawn.mindState.duty = null;
-            }
+        if (pawn is not VehiclePawn vehicle)
+          continue;
 
-            lordJob.Map.attackTargetsCache.UpdateTarget(innerPawn);
-            if (lordJob.EndPawnJobOnCleanup(innerPawn) && innerPawn.Spawned &&
-              innerPawn.CurJob != null &&
-              (!lordJob.DontInterruptLayingPawnsOnCleanup ||
-                !RestUtility.IsLayingForJobCleanup(innerPawn)))
-            {
-              innerPawn.jobs.EndCurrentJob(JobCondition.InterruptForced, true, true);
-            }
+        foreach (Pawn innerPawn in vehicle.AllPawnsAboard)
+        {
+          if (innerPawn.mindState != null)
+            innerPawn.mindState.duty = null;
+
+          lordJob.Map.attackTargetsCache.UpdateTarget(innerPawn);
+          if (lordJob.EndPawnJobOnCleanup(innerPawn) && innerPawn.Spawned &&
+            innerPawn.CurJob != null &&
+            (!lordJob.DontInterruptLayingPawnsOnCleanup ||
+              !RestUtility.IsLayingForJobCleanup(innerPawn)))
+          {
+            innerPawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
           }
         }
       }
@@ -252,7 +251,7 @@ namespace Vehicles
         vehicle.statHandler.MarkAllDirty, vehicle.Notify_TookDamage);
       vehicle.AddEvent(VehicleEventDefOf.Repaired, vehicle.vehiclePather.RecalculatePermissions,
         vehicle.statHandler.MarkAllDirty);
-      vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, delegate()
+      vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, delegate
       {
         if (vehicle.Spawned)
         {
@@ -260,7 +259,8 @@ namespace Vehicles
           vehicle.ignition.Drafted = false;
         }
       });
-
+      vehicle.AddEvent(VehicleEventDefOf.UpgradeCompleted, vehicle.ResetRenderStatus);
+      vehicle.AddEvent(VehicleEventDefOf.UpgradeRefundCompleted, vehicle.ResetRenderStatus);
       if (!vehicle.VehicleDef.events.NullOrEmpty())
       {
         foreach ((VehicleEventDef vehicleEventDef, List<ResolvedMethod<VehiclePawn>> methods) in
@@ -335,9 +335,9 @@ namespace Vehicles
       {
         vehicle.sustainers.Spawn(vehicle, soundEventEntry.value);
       }
-      else if (vehicle.SustainerTarget is ISustainerTarget sustainerTarget)
+      else if (vehicle.SustainerTarget is not null)
       {
-        vehicle.sustainers.Spawn(sustainerTarget, soundEventEntry.value);
+        vehicle.sustainers.Spawn(vehicle.SustainerTarget, soundEventEntry.value);
       }
     }
 
@@ -352,8 +352,7 @@ namespace Vehicles
       return DebugSettings.godMode || (vehicle.Faction == faction || vehicle.ClaimableBy(faction));
     }
 
-    public static void RefundMaterials(this VehiclePawn vehicle, Map map, DestroyMode mode,
-      List<Thing> listOfLeavingsOut = null)
+    public static void RefundMaterials(this VehiclePawn vehicle, Map map, DestroyMode mode)
     {
       float multiplier = RefundMaterialCount(vehicle.VehicleDef, mode);
       vehicle.RefundMaterials(map, mode, multiplier: multiplier);
@@ -376,10 +375,11 @@ namespace Vehicles
       };
     }
 
+    [UsedImplicitly]
     public static void RefundMaterials(this VehiclePawn vehicle, Map map, DestroyMode mode,
       float multiplier)
     {
-      ThingOwner<Thing> thingOwner = new ThingOwner<Thing>();
+      ThingOwner<Thing> thingOwner = [];
       foreach (ThingDefCountClass thingDefCountClass in
         vehicle.VehicleDef.buildDef.CostListAdjusted(vehicle.Stuff))
       {
@@ -391,11 +391,11 @@ namespace Vehicles
 
         if (mode == DestroyMode.KillFinalize && vehicle.def.killedLeavings != null)
         {
-          for (int k = 0; k < vehicle.def.killedLeavings.Count; k++)
+          foreach (ThingDefCountClass killedLeaving in vehicle.def.killedLeavings)
           {
-            Thing thing = ThingMaker.MakeThing(vehicle.def.killedLeavings[k].thingDef, null);
-            thing.stackCount = vehicle.def.killedLeavings[k].count;
-            thingOwner.TryAdd(thing, true);
+            Thing thing = ThingMaker.MakeThing(killedLeaving.thingDef);
+            thing.stackCount = killedLeaving.count;
+            thingOwner.TryAdd(thing);
           }
         }
 
@@ -404,13 +404,12 @@ namespace Vehicles
           thingDefCountClass.thingDef.slagDef != null)
         {
           int count = thingDefCountClass.thingDef.slagDef.smeltProducts
-           .First((ThingDefCountClass pro) => pro.thingDef == ThingDefOf.Steel).count;
+           .First(sp => sp.thingDef == ThingDefOf.Steel).count;
           int proportionalCount = refundCount / count;
           proportionalCount = Mathf.Min(proportionalCount, vehicle.def.size.Area / 2);
           for (int n = 0; n < proportionalCount; n++)
           {
-            thingOwner.TryAdd(ThingMaker.MakeThing(thingDefCountClass.thingDef.slagDef, null),
-              true);
+            thingOwner.TryAdd(ThingMaker.MakeThing(thingDefCountClass.thingDef.slagDef));
           }
 
           refundCount -= proportionalCount * count;
@@ -420,7 +419,7 @@ namespace Vehicles
         {
           Thing thing2 = ThingMaker.MakeThing(thingDefCountClass.thingDef);
           thing2.stackCount = refundCount;
-          thingOwner.TryAdd(thing2, true);
+          thingOwner.TryAdd(thing2);
         }
       }
 
@@ -446,7 +445,7 @@ namespace Vehicles
         }
       }
 
-      TryDropAllOutsideVehicle(thingOwner, map, vehicle.OccupiedRect(), DestroyMode.Refund);
+      TryDropAllOutsideVehicle(thingOwner, map, vehicle.OccupiedRect());
     }
 
     public static bool TryDropOutsideVehicle(this ThingOwner container, Thing thing, Map map,
@@ -454,26 +453,18 @@ namespace Vehicles
     {
       IntVec3 cell = cellRect.EdgeCells.RandomElement();
       if (mode == DestroyMode.KillFinalize && !map.areaManager.Home[cell])
-      {
         thing.SetForbidden(true, warnOnFail: false);
-      }
 
-      return container.TryDrop(thing, ThingPlaceMode.Near, thing.stackCount, out _, null,
+      return container.TryDrop(thing, ThingPlaceMode.Near, thing.stackCount, out _,
         nearPlaceValidator: CanPlaceAt);
 
-      bool CanPlaceAt(IntVec3 cell)
+      bool CanPlaceAt(IntVec3 canPlaceAtCell)
       {
-        if (!cell.InBounds(map))
-        {
+        if (!canPlaceAtCell.InBounds(map))
           return false;
-        }
 
-        if (map.thingGrid.ThingAt<VehiclePawn>(cell) != null)
-        {
-          return false;
-        }
-
-        return map.pathing.Normal.pathGrid.WalkableFast(cell);
+        return map.thingGrid.ThingAt<VehiclePawn>(canPlaceAtCell) is null &&
+          map.pathing.Normal.pathGrid.WalkableFast(canPlaceAtCell);
       }
     }
 
@@ -489,7 +480,7 @@ namespace Vehicles
           container[0].SetForbidden(true, warnOnFail: false);
         }
 
-        if (!container.TryDrop(container[0], cell, map, ThingPlaceMode.Near, out _, null,
+        if (!container.TryDrop(container[0], cell, map, ThingPlaceMode.Near, out _,
           nearPlaceValidator: CanPlaceAt))
         {
           Log.Warning($"Failing to drop all from container {container.Owner}");
@@ -522,39 +513,34 @@ namespace Vehicles
     /// <returns><c>null</c> if not currently inside an AerialVehicle</returns>
     public static AerialVehicleInFlight GetAerialVehicle(this Pawn pawn)
     {
-      if (VehicleWorldObjectsHolder.Instance?.AerialVehicles !=
-        null) //may get triggered prematurely from loading save
-      {
-        foreach (AerialVehicleInFlight aerialVehicle in VehicleWorldObjectsHolder.Instance
-         .AerialVehicles)
-        {
-          if (aerialVehicle?.vehicle == pawn || aerialVehicle.vehicle.AllPawnsAboard.Contains(pawn))
-          {
-            return aerialVehicle;
-          }
-        }
-      }
+      // may get triggered prematurely from loading save
+      if (VehicleWorldObjectsHolder.Instance?.AerialVehicles is null)
+        return null;
 
+      foreach (AerialVehicleInFlight aerialVehicle in VehicleWorldObjectsHolder.Instance
+       .AerialVehicles)
+      {
+        Assert.IsNotNull(aerialVehicle);
+        if (aerialVehicle.vehicle == pawn || aerialVehicle.vehicle.AllPawnsAboard.Contains(pawn))
+          return aerialVehicle;
+      }
       return null;
     }
 
     /// <summary>
     /// Get all unique Vehicles in <paramref name="vehicles"/>
     /// </summary>
-    /// <param name="vehicles"></param>
     public static List<VehicleDef> UniqueVehicleDefsInList(this IEnumerable<VehiclePawn> vehicles)
     {
       return vehicles.Select(v => v.VehicleDef).Distinct().ToList();
     }
 
     /// <summary>
-    /// Get all unique Vehicles in <paramref name="vehicles"/>
+    /// Get all unique Vehicles in <paramref name="pawns"/>
     /// </summary>
-    /// <param name="vehicles"></param>
     public static List<VehicleDef> UniqueVehicleDefsInList(this IEnumerable<Pawn> pawns)
     {
-      return pawns.Where(pawn => pawn is VehiclePawn)
-       .Select(pawn => (pawn as VehiclePawn).VehicleDef).Distinct().ToList();
+      return pawns.Where(pawn => pawn is VehiclePawn).Cast<VehiclePawn>().UniqueVehicleDefsInList();
     }
 
     /// <summary>
@@ -567,13 +553,11 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Check if <paramref name="thingDef"/> is a boat
+    /// Check if <paramref name="thingDef"/> is a sea type vehicle.
     /// </summary>
-    /// <param name="thingDef"></param>
-    /// <returns></returns>
     public static bool IsBoat(this ThingDef thingDef)
     {
-      return thingDef is VehicleDef vehicleDef && vehicleDef.vehicleType == VehicleType.Sea;
+      return thingDef is VehicleDef { vehicleType: VehicleType.Sea };
     }
 
     /// <summary>
@@ -592,7 +576,7 @@ namespace Vehicles
     /// <returns></returns>
     public static bool HasBoat(this IEnumerable<Pawn> pawns)
     {
-      return pawns?.NotNullAndAny(x => IsBoat(x)) ?? false;
+      return pawns.NotNullAndAny(pawn => pawn.IsBoat());
     }
 
     public static bool IsFormingVehicleCaravan(this Pawn pawn)
@@ -634,39 +618,23 @@ namespace Vehicles
       return pawn.ParentHolder as VehicleCaravan;
     }
 
-    // TODO - Use for coordinated advance
-    /// <summary>
-    /// Vehicle speed should be reduced temporarily
-    /// </summary>
-    /// <param name="vehicle"></param>
-    public static bool SlowSpeed(this VehiclePawn vehicle)
-    {
-      var lord = vehicle.GetLord();
-      if (lord is null)
-      {
-        return false;
-      }
-
-      return false; // vehicleLordCategories.Contains(lord.LordJob.GetType());
-    }
-
     /// <summary>
     /// Vehicle is able to travel on the coast of <paramref name="tile"/>
     /// </summary>
     /// <param name="vehicleDef"></param>
     /// <param name="tile"></param>
-    public static bool CoastalTravel(this VehicleDef vehicleDef, int tile)
+    public static bool CoastalTravel(this VehicleDef vehicleDef, PlanetTile tile)
     {
       if (vehicleDef.properties.customBiomeCosts.TryGetValue(BiomeDefOf.Ocean,
           out float pathCost) && pathCost < WorldVehiclePathGrid.ImpassableMovementDifficulty)
       {
         WorldGrid worldGrid = Find.WorldGrid;
-        List<int> neighbors = new List<int>();
+        List<PlanetTile> neighbors = [];
         worldGrid.GetTileNeighbors(tile, neighbors);
 
         foreach (int neighborTile in neighbors)
         {
-          if (worldGrid[neighborTile].biome == BiomeDefOf.Ocean) return true;
+          if (worldGrid[neighborTile].PrimaryBiome == BiomeDefOf.Ocean) return true;
         }
       }
 
@@ -716,8 +684,6 @@ namespace Vehicles
     /// <summary>
     /// Determine if <paramref name="dest"/> is not large enough to fit <paramref name="vehicle"/>'s full hitbox
     /// </summary>
-    /// <param name="vehicle"></param>
-    /// <param name="dest"></param>
     public static bool LocationRestrictedBySize(this VehiclePawn vehicle, IntVec3 dest, Rot8 rot,
       Map map = null)
     {

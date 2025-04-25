@@ -5,7 +5,6 @@ using LudeonTK;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
-using SmashTools.UnitTesting;
 using UnityEngine;
 using UpdateLogTool;
 using Verse;
@@ -43,6 +42,7 @@ public class Section_Debug : SettingsSection
   public bool debugLoadAssetBundles = true;
 
   public bool debugAllowRaiders;
+  public bool hierarchalPathfinding;
 
   public override void ResetSettings()
   {
@@ -71,6 +71,7 @@ public class Section_Debug : SettingsSection
     debugLoadAssetBundles = true;
 
     debugAllowRaiders = false;
+    hierarchalPathfinding = false;
   }
 
   public override void ExposeData()
@@ -103,8 +104,14 @@ public class Section_Debug : SettingsSection
       Scribe_Values.Look(ref debugLoadAssetBundles, nameof(debugLoadAssetBundles),
         defaultValue: true);
     }
+
 #if RAIDERS
     Scribe_Values.Look(ref debugAllowRaiders, nameof(debugAllowRaiders));
+#endif
+
+#if HIERARCHAL_PATHFINDING
+    Scribe_Values.Look(ref hierarchalPathfinding, nameof(hierarchalPathfinding),
+      defaultValue: false);
 #endif
   }
 
@@ -158,11 +165,16 @@ public class Section_Debug : SettingsSection
 
 #if RAIDERS
         listingStandard.CheckboxLabeledWithMessage("Raiders / Traders (Experimental)",
-          (value) =>
+          _ =>
             new Message("VF_WillRequireRestart".Translate(), MessageTypeDefOf.CautionInput),
           ref debugAllowRaiders,
           "Enables vehicle generation for NPCs.\n NOTE: This is an experimental feature. Use at your own risk.");
 #endif
+#if HIERARCHAL_PATHFINDING
+        listingStandard.CheckboxLabeled("VF_HierarchalPathfinding".Translate(),
+          ref hierarchalPathfinding, "VF_HierarchalPathfindingTooltip".Translate());
+#endif
+
         listingStandard.CheckboxLabeled("VF_DevMode_DebugSpawnVehiclesGodMode".Translate(),
           ref debugSpawnVehicleBuildingGodMode,
           "VF_DevMode_DebugSpawnVehiclesGodModeTooltip".Translate());
@@ -184,7 +196,7 @@ public class Section_Debug : SettingsSection
           }
           else
           {
-            debugUseMultithreading = checkOn;
+            debugUseMultithreading = true;
             RevalidateAllMapThreads();
           }
         }
@@ -326,28 +338,21 @@ public class Section_Debug : SettingsSection
     }
   }
 
-  public void RegionDebugMenu()
+  public static void RegionDebugMenu()
   {
-    List<Toggle> vehicleDefToggles = new List<Toggle>();
-    vehicleDefToggles.Add(new Toggle("None", () => DebugHelper.Local.VehicleDef == null ||
-      DebugHelper.Local.DebugType ==
-      DebugRegionType.None, delegate(bool value)
-    {
-      if (value)
-      {
-        DebugHelper.Local.VehicleDef = null;
-        DebugHelper.Local.DebugType = DebugRegionType.None;
-      }
-    }));
+    List<Toggle> vehicleDefToggles = [];
+    vehicleDefToggles.Add(new Toggle("None",
+      () => true, SetNone));
+
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
         def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
           ignorePostfix: true))
      .ThenBy(def => def.modContentPack.Name)
      .ThenBy(d => d.defName))
     {
-      Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name,
-        () => DebugHelper.Local.VehicleDef == vehicleDef,
-        (value) => { }, onToggle: delegate(bool value)
+      Toggle toggle = new(vehicleDef.defName, vehicleDef.modContentPack.Name,
+        stateGetter: () => DebugHelper.Local.VehicleDef == vehicleDef,
+        stateSetter: delegate(bool value)
         {
           if (value)
           {
@@ -355,11 +360,6 @@ public class Section_Debug : SettingsSection
               DebugHelper.DebugToggles(vehicleDef, DebugHelper.Local).ToList();
             Find.WindowStack.Add(new Dialog_ToggleMenu(
               "VF_DevMode_DebugPathfinderDebugging".Translate(), debugOptionToggles));
-          }
-          else
-          {
-            DebugHelper.Local.VehicleDef = null;
-            DebugHelper.Local.DebugType = DebugRegionType.None;
           }
         });
       toggle.Disabled = !PathingHelper.ShouldCreateRegions(vehicleDef);
@@ -369,30 +369,33 @@ public class Section_Debug : SettingsSection
     Find.WindowStack.Add(
       new Dialog_RadioButtonMenu("VF_DevMode_DebugPathfinderDebugging".Translate(),
         vehicleDefToggles));
+    return;
+
+    static void SetNone(bool value)
+    {
+      if (value)
+      {
+        DebugHelper.Local.VehicleDef = null;
+        DebugHelper.Local.DebugType = DebugRegionType.None;
+      }
+    }
   }
 
   private static void WorldPathingDebugMenu()
   {
     List<Toggle> vehicleDefToggles = [];
     vehicleDefToggles.Add(new Toggle("None",
-      () => DebugHelper.World.VehicleDef == null ||
-        DebugHelper.World.DebugType == WorldPathingDebugType.None, delegate(bool value)
-      {
-        if (value)
-        {
-          DebugHelper.World.VehicleDef = null;
-          DebugHelper.World.DebugType = WorldPathingDebugType.None;
-        }
-      }));
+      () => true, SetNone));
+
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
         def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
           ignorePostfix: true))
      .ThenBy(def => def.modContentPack.Name)
      .ThenBy(d => d.defName))
     {
-      Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name,
-        () => DebugHelper.World.VehicleDef == vehicleDef, (value) => { },
-        onToggle: delegate(bool value)
+      Toggle toggle = new(vehicleDef.defName, vehicleDef.modContentPack.Name,
+        stateGetter: () => DebugHelper.World.VehicleDef == vehicleDef,
+        stateSetter: delegate(bool value)
         {
           if (value)
           {
@@ -400,11 +403,6 @@ public class Section_Debug : SettingsSection
               DebugHelper.DebugToggles(vehicleDef, DebugHelper.World).ToList();
             Find.WindowStack.Add(new Dialog_RadioButtonMenu(
               "VF_DevMode_DebugWorldPathfinderDebugging".Translate(), debugOptionToggles));
-          }
-          else
-          {
-            DebugHelper.World.VehicleDef = null;
-            DebugHelper.World.DebugType = WorldPathingDebugType.None;
           }
         });
       toggle.Disabled =
@@ -415,6 +413,16 @@ public class Section_Debug : SettingsSection
     Find.WindowStack.Add(
       new Dialog_RadioButtonMenu("VF_DevMode_DebugPathfinderDebugging".Translate(),
         vehicleDefToggles));
+    return;
+
+    static void SetNone(bool value)
+    {
+      if (value)
+      {
+        DebugHelper.World.VehicleDef = null;
+        DebugHelper.World.DebugType = WorldPathingDebugType.None;
+      }
+    }
   }
 
   public void ShowAllUpdates()

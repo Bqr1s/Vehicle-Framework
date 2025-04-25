@@ -50,22 +50,23 @@ namespace Vehicles
 
 #region Raiders
 
-    public static Thing FirstBlockingBuilding(VehiclePawn vehicle, PawnPath path)
+    public static Thing FirstBlockingBuilding(VehiclePawn vehicle, VehiclePath path)
     {
       if (!path.Found)
       {
         return null;
       }
-      List<IntVec3> nodesReversed = path.NodesReversed;
-      if (nodesReversed.Count == 1)
+      IReadOnlyList<IntVec3> nodes = path.Nodes;
+      if (nodes.Count == 1)
       {
         return null;
       }
+
       VehicleDef vehicleDef = vehicle.VehicleDef;
       // -2 since we don't care about vehicle's starting position
-      for (int i = nodesReversed.Count - 2; i >= 0; i--)
+      for (int i = nodes.Count - 2; i >= 0; i--)
       {
-        Building edifice = nodesReversed[i].GetEdifice(vehicle.Map);
+        Building edifice = nodes[i].GetEdifice(vehicle.Map);
         if (edifice != null)
         {
           bool fenceBlocked = edifice.def.IsFence && !vehicleDef.race.CanPassFences;

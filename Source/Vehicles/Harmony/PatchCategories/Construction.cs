@@ -53,7 +53,7 @@ namespace Vehicles
 
     private static bool GenerateVehiclePawn(PawnGenerationRequest request, ref Pawn __result)
     {
-      if (request.KindDef != null && request.KindDef.race is VehicleDef vehicleDef)
+      if (request.KindDef?.race is VehicleDef vehicleDef)
       {
         __result = VehicleSpawner.GenerateVehicle(vehicleDef, request.Faction);
         return false;
@@ -62,23 +62,19 @@ namespace Vehicles
       return true;
     }
 
-    public static bool CompleteConstructionVehicle(Pawn worker, Frame __instance)
+    private static bool CompleteConstructionVehicle(Pawn worker, Frame __instance)
     {
-      if (__instance.def.entityDefToBuild is VehicleBuildDef def && def.thingToSpawn != null)
+      if (__instance.def.entityDefToBuild is VehicleBuildDef { thingToSpawn: not null } buildDef)
       {
-        VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(def.thingToSpawn, worker.Faction);
-        __instance.resourceContainer.ClearAndDestroyContents(DestroyMode.Vanish);
+        VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(buildDef.thingToSpawn, worker.Faction);
+        __instance.resourceContainer.ClearAndDestroyContents();
         Map map = __instance.Map;
-        __instance.Destroy(DestroyMode.Vanish);
+        __instance.Destroy();
 
-        if (def.soundBuilt != null)
-        {
-          def.soundBuilt.PlayOneShot(new TargetInfo(__instance.Position, map, false));
-        }
+        buildDef.soundBuilt?.PlayOneShot(new TargetInfo(__instance.Position, map));
 
         vehicle.SetFaction(worker.Faction);
-        GenSpawn.Spawn(vehicle, __instance.Position, map, __instance.Rotation, WipeMode.FullRefund,
-          false);
+        GenSpawn.Spawn(vehicle, __instance.Position, map, __instance.Rotation, WipeMode.FullRefund);
         worker.records.Increment(RecordDefOf.ThingsConstructed);
 
         if (!DebugSettings.godMode) //quick spawning for development
@@ -87,9 +83,10 @@ namespace Vehicles
         }
         else
         {
-          foreach (VehicleComp vehicleComp in vehicle.AllComps.Where(comp => comp is VehicleComp))
+          foreach (ThingComp thingComp in vehicle.AllComps)
           {
-            vehicleComp.SpawnedInGodMode();
+            if (thingComp is VehicleComp vehicleComp)
+              vehicleComp.SpawnedInGodMode();
           }
         }
 
@@ -102,10 +99,12 @@ namespace Vehicles
       return true;
     }
 
-    public static bool Notify_RepairedVehicle(Building b, ListerBuildingsRepairable __instance)
+    private static bool Notify_RepairedVehicle(Building b, ListerBuildingsRepairable __instance)
     {
-      if (b is VehicleBuilding building && b.def is VehicleBuildDef vehicleDef &&
-        vehicleDef.thingToSpawn != null)
+      if (b is VehicleBuilding building && b.def is VehicleBuildDef
+        {
+          thingToSpawn: not null
+        } buildDef)
       {
         if (b.HitPoints < b.MaxHitPoints)
           return true;
@@ -118,7 +117,7 @@ namespace Vehicles
         }
         else
         {
-          vehicle = PawnGenerator.GeneratePawn(vehicleDef.thingToSpawn.kindDef);
+          vehicle = PawnGenerator.GeneratePawn(buildDef.thingToSpawn.kindDef);
         }
 
         Map map = b.Map;
@@ -126,20 +125,18 @@ namespace Vehicles
         Rot4 rotation = b.Rotation;
 
         AccessTools.Method(typeof(ListerBuildingsRepairable), "UpdateBuilding")
-         .Invoke(__instance, new object[] { b });
-        if (vehicleDef.soundBuilt != null)
-        {
-          vehicleDef.soundBuilt.PlayOneShot(new TargetInfo(position, map, false));
-        }
+         .Invoke(__instance, [b]);
+
+        buildDef.soundBuilt?.PlayOneShot(new TargetInfo(position, map));
 
         if (vehicle.Faction != Faction.OfPlayer)
         {
           vehicle.SetFaction(Faction.OfPlayer);
         }
 
-        b.Destroy(DestroyMode.Vanish);
+        b.Destroy();
         vehicle.ForceSetStateToUnspawned();
-        GenSpawn.Spawn(vehicle, position, map, rotation, WipeMode.FullRefund, false);
+        GenSpawn.Spawn(vehicle, position, map, rotation, WipeMode.FullRefund);
         return false;
       }
 
@@ -147,40 +144,32 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Catch All for vehicle related Things spawned in. Handles GodMode placing of vehicle buildings, corrects immovable spawn locations, and registers air defenses
+    /// Catch All for vehicle related Things spawned in. Handles GodMode placing of vehicle
+    /// buildings, corrects immovable spawn locations, and registers air defenses
     /// </summary>
-    /// <param name="newThing"></param>
-    /// <param name="loc"></param>
-    /// <param name="map"></param>
-    /// <param name="rot"></param>
-    /// <param name="__result"></param>
-    /// <param name="wipeMode"></param>
-    /// <param name="respawningAfterLoad"></param>
-    public static bool RegisterThingSpawned(Thing newThing, ref IntVec3 loc, Map map, ref Rot4 rot,
+    private static bool RegisterThingSpawned(Thing newThing, ref IntVec3 loc, Map map, ref Rot4 rot,
       ref Thing __result, bool respawningAfterLoad)
     {
       if (newThing.def is VehicleBuildDef buildDef &&
         !VehicleMod.settings.debug.debugSpawnVehicleBuildingGodMode &&
         newThing.HitPoints == newThing.MaxHitPoints && !respawningAfterLoad)
       {
-        return BuildVehicle(newThing, buildDef, map, ref rot, ref loc, ref __result);
+        return BuildVehicle(newThing, buildDef, map, ref rot, ref loc, out __result);
       }
 
-      if (newThing is VehiclePawn vehicle)
+      switch (newThing)
       {
-        __result = vehicle;
-        return PlaceVehicle(vehicle, map, ref rot, ref loc, respawningAfterLoad);
+        case VehiclePawn vehicle:
+          __result = vehicle;
+          return PlaceVehicle(vehicle, map, ref rot, ref loc, respawningAfterLoad);
+        case Pawn { Dead: false } pawn:
+          TryAdjustPawn(pawn, map, ref loc);
+          break;
       }
-
-      if (newThing is Pawn { Dead: false } pawn)
-      {
-        TryAdjustPawn(pawn, map, ref loc);
-      }
-
       return true;
 
       static bool BuildVehicle(Thing newThing, VehicleBuildDef buildDef, Map map, ref Rot4 rot,
-        ref IntVec3 loc, ref Thing __result)
+        ref IntVec3 loc, out Thing __result)
       {
         VehiclePawn vehicle =
           VehicleSpawner.GenerateVehicle(buildDef.thingToSpawn, newThing.Faction);
@@ -205,7 +194,6 @@ namespace Vehicles
               vehicleComp.SpawnedInGodMode();
           }
         }
-
         __result = vehicle;
         return false;
       }
@@ -345,7 +333,7 @@ namespace Vehicles
       }
     }
 
-    public static void AllowDeconstructVehicle(Designator_Deconstruct __instance, Thing t,
+    private static void AllowDeconstructVehicle(Designator_Deconstruct __instance, Thing t,
       ref AcceptanceReport __result)
     {
       if (t is VehiclePawn vehicle && vehicle.DeconstructibleBy(Faction.OfPlayer))
@@ -367,19 +355,18 @@ namespace Vehicles
       }
     }
 
-    public static bool DoUnsupportedVehicleRefunds(Thing diedThing, Map map, DestroyMode mode,
-      List<Thing> listOfLeavingsOut = null)
+    private static bool DoUnsupportedVehicleRefunds(Thing diedThing, Map map, DestroyMode mode)
     {
       if (diedThing is VehiclePawn vehicle)
       {
-        vehicle.RefundMaterials(map, mode, listOfLeavingsOut);
+        vehicle.RefundMaterials(map, mode);
         return false;
       }
 
       return true;
     }
 
-    public static IEnumerable<CodeInstruction> ValidDestroyModeForVehicles(
+    private static IEnumerable<CodeInstruction> ValidDestroyModeForVehicles(
       IEnumerable<CodeInstruction> instructions)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
@@ -407,7 +394,7 @@ namespace Vehicles
       }
     }
 
-    public static bool VehicleValidDestroyMode(Pawn pawn, DestroyMode destroyMode)
+    private static bool VehicleValidDestroyMode(Pawn pawn, DestroyMode destroyMode)
     {
       return pawn is VehiclePawn && destroyMode != DestroyMode.QuestLogic &&
         destroyMode != DestroyMode.FailConstruction && destroyMode != DestroyMode.WillReplace;

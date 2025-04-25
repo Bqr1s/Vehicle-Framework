@@ -1,18 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Text;
-using UnityEngine;
-using HarmonyLib;
+﻿using System.Collections.Generic;
 using RimWorld;
-using RimWorld.Planet;
 using Verse;
-using Verse.Sound;
-using Verse.AI;
-using Verse.AI.Group;
-using SmashTools;
-using SmashTools.Performance;
 
 namespace Vehicles
 {
@@ -27,7 +15,6 @@ namespace Vehicles
 
     public int AttachedExplosives => explosives.Count;
 
-    // TODO 1.6 - Rename
     public TimedExplosion AddTimedExplosion(TimedExplosion.Data explosionData,
       DrawOffsets drawOffsets = null)
     {
@@ -36,7 +23,13 @@ namespace Vehicles
       return timedExplosion;
     }
 
-    public override void Tick()
+    // TODO 1.6 - Refactor
+    public void Tick_TEMP()
+    {
+      Tick();
+    }
+
+    protected override void Tick()
     {
       BaseTickOptimized();
       TickAllComps();
@@ -58,7 +51,6 @@ namespace Vehicles
         compTickers.Add(comp);
         return true;
       }
-
       return false;
     }
 
@@ -66,10 +58,9 @@ namespace Vehicles
     {
       if (!VehicleMod.settings.main.opportunisticTicking)
       {
-        return
-          false; //If opportunistic ticking is off, disallow removal from ticker list. VehicleComp should then always tick
+        //If opportunistic ticking is off, disallow removal from ticker list. VehicleComp should then always tick
+        return false;
       }
-
       return compTickers.Remove(comp);
     }
 
@@ -107,6 +98,12 @@ namespace Vehicles
     {
       base.TickRare();
       statHandler.MarkAllDirty();
+    }
+
+    protected override void TickInterval(int delta)
+    {
+      ageTracker.AgeTickInterval(delta);
+      records.RecordsTickInterval(delta);
     }
 
     protected virtual void BaseTickOptimized()
@@ -155,9 +152,6 @@ namespace Vehicles
       {
         //royalty?.RoyaltyTrackerTick();
       }
-
-      ageTracker.AgeTick();
-      records.RecordsTick();
     }
   }
 }

@@ -12,6 +12,7 @@ using static Vehicles.VehicleUpgrade;
 namespace Vehicles
 {
   [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+  [VehicleSettingsClass]
   public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget, ITweakFields
   {
     [PostToSettings]
@@ -70,14 +71,14 @@ namespace Vehicles
     public List<VehicleSoundEventEntry<VehicleEventDef>> soundOneShotsOnEvent = [];
 
     // <Start Event, Stop Event> : SoundDef
-    public List<VehicleSustainerEventEntry<VehicleEventDef>> soundSustainersOnEvent = [];
+    public List<VehicleSustainerEventEntry<VehicleEventDef>> soundSustainersOnEvent;
 
-    // TODO 1.6 - refactor to container class for cleaner xml input
-    public Dictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>> events = [];
+    public SimpleDictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>> events;
 
     public List<Type> designatorTypes = [];
 
-    [NoTranslate] //Should be translated in xml and parsed in appropriately
+    // Should be translated in xml and parsed in appropriately
+    [NoTranslate]
     public string draftLabel;
 
     public SoundDef soundBuilt;
@@ -329,8 +330,12 @@ namespace Vehicles
         if (Fillage == FillCategory.Full)
         {
           // Vehicles can provide full cover without affecting edifice grid
-          if (error == "fillPercent is 1.00 but is not edifice") continue;
-          if (error == "gives full cover but is not a building.") continue;
+          switch (error)
+          {
+            case "fillPercent is 1.00 but is not edifice":
+            case "gives full cover but is not a building.":
+              continue;
+          }
         }
 
         yield return error;

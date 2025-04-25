@@ -7,6 +7,7 @@ using Verse;
 using Verse.Sound;
 using Verse.AI;
 using SmashTools;
+using SmashTools.Rendering;
 
 namespace Vehicles
 {
@@ -271,17 +272,18 @@ namespace Vehicles
 
     public override void PostDraw()
     {
-      for (int i = 0; i < turrets.Count; i++)
+      TransformData transformData = new(Vehicle.DrawPos, Vehicle.FullRotation, 0);
+      foreach (VehicleTurret turret in turrets)
       {
-        turrets[i].Draw();
+        turret.DrawAt(in transformData);
       }
     }
 
     public override void PostDrawUnspawned(ref readonly TransformData transform)
     {
-      for (int i = 0; i < turrets.Count; i++)
+      foreach (VehicleTurret turret in turrets)
       {
-        turrets[i].DrawAt(transform.position, transform.orientation);
+        turret.DrawAt(in transform);
       }
     }
 
@@ -720,7 +722,7 @@ namespace Vehicles
       }
     }
 
-    public override void PostDeSpawn(Map map)
+    public override void PostDeSpawn(Map map, DestroyMode mode = DestroyMode.Vanish)
     {
       base.PostDeSpawn(map);
       for (int i = tickers.Count - 1; i >= 0; i--)

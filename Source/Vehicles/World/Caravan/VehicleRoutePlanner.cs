@@ -57,7 +57,7 @@ namespace Vehicles
     {
       get
       {
-        return !Active || !WorldRendererUtility.WorldRenderedNow ||
+        return !Active || !WorldRendererUtility.WorldRendered ||
           (Current.ProgramState == ProgramState.Playing &&
             Find.TickManager.CurTimeSpeed != TimeSpeed.Paused && !Prefs.DevMode);
       }
@@ -380,21 +380,21 @@ namespace Vehicles
         GenTicks.TicksAbs + cachedTicksToWaypoint[pathIndex]);
       int totalTicks = cachedTicksToWaypoint[pathIndex] + estimatedTicks;
       int ticksAbs = GenTicks.TicksAbs + totalTicks;
-      StringBuilder stringBuilder = new StringBuilder();
+      StringBuilder stringBuilder = new();
       if (totalTicks != 0)
       {
         stringBuilder.AppendLine(
           "EstimatedTimeToTile".Translate(totalTicks.ToStringTicksToDays("0.##")));
       }
       stringBuilder.AppendLine("ForagedFoodAmount".Translate() + ": " +
-        Find.WorldGrid[tile].biome.forageability.ToStringPercent());
+        Find.WorldGrid[tile].PrimaryBiome.forageability.ToStringPercent());
       stringBuilder.Append(
         VirtualPlantsUtility.GetVirtualPlantsStatusExplanationAt(tile, ticksAbs));
       if (tileStep != -1)
       {
         stringBuilder.AppendLine();
         stringBuilder.AppendLine();
-        StringBuilder stringBuilder2 = new StringBuilder();
+        StringBuilder stringBuilder2 = new();
         float num5 =
           WorldPathGrid.CalculatedMovementDifficultyAt(tileStep, false, new int?(ticksAbs),
             stringBuilder2);

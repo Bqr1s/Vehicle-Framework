@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using LudeonTK;
 using RimWorld;
+using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Pathfinding;
-using UnityEngine;
 using Verse;
 using Verse.Sound;
 
@@ -176,7 +176,7 @@ namespace Vehicles
 
       public void GenerateRegions()
       {
-        BFS<int> floodfiller = new();
+        BFS<PlanetTile> floodfiller = new();
         int[] tilesToId = new int[Find.WorldGrid.TilesCount];
         totalRegions = 1;
 
@@ -196,10 +196,10 @@ namespace Vehicles
           totalRegions++;
           continue;
 
-          void OnEnter(int t) => tilesToId[t] = id;
+          void OnEnter(PlanetTile t) => tilesToId[t] = id;
 
           // Tile hasn't been processed and is not impassable
-          bool CanEnter(int t) => tilesToId[t] == 0 && pathGrid.PassableFast(t, owner);
+          bool CanEnter(PlanetTile t) => tilesToId[t] == 0 && pathGrid.PassableFast(t, owner);
         }
         // This is the only case where the id array will be getting written to so we can just use
         // an atomic reference swap and maintain thread safety lock-free.

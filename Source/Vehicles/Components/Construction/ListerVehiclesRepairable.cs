@@ -1,28 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Verse;
+﻿using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
+using Verse;
 
 namespace Vehicles
 {
   public class ListerVehiclesRepairable : MapComponent
   {
-    private Dictionary<Faction, VehicleRepairsCollection> vehiclesToRepair = [];
+    private readonly Dictionary<Faction, HashSet<VehiclePawn>> vehiclesToRepair = [];
 
     public ListerVehiclesRepairable(Map map) : base(map)
     {
     }
 
+    private static HashSet<VehiclePawn> Empty { get; } = [];
+
     public HashSet<VehiclePawn> RepairsForFaction(Faction faction)
     {
-      if (vehiclesToRepair.TryGetValue(faction, out VehicleRepairsCollection vehicles))
+      if (faction is null)
+        return Empty;
+      if (!vehiclesToRepair.TryGetValue(faction, out HashSet<VehiclePawn> vehicles))
       {
-        return vehicles;
+        vehiclesToRepair[faction] = vehicles = [];
       }
-
-      return new HashSet<VehiclePawn>();
+      return vehicles;
     }
 
     public void NotifyVehicleSpawned(VehiclePawn vehicle)
@@ -33,7 +34,8 @@ namespace Vehicles
 
     public void NotifyVehicleDespawned(VehiclePawn vehicle)
     {
-      if (vehicle.Faction == null) return;
+      if (vehicle.Faction is null)
+        return;
       if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
       {
         vehicles.Remove(vehicle);
@@ -42,66 +44,33 @@ namespace Vehicles
 
     public void NotifyVehicleTookDamage(VehiclePawn vehicle)
     {
-      if (vehicle.Faction == null) return;
+      if (vehicle.Faction is null)
+        return;
 
       if (vehicle.statHandler.NeedsRepairs &&
         !Mathf.Approximately(vehicle.GetStatValue(VehicleStatDefOf.BodyIntegrity), 0))
       {
-        if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
+        if (!vehiclesToRepair.TryGetValue(vehicle.Faction, out HashSet<VehiclePawn> vehicles))
         {
-          if (vehicle.Spawned)
-          {
-            vehicles.Add(vehicle);
-          }
-          else
-          {
-            vehicles.Remove(vehicle);
-          }
+          vehiclesToRepair[vehicle.Faction] = vehicles = [];
         }
-        else if (vehicle.Spawned)
-        {
-          vehiclesToRepair[vehicle.Faction] = new VehicleRepairsCollection();
-          vehiclesToRepair[vehicle.Faction].Add(vehicle);
-        }
+        if (vehicle.Spawned)
+          vehicles.Add(vehicle);
+        else
+          vehicles.Remove(vehicle);
       }
     }
 
     public void NotifyVehicleRepaired(VehiclePawn vehicle)
     {
-      if (vehicle.Faction == null) return;
+      if (vehicle.Faction == null)
+        return;
+      if (vehicle.statHandler.NeedsRepairs)
+        return;
 
-      if (!vehicle.statHandler.NeedsRepairs &&
-        vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
+      if (vehiclesToRepair.TryGetValue(vehicle.Faction, out HashSet<VehiclePawn> vehicles))
       {
         vehicles.Remove(vehicle);
-      }
-    }
-
-    //TODO - revisit for saving
-    //Note: May not actually need to be saved, vehicles spawning in will recache status
-    public override void ExposeData()
-    {
-      base.ExposeData();
-      //Scribe_Collections.Look(ref vehiclesToRepair, nameof(vehiclesToRepair), LookMode.Reference, LookMode.Deep, ref factions_tmp, ref vehicleRepairs_tmp);
-    }
-
-    // TODO 1.6 - Remove, RimWorld now supports serializing nested collections. This is nonsense.
-    private class VehicleRepairsCollection : IExposable
-    {
-      private HashSet<VehiclePawn> requests = new HashSet<VehiclePawn>();
-
-      public static implicit operator HashSet<VehiclePawn>(VehicleRepairsCollection collection)
-      {
-        return collection.requests;
-      }
-
-      public bool Add(VehiclePawn vehicle) => requests.Add(vehicle);
-
-      public bool Remove(VehiclePawn vehicle) => requests.Remove(vehicle);
-
-      public void ExposeData()
-      {
-        Scribe_Collections.Look(ref requests, nameof(requests), LookMode.Reference);
       }
     }
   }

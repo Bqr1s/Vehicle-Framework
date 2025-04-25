@@ -1,46 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using UnityEngine;
-using Verse;
-using Verse.Sound;
+using JetBrains.Annotations;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using UnityEngine;
+using Verse;
 
 namespace Vehicles
 {
   [StaticConstructorOnStartup]
+  [UsedImplicitly(ImplicitUseTargetFlags.Members)]
   public class AerialVehicleInFlight : DynamicDrawnWorldObject, IVehicleWorldObject
   {
     private static readonly Texture2D ViewQuestCommandTex =
-      ContentFinder<Texture2D>.Get("UI/Commands/ViewQuest", true);
+      ContentFinder<Texture2D>.Get("UI/Commands/ViewQuest");
 
     public const float ReconFlightSpeed = 5;
     public const float TransitionTakeoff = 0.025f;
     public const float PctPerTick = 0.001f;
     public const int TicksPerValidateFlightPath = 60;
 
-    protected static readonly SimpleCurve climbRateCurve = new()
-    {
-      {
-        new CurvePoint(0, 0.65f),
-        true
-      },
-      {
-        new CurvePoint(0.05f, 1),
-        true
-      },
-      {
-        new CurvePoint(0.95f, 1),
-        true
-      },
-      {
-        new CurvePoint(1, 0.15f),
-        true
-      }
-    };
+    protected static readonly SimpleCurve climbRateCurve =
+    [
+      new CurvePoint(0, 0.65f),
+      new CurvePoint(0.05f, 1),
+      new CurvePoint(0.95f, 1),
+      new CurvePoint(1, 0.15f),
+    ];
 
     public VehiclePawn vehicle;
     public ThingOwner<VehiclePawn> innerContainer;
@@ -52,10 +40,8 @@ namespace Vehicles
     internal float transition;
     public float elevation;
     public bool recon;
-    private float transitionSize = 0f;
     private float speedPctPerTick;
 
-    public Vector3 directionFacing;
     public Vector3 position;
 
     private Material vehicleMat;
@@ -80,8 +66,8 @@ namespace Vehicles
     public float Rate => vehicle.CompVehicleLauncher.ClimbRateStat *
       climbRateCurve.Evaluate(Elevation / vehicle.CompVehicleLauncher.MaxAltitude);
 
-    public int TicksTillLandingElevation => Mathf.RoundToInt((Elevation -
-      (vehicle.CompVehicleLauncher.LandingAltitude / 2)) / Rate);
+    public int TicksTillLandingElevation =>
+      Mathf.RoundToInt((Elevation - vehicle.CompVehicleLauncher.LandingAltitude / 2f) / Rate);
 
     protected virtual Rot8 FullRotation => Rot8.North;
 
@@ -189,40 +175,8 @@ namespace Vehicles
     {
       if (!this.HiddenBehindTerrainNow())
       {
-        float averageTileSize = Find.WorldGrid.averageTileSize;
-        float transitionPct = ExpandableWorldObjectsUtility.TransitionPct;
-
-        if (transitionSize < 1)
-        {
-          transitionSize += TransitionTakeoff * (int)Find.TickManager.CurTimeSpeed;
-        }
-        float drawPct =
-          (1 + (transitionPct * Find.WorldCameraDriver.AltitudePercent * ExpandingResize)) *
-          transitionSize;
-        if (directionFacing == default)
-        {
-          InitializeFacing();
-        }
-        bool rotateTexture = vehicle.CompVehicleLauncher.Props.faceDirectionOfTravel;
-        if (VehicleMod.settings.main.dynamicWorldDrawing && transitionPct <= 0)
-        {
-          Vector3 normalized = DrawPos.normalized;
-          Vector3 direction =
-            Vector3.Cross(normalized, rotateTexture ? directionFacing : Vector3.down);
-          Quaternion quat = Quaternion.LookRotation(direction, normalized) *
-            Quaternion.Euler(0f, 90f, 0f);
-          Vector3 size = new Vector3(averageTileSize * 0.7f * drawPct, 1,
-            averageTileSize * 0.7f * drawPct);
-
-          Matrix4x4 matrix = default;
-          matrix.SetTRS(DrawPos + normalized * TransitionTakeoff, quat, size);
-          //Graphics.DrawMesh(MeshPool.plane10, matrix, VehicleMat, WorldCameraManager.WorldLayer);
-          //RenderGraphicOverlays(normalized, direction, size);
-        }
-        else
-        {
-          WorldHelper.DrawQuadTangentialToPlanet(DrawPos, 0.7f * averageTileSize, 0.015f, Material);
-        }
+        WorldHelper.DrawQuadTangentialToPlanet(DrawPos, 0.7f * Find.WorldGrid.AverageTileSize,
+          0.015f, Material);
       }
     }
 
@@ -231,7 +185,7 @@ namespace Vehicles
     {
       foreach (GraphicOverlay graphicOverlay in vehicle.overlayRenderer.AllOverlaysListForReading)
       {
-        Material material = graphicOverlay.Graphic.MatAt(FullRotation);
+        Material overlayMaterial = graphicOverlay.Graphic.MatAt(FullRotation);
         float quatRotation = 90;
         if (graphicOverlay.Graphic is Graphic_Rotator rotator)
         {
@@ -241,7 +195,7 @@ namespace Vehicles
           Quaternion.Euler(0, quatRotation, 0);
         Matrix4x4 matrix = default;
         matrix.SetTRS(DrawPos + normalized * TransitionTakeoff, quat, size);
-        Graphics.DrawMesh(MeshPool.plane10, matrix, material, WorldCameraManager.WorldLayer);
+        Graphics.DrawMesh(MeshPool.plane10, matrix, overlayMaterial, WorldCameraManager.WorldLayer);
       }
     }
 
@@ -265,15 +219,14 @@ namespace Vehicles
               defaultLabel = "CommandViewQuest".Translate(quest.name),
               defaultDesc = "CommandViewQuestDesc".Translate(),
               icon = ViewQuestCommandTex,
-              action = delegate()
+              action = delegate
               {
-                Find.MainTabsRoot.SetCurrentTab(MainButtonDefOf.Quests, true);
+                Find.MainTabsRoot.SetCurrentTab(MainButtonDefOf.Quests);
                 ((MainTabWindow_Quests)MainButtonDefOf.Quests.TabWindow).Select(quest);
               }
             };
           }
         }
-        quests = null;
       }
 
       if (IsPlayerControlled)
@@ -288,17 +241,17 @@ namespace Vehicles
         }
         if (vehicle.CompVehicleLauncher.ControlInFlight)
         {
-          Command_Action launchCommand = new Command_Action()
+          Command_Action launchCommand = new()
           {
             defaultLabel = "CommandLaunchGroup".Translate(),
             defaultDesc = "CommandLaunchGroupDesc".Translate(),
             icon = VehicleTex.LaunchCommandTex,
             alsoClickIfOtherInGroupClicked = false,
-            action = delegate()
+            action = delegate
             {
               LaunchTargeter.BeginTargeting(vehicle, ChoseTargetOnMap, this, true,
                 VehicleTex.TargeterMouseAttachment, false, null,
-                (GlobalTargetInfo target, List<FlightNode> path, float fuelCost) =>
+                (target, path, fuelCost) =>
                   vehicle.CompVehicleLauncher.launchProtocol.TargetingLabelGetter(target, Tile,
                     path, fuelCost));
             }
@@ -315,12 +268,12 @@ namespace Vehicles
           yield return new Command_Action
           {
             defaultLabel = "Debug: Land at Nearest Player Settlement",
-            action = delegate() { Debugging.DebugLandAerialVehicle(this); }
+            action = delegate { Debugging.DebugLandAerialVehicle(this); }
           };
           yield return new Command_Action
           {
             defaultLabel = "Debug: Initiate Crash Event",
-            action = delegate() { InitiateCrashEvent(null); }
+            action = delegate { InitiateCrashEvent(null); }
           };
         }
       }
@@ -328,111 +281,55 @@ namespace Vehicles
 
     public virtual bool ChoseTargetOnMap(GlobalTargetInfo target, float fuelCost)
     {
-      bool Validator(GlobalTargetInfo target, Vector3 pos,
+      return vehicle.CompVehicleLauncher.launchProtocol.ChoseWorldTarget(target, DrawPos, Validator,
+        NewDestination);
+
+      bool Validator(GlobalTargetInfo globalTarget, Vector3 pos,
         Action<int, AerialVehicleArrivalAction, bool> launchAction)
       {
-        if (!target.IsValid)
+        if (!globalTarget.IsValid)
         {
           Messages.Message("MessageTransportPodsDestinationIsInvalid".Translate(),
             MessageTypeDefOf.RejectInput, false);
           return false;
         }
-        else if (vehicle.CompFueledTravel != null &&
-          Ext_Math.SphericalDistance(pos, WorldHelper.GetTilePos(target.Tile)) >
-          vehicle.CompVehicleLauncher.MaxLaunchDistance || fuelCost > vehicle.CompFueledTravel.Fuel)
+
+        if (Ext_Math.SphericalDistance(pos, WorldHelper.GetTilePos(globalTarget.Tile)) >
+          vehicle.CompVehicleLauncher.MaxLaunchDistance || (vehicle.CompFueledTravel is not null &&
+            fuelCost > vehicle.CompFueledTravel.Fuel))
         {
           Messages.Message("TransportPodDestinationBeyondMaximumRange".Translate(),
             MessageTypeDefOf.RejectInput, false);
           return false;
         }
-        IEnumerable<FloatMenuOption> source =
-          vehicle.CompVehicleLauncher.launchProtocol.GetFloatMenuOptionsAt(target.Tile);
-        if (!source.Any())
+
+        List<FloatMenuOption> source =
+          vehicle.CompVehicleLauncher.launchProtocol.GetFloatMenuOptionsAt(globalTarget.Tile)
+           .ToList();
+        if (source.NullOrEmpty())
         {
-          if (!WorldVehiclePathGrid.Instance.Passable(target.Tile, vehicle.VehicleDef))
+          if (!WorldVehiclePathGrid.Instance.Passable(globalTarget.Tile, vehicle.VehicleDef))
           {
             Messages.Message("MessageTransportPodsDestinationIsInvalid".Translate(),
               MessageTypeDefOf.RejectInput, false);
             return false;
           }
-          launchAction(target.Tile, null, false);
+          launchAction(globalTarget.Tile, null, false);
           return true;
         }
-        else
-        {
-          if (source.Count() != 1)
-          {
-            Find.WindowStack.Add(new FloatMenuTargeter(source.ToList()));
-            return false;
-          }
-          if (!source.First().Disabled)
-          {
-            source.First().action();
-            return true;
-          }
-          return false;
-        }
-      }
 
-      ;
-      return vehicle.CompVehicleLauncher.launchProtocol.ChoseWorldTarget(target, DrawPos, Validator,
-        NewDestination);
-    }
-
-    public virtual bool GlideToTargetOnMap(GlobalTargetInfo target, float fuelCost)
-    {
-      bool Validator(GlobalTargetInfo target, Vector3 pos,
-        Action<int, AerialVehicleArrivalAction, bool> launchAction)
-      {
-        float maxGlideDistance = Mathf.Abs(Elevation / ElevationChange) * PctPerTick *
-          vehicle.CompVehicleLauncher.FlightSpeed.Clamp(0, 5);
-        float sphericalDistance =
-          Ext_Math.SphericalDistance(pos, WorldHelper.GetTilePos(target.Tile));
-        if (!target.IsValid)
+        if (source.Count != 1)
         {
-          Messages.Message("MessageTransportPodsDestinationIsInvalid".Translate(),
-            MessageTypeDefOf.RejectInput, false);
+          Find.WindowStack.Add(new FloatMenuTargeter(source.ToList()));
           return false;
         }
-        else if (sphericalDistance > vehicle.CompVehicleLauncher.MaxLaunchDistance ||
-          sphericalDistance > maxGlideDistance)
+        if (!source[0].Disabled)
         {
-          Messages.Message("TransportPodDestinationBeyondMaximumRange".Translate(),
-            MessageTypeDefOf.RejectInput, false);
-          return false;
-        }
-        IEnumerable<FloatMenuOption> source =
-          vehicle.CompVehicleLauncher.launchProtocol.GetFloatMenuOptionsAt(target.Tile);
-        if (!source.Any())
-        {
-          if (!WorldVehiclePathGrid.Instance.Passable(target.Tile, vehicle.VehicleDef))
-          {
-            Messages.Message("MessageTransportPodsDestinationIsInvalid".Translate(),
-              MessageTypeDefOf.RejectInput, false);
-            return false;
-          }
-          launchAction(target.Tile, null, false);
+          source[0].action();
           return true;
         }
-        else
-        {
-          if (source.Count() != 1)
-          {
-            Find.WindowStack.Add(new FloatMenuTargeter(source.ToList()));
-            return false;
-          }
-          if (!source.First().Disabled)
-          {
-            source.First().action();
-            return true;
-          }
-          return false;
-        }
+        return false;
       }
-
-      ;
-      return vehicle.CompVehicleLauncher.launchProtocol.ChoseWorldTarget(target, DrawPos, Validator,
-        NewDestination);
     }
 
     public void NewDestination(int destinationTile, AerialVehicleArrivalAction arrivalAction,
@@ -443,7 +340,7 @@ namespace Vehicles
       OrderFlyToTiles(LaunchTargeter.FlightPath, DrawPos, arrivalAction: arrivalAction);
     }
 
-    public override void Tick()
+    protected override void Tick()
     {
       base.Tick();
       if (vehicle.CompVehicleLauncher.inFlight)
@@ -566,10 +463,7 @@ namespace Vehicles
     {
       Tile = tile;
       ResetPosition(Find.WorldGrid.GetTileCenter(Tile));
-      if (arrivalAction is AerialVehicleArrivalAction action)
-      {
-        action.Arrived(this, tile);
-      }
+      arrivalAction?.Arrived(this, tile);
       vehicle.CompVehicleLauncher.inFlight = false;
       AirDefensePositionTracker.DeregisterAerialVehicle(this);
     }
@@ -591,7 +485,6 @@ namespace Vehicles
       {
         return;
       }
-      FlightNode flightNode = flightPath.FirstOrDefault();
       if (arrivalAction != null)
       {
         this.arrivalAction = arrivalAction;
@@ -612,11 +505,7 @@ namespace Vehicles
 
     public void SwitchToCaravan()
     {
-      bool autoSelect = false;
-      if (Find.WorldSelector.SelectedObjects.Contains(this))
-      {
-        autoSelect = true;
-      }
+      bool autoSelect = Find.WorldSelector.SelectedObjects.Contains(this);
       innerContainer.Remove(vehicle);
       VehicleCaravan vehicleCaravan =
         CaravanHelper.MakeVehicleCaravan([vehicle], vehicle.Faction, Tile, true);
@@ -636,7 +525,6 @@ namespace Vehicles
       vehicle.CompVehicleLauncher.inFlight = true;
       ResetPosition(position);
       SetSpeed();
-      InitializeFacing();
     }
 
     private void SetSpeed()
@@ -651,12 +539,6 @@ namespace Vehicles
         float.MaxValue); //Clamp tile distance to PctPerTick
       float flightSpeed = recon ? ReconFlightSpeed : vehicle.CompVehicleLauncher.FlightSpeed;
       speedPctPerTick = (PctPerTick / tileDistance) * flightSpeed.Clamp(0, 99999);
-    }
-
-    private void InitializeFacing()
-    {
-      Vector3 tileLocation = flightPath.First.GetCenter(this).normalized;
-      directionFacing = (DrawPos - tileLocation).normalized;
     }
 
     public override void DrawExtraSelectionOverlays()
@@ -694,10 +576,9 @@ namespace Vehicles
 
     public void GenerateMapForRecon(int tile)
     {
-      if (flightPath.InRecon && Find.WorldObjects.MapParentAt(tile) is MapParent mapParent &&
-        !mapParent.HasMap)
+      if (flightPath.InRecon && Find.WorldObjects.MapParentAt(tile) is { HasMap: false } mapParent)
       {
-        LongEventHandler.QueueLongEvent(delegate()
+        LongEventHandler.QueueLongEvent(delegate
         {
           Map map = GetOrGenerateMapUtility.GetOrGenerateMap(tile, null);
           TaggedString label = "LetterLabelCaravanEnteredEnemyBase".Translate();
@@ -713,13 +594,13 @@ namespace Vehicles
             PawnRelationUtility.Notify_PawnsSeenByPlayer_Letter(map.mapPawns.AllPawns, ref label,
               ref text,
               "LetterRelatedPawnsInMapWherePlayerLanded".Translate(Faction.OfPlayer.def
-               .pawnsPlural), true, true);
+               .pawnsPlural), true);
           }
           Find.LetterStack.ReceiveLetter(label, text, LetterDefOf.NeutralEvent, vehicle,
-            mapParent.Faction, null, null, null);
+            mapParent.Faction);
           Current.Game.CurrentMap = map;
           CameraJumper.TryHideWorld();
-        }, "GeneratingMap", false, null, true);
+        }, "GeneratingMap", false, null);
       }
     }
 
@@ -745,7 +626,7 @@ namespace Vehicles
       base.ExposeData();
       Scribe_References.Look(ref vehicle, nameof(vehicle), true);
 
-      Scribe_Deep.Look(ref flightPath, nameof(flightPath), [this]);
+      Scribe_Deep.Look(ref flightPath, nameof(flightPath), this);
       Scribe_Deep.Look(ref arrivalAction, nameof(arrivalAction));
       Scribe_Values.Look(ref transition, nameof(transition));
       Scribe_Values.Look(ref position, nameof(position));
@@ -765,10 +646,7 @@ namespace Vehicles
     {
       base.SpawnSetup();
 
-      foreach (VehiclePawn vehicle in Vehicles)
-      {
-        vehicle.RegisterEvents();
-      }
+      vehicle.RegisterEvents();
 
       if (flightPath != null && !flightPath.Path.NullOrEmpty())
       {

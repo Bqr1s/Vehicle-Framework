@@ -46,7 +46,8 @@ namespace Vehicles
     {
       { "1.3", "2019.4.30f1" },
       { "1.4", "2019.4.30f1" },
-      { "1.5", "2019.4.30f1" }
+      { "1.5", "2019.4.30f1" },
+      { "1.6", "2022.3.35f1" }
     };
 
     private static readonly Dictionary<string, UnityEngine.Object> assetLookup = [];

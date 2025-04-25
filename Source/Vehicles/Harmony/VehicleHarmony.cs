@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using DevTools;
 using DevTools.UnitTesting;
 using HarmonyLib;
 using RimWorld;
@@ -27,6 +28,13 @@ internal static class VehicleHarmony
   private static string methodPatching = string.Empty;
 
   internal static List<UpdateLog> updates = [];
+
+#if DEBUG && DEV_TOOLS
+  // Debugging with HarmonyMod's stack trace suppression for duplicates is a massive pain and for
+  // some reason it isn't a mod setting, but rather a tweak value that has to be toggled off after
+  // every startup! Just disable it permanently for debug builds, I'd rather not deal with this.
+  private static StackTraceCacheDisabler stcDisabler = new();
+#endif
 
   private static Harmony Harmony { get; } = new(VehiclesUniqueId);
 
@@ -102,11 +110,15 @@ internal static class VehicleHarmony
       {
         patch.PatchMethods();
       }
-      catch
+      catch (AmbiguousMatchException ex)
       {
-        SmashLog.Error($"Failed to Patch <type>{patch.GetType().FullName}</type>. " +
-          $"Method=\"{methodPatching}\"");
-        throw;
+        SmashLog.Error(
+          $"Failed to Patch <type>{patch.GetType().FullName}</type>. Previous=\"{methodPatching}\"\n{ex}");
+      }
+      catch (Exception ex)
+      {
+        SmashLog.Error(
+          $"Failed to Patch <type>{patch.GetType().FullName}</type>. Method=\"{methodPatching}\"\n{ex}");
       }
     }
 
@@ -122,7 +134,7 @@ internal static class VehicleHarmony
     HarmonyMethod postfix = null,
     HarmonyMethod transpiler = null, HarmonyMethod finalizer = null)
   {
-    methodPatching = original?.Name ?? $"Null\", Previous = \"{methodPatching}";
+    methodPatching = original?.Name ?? $"Null\", Previous=\"{methodPatching}";
     Harmony.Patch(original, prefix, postfix, transpiler, finalizer);
   }
 

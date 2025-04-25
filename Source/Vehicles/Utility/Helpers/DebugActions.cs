@@ -63,7 +63,7 @@ internal static class DebugActions
         {
           foreach (IntVec3 cell in map.AllCells)
           {
-            int cost = map.pathing.Normal.pathGrid.PerceivedPathCostAt(cell);
+            int cost = map.pathing.Normal.pathGrid.Cost(cell);
             map.debugDrawer.FlashCell(cell, cost / 500f, cost.ToString());
           }
         }

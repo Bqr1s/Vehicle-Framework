@@ -7,11 +7,18 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vehicles", "Vehicles.csproj
 	ProjectSection(ProjectDependencies) = postProject
 		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8} = {04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}
 		{B6B2FD58-D7EC-482A-927D-EBB012A468A8} = {B6B2FD58-D7EC-482A-927D-EBB012A468A8}
+		{CBD9893C-47BE-405E-89F7-2342F47D26BC} = {CBD9893C-47BE-405E-89F7-2342F47D26BC}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmashTools", "..\..\SmashTools\SmashTools\SmashTools\SmashTools.csproj", "{B6B2FD58-D7EC-482A-927D-EBB012A468A8}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CBD9893C-47BE-405E-89F7-2342F47D26BC} = {CBD9893C-47BE-405E-89F7-2342F47D26BC}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdateLog", "..\..\UpdateLog\Source\UpdateLog.csproj", "{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CBD9893C-47BE-405E-89F7-2342F47D26BC} = {CBD9893C-47BE-405E-89F7-2342F47D26BC}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevTools", "..\..\DevTools\DevTools\DevTools.csproj", "{CBD9893C-47BE-405E-89F7-2342F47D26BC}"
 EndProject
@@ -19,6 +26,7 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
+		UnitTest|Any CPU = UnitTest|Any CPU
 		Unstable|Any CPU = Unstable|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
@@ -26,24 +34,32 @@ Global
 		{357562A0-ED54-4AE8-AA13-5FC3AC4C5B8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{357562A0-ED54-4AE8-AA13-5FC3AC4C5B8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{357562A0-ED54-4AE8-AA13-5FC3AC4C5B8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{357562A0-ED54-4AE8-AA13-5FC3AC4C5B8E}.UnitTest|Any CPU.ActiveCfg = UnitTest|Any CPU
+		{357562A0-ED54-4AE8-AA13-5FC3AC4C5B8E}.UnitTest|Any CPU.Build.0 = UnitTest|Any CPU
 		{357562A0-ED54-4AE8-AA13-5FC3AC4C5B8E}.Unstable|Any CPU.ActiveCfg = Unstable|Any CPU
 		{357562A0-ED54-4AE8-AA13-5FC3AC4C5B8E}.Unstable|Any CPU.Build.0 = Unstable|Any CPU
 		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.UnitTest|Any CPU.ActiveCfg = UnitTest|Any CPU
+		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.UnitTest|Any CPU.Build.0 = UnitTest|Any CPU
 		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.Unstable|Any CPU.ActiveCfg = Unstable|Any CPU
 		{B6B2FD58-D7EC-482A-927D-EBB012A468A8}.Unstable|Any CPU.Build.0 = Unstable|Any CPU
 		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.UnitTest|Any CPU.ActiveCfg = UnitTest|Any CPU
+		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.UnitTest|Any CPU.Build.0 = UnitTest|Any CPU
 		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.Unstable|Any CPU.ActiveCfg = Unstable|Any CPU
 		{04DF45B1-9D4D-40A6-A51D-3DCB146A53C8}.Unstable|Any CPU.Build.0 = Unstable|Any CPU
 		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.UnitTest|Any CPU.ActiveCfg = UnitTest|Any CPU
+		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.UnitTest|Any CPU.Build.0 = UnitTest|Any CPU
 		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.Unstable|Any CPU.ActiveCfg = Unstable|Any CPU
 		{CBD9893C-47BE-405E-89F7-2342F47D26BC}.Unstable|Any CPU.Build.0 = Unstable|Any CPU
 	EndGlobalSection

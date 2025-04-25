@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
@@ -416,15 +417,15 @@ namespace Vehicles
         }
       }
 
-#if REGION_WEIGHTS
+#if HIERARCHAL_PATHFINDING
       if (drawWeights)
       {
-        foreach (VehicleRegionLink regionLink in region.links)
+        foreach (VehicleRegionLink regionLink in region.Links)
         {
-          foreach (VehicleRegionLink toRegionLink in region.links)
+          foreach (VehicleRegionLink toRegionLink in region.Links)
           {
             if (regionLink == toRegionLink) continue;
-            float weight = region.WeightBetween(regionLink, toRegionLink).cost;
+            float weight = region.WeightBetween(regionLink, toRegionLink);
             regionLink.DrawWeight(map, toRegionLink, weight);
           }
         }
@@ -432,33 +433,13 @@ namespace Vehicles
 #endif
     }
 
-#if REGION_WEIGHTS
-    private static void MarkLinksForDrawing(VehicleRegion region, Map map, VehicleRegionLink from, VehicleRegionLink to)
+    [Conditional("HIERARCHAL_PATHFINDING")]
+    private static void MarkLinksForDrawing(VehicleRegion region, Map map, VehicleRegionLink from,
+      VehicleRegionLink to)
     {
-
-      float weight = region.WeightBetween(from, to).cost;
+      float weight = region.WeightBetween(from, to);
       from.DrawWeight(map, to, weight);
-
     }
-
-    private static void MarkConnectedLinksForDrawing(Map map, VehicleRegionLink regionLink)
-    {
-      foreach (VehicleRegionLink drawingRegionLink in regionLink.regionB.Links)
-      {
-        if (drawingRegionLink.regionA != regionLink.regionB && drawingRegionLink.regionB != regionLink.regionB) continue;
-
-        float weight = regionLink.regionB.WeightBetween(in regionLink, in drawingRegionLink).cost;
-        regionLink.DrawWeight(map, drawingRegionLink, weight);
-      }
-      foreach (VehicleRegionLink drawingRegionLink in regionLink.regionA.Links)
-      {
-        if (drawingRegionLink.regionA != regionLink.regionA && drawingRegionLink.regionB != regionLink.regionA) continue;
-
-        float weight = regionLink.regionA.WeightBetween(in regionLink, in drawingRegionLink).cost;
-        regionLink.DrawWeight(map, drawingRegionLink, weight);
-      }
-    }
-#endif
 
     private bool ValidateCanStart(IntVec3 start, LocalTargetInfo dest, TraverseParms traverseParms,
       out VehicleDef forVehicleDef)
@@ -943,8 +924,11 @@ namespace Vehicles
                 //Check if destination reached
                 if (otherRegion == destinationRegion)
                 {
-#if REGION_WEIGHTS
-                  if (debugDrawSearch) CoroutineManager.QueueOrInvoke(() => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor), secondsBetweenDrawing);
+#if HIERARCHAL_PATHFINDING
+                  if (debugDrawSearch)
+                    CoroutineManager.QueueOrInvoke(
+                      () => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor),
+                      secondsBetweenDrawing);
 #endif
                   return SolvePath(startingRegion, destinationRegion, current);
                 }
@@ -954,8 +938,10 @@ namespace Vehicles
 
                 if (debugDrawSearch)
                 {
-#if REGION_WEIGHTS
-                  CoroutineManager.QueueOrInvoke(() => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor), secondsBetweenDrawing);
+#if HIERARCHAL_PATHFINDING
+                  CoroutineManager.QueueOrInvoke(
+                    () => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor),
+                    secondsBetweenDrawing);
 #endif
                 }
               }
@@ -983,14 +969,14 @@ namespace Vehicles
         NodeRegions(current, neighbor, out VehicleRegion inFacingRegion,
           out VehicleRegion otherRegion);
 
-        int cost = inFacingRegion.WeightBetween(current.regionLink, neighbor).cost;
-        return CreateNode(dest, current, neighbor, inFacingRegion, otherRegion, cost);
+        float cost = inFacingRegion.WeightBetween(current.regionLink, neighbor);
+        return CreateNode(dest, current, neighbor, inFacingRegion, otherRegion, (int)cost);
       }
 
       private Node CreateNode(IntVec3 dest, Node current, VehicleRegionLink regionLink,
         VehicleRegion regionA, VehicleRegion regionB, int cost)
       {
-        Node node = new Node(regionLink, regionA, regionB);
+        Node node = new(regionLink, regionA, regionB);
         node.cost = cost;
         node.heuristicCost = VehicleRegion.EuclideanDistance(dest, regionLink);
         return node;

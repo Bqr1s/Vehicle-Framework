@@ -54,10 +54,10 @@ namespace Vehicles
       }
 #endif
 
-      VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(FloatMenuMakerMap), "GotoLocationOption"),
-        prefix: new HarmonyMethod(typeof(VehiclePathing),
-          nameof(GotoLocationVehicles)));
+      //VehicleHarmony.Patch(
+      //  original: AccessTools.Method(typeof(FloatMenuMakerMap), "GotoLocationOption"),
+      //  prefix: new HarmonyMethod(typeof(VehiclePathing),
+      //    nameof(GotoLocationVehicles)));
       VehicleHarmony.Patch(
         original: AccessTools.Method(typeof(Pawn_JobTracker),
           nameof(Pawn_JobTracker.IsCurrentJobPlayerInterruptible)),

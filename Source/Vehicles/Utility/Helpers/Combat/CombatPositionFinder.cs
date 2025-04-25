@@ -31,15 +31,18 @@ namespace Vehicles
       float rangeFromTargetToCellSquared = float.NaN;
       float rangeFromCasterToCellSquared = float.NaN;
 
-      ByteGrid avoidGrid = vehicle.GetAvoidGrid(false);
+      if (!vehicle.TryGetAvoidGrid(out AvoidGrid avoidGrid))
+      {
+        Log.Warning("Null avoid grid for position finder.");
+      }
       CellRect searchRect = CellRect.WholeMap(map);
 
       int maxRegions = req.maxRegions;
 
       if (req.maxRegions > 0)
       {
-        VehicleRegion region = VehicleRegionAndRoomQuery.RegionAt(vehiclePos, map,
-          vehicle.VehicleDef, RegionType.Set_Passable);
+        VehicleRegion region =
+          VehicleRegionAndRoomQuery.RegionAt(vehiclePos, map, vehicle.VehicleDef);
         if (region == null)
         {
           Log.Error("TryFindCastPosition requiring region traversal but root region is null.");
@@ -47,12 +50,11 @@ namespace Vehicles
           return false;
         }
         int inRadiusMark = Rand.Int;
-        VehicleRegionTraverser.MarkRegionsBFS(region, null, req.maxRegions, inRadiusMark,
-          RegionType.Set_Passable);
+        VehicleRegionTraverser.MarkRegionsBFS(region, null, req.maxRegions, inRadiusMark);
         if (req.maxRangeFromLocus > 0.01f)
         {
-          VehicleRegion locusReg = VehicleRegionAndRoomQuery.RegionAt(req.locus, map,
-            vehicle.VehicleDef, RegionType.Set_Passable);
+          VehicleRegion locusReg =
+            VehicleRegionAndRoomQuery.RegionAt(req.locus, map, vehicle.VehicleDef);
           if (locusReg == null)
           {
             Log.Error($"locus {req.locus} has no region");
@@ -67,7 +69,7 @@ namespace Vehicles
               reg.mark = inRadiusMark;
               maxRegions++;
               return reg == locusReg;
-            }, 999999, RegionType.Set_Passable);
+            });
           }
         }
       }
