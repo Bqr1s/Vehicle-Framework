@@ -10,6 +10,7 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using LudeonTK;
+using Vehicles.Rendering;
 
 namespace Vehicles
 {
@@ -44,9 +45,9 @@ namespace Vehicles
     private float cachedTilesPerDay;
     private string cachedTilesPerDayExplanation;
     private bool daysWorthOfFoodDirty = true;
-    private Pair<float, float> cachedDaysWorthOfFood;
+    private (float days, float toRot) cachedDaysWorthOfFood;
     private bool foragedFoodPerDayDirty = true;
-    private Pair<ThingDef, float> cachedForagedFoodPerDay;
+    private (ThingDef food, float perDay) cachedForagedFoodPerDay;
     private string cachedForagedFoodPerDayExplanation;
     private bool visibilityDirty = true;
     private float cachedVisibility;
@@ -194,7 +195,7 @@ namespace Vehicles
       }
     }
 
-    private Pair<float, float> DaysWorthOfFood
+    private (float days, float toRot) DaysWorthOfFood
     {
       get
       {
@@ -229,18 +230,18 @@ namespace Vehicles
               second = DaysUntilRotCalculator.ApproxDaysUntilRot(transferables, CurrentTile,
                 IgnoreInventoryMode, null);
             }
-            cachedDaysWorthOfFood = new Pair<float, float>(first, second);
+            cachedDaysWorthOfFood = (first, second);
           }
           else
           {
-            cachedDaysWorthOfFood = new Pair<float, float>(0, 0);
+            cachedDaysWorthOfFood = (0, 0);
           }
         }
         return cachedDaysWorthOfFood;
       }
     }
 
-    private Pair<ThingDef, float> ForagedFoodPerDay
+    private (ThingDef food, float perDay) ForagedFoodPerDay
     {
       get
       {
@@ -489,12 +490,12 @@ namespace Vehicles
         else
         {
           List<string> list = new List<string>();
-          Pair<float, float> daysWorthOfFood = DaysWorthOfFood;
-          if (daysWorthOfFood.First < MaxDaysWorthOfFoodToShowWarningDialog)
+          (float days, float toRot) daysWorthOfFood = DaysWorthOfFood;
+          if (daysWorthOfFood.days < MaxDaysWorthOfFoodToShowWarningDialog)
           {
-            list.Add((daysWorthOfFood.First < 0.1f) ?
+            list.Add((daysWorthOfFood.days < 0.1f) ?
               "DaysWorthOfFoodWarningDialog_NoFood".Translate() :
-              "DaysWorthOfFoodWarningDialog".Translate(daysWorthOfFood.First.ToString("0.#")));
+              "DaysWorthOfFoodWarningDialog".Translate(daysWorthOfFood.days.ToString("0.#")));
           }
           else if (MostFoodWillRotSoon)
           {
@@ -1228,7 +1229,7 @@ namespace Vehicles
         bool setToTransferMax = (reform || mapAboutToBeRemoved) &&
           !CaravanUtility.ShouldAutoCapture(pawn, Faction.OfPlayer);
         AddToTransferables(pawn, setToTransferMax);
-        if (pawn.ParentHolder is VehicleHandler handler)
+        if (pawn.ParentHolder is VehicleRoleHandler handler)
         {
           CaravanHelper.assignedSeats[pawn] = (handler.vehicle, handler);
         }

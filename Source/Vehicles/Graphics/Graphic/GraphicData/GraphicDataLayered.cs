@@ -1,6 +1,6 @@
-﻿using DevTools;
-using JetBrains.Annotations;
+﻿using JetBrains.Annotations;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
@@ -30,6 +30,11 @@ public class GraphicDataLayered : GraphicData
     RecacheLayerOffsets();
   }
 
+  public void PostLoad()
+  {
+    CacheDrawOffsets();
+  }
+
   public virtual void Init(IMaterialCacheTarget target)
   {
     RecacheLayerOffsets();
@@ -56,7 +61,7 @@ public class GraphicDataLayered : GraphicData
 
     if (drawOffsetNorth != null)
     {
-      Assert.IsNotNull(originalDrawOffsetNorth);
+      Assert.IsTrue(originalDrawOffsetNorth.HasValue);
       drawOffsetNorth = originalDrawOffsetNorth.Value;
       drawOffsetNorth = new Vector3(drawOffsetNorth.Value.x, drawOffsetNorth.Value.y + layerOffset,
         drawOffsetNorth.Value.z);
@@ -64,7 +69,7 @@ public class GraphicDataLayered : GraphicData
 
     if (drawOffsetEast != null)
     {
-      Assert.IsNotNull(originalDrawOffsetEast);
+      Assert.IsTrue(originalDrawOffsetEast.HasValue);
       drawOffsetEast = originalDrawOffsetEast.Value;
       drawOffsetEast = new Vector3(drawOffsetEast.Value.x, drawOffsetEast.Value.y + layerOffset,
         drawOffsetEast.Value.z);
@@ -72,7 +77,7 @@ public class GraphicDataLayered : GraphicData
 
     if (drawOffsetSouth != null)
     {
-      Assert.IsNotNull(originalDrawOffsetSouth);
+      Assert.IsTrue(originalDrawOffsetSouth.HasValue);
       drawOffsetSouth = originalDrawOffsetSouth.Value;
       drawOffsetSouth = new Vector3(drawOffsetSouth.Value.x, drawOffsetSouth.Value.y + layerOffset,
         drawOffsetSouth.Value.z);
@@ -80,7 +85,7 @@ public class GraphicDataLayered : GraphicData
 
     if (drawOffsetWest != null)
     {
-      Assert.IsNotNull(originalDrawOffsetWest);
+      Assert.IsTrue(originalDrawOffsetWest.HasValue);
       drawOffsetWest = originalDrawOffsetWest.Value;
       drawOffsetWest = new Vector3(drawOffsetWest.Value.x, drawOffsetWest.Value.y + layerOffset,
         drawOffsetWest.Value.z);

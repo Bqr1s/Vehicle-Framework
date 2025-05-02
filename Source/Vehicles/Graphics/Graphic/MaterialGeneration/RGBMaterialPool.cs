@@ -6,6 +6,7 @@ using HarmonyLib;
 using LudeonTK;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Object = UnityEngine.Object;
 
@@ -18,9 +19,9 @@ namespace Vehicles
     public static event Action<IMaterialCacheTarget> OnTargetCached;
     public static event Action<IMaterialCacheTarget> OnTargetRemoved;
 
-    internal static int Count => cache.Count;
+    public static int Count => cache.Count;
 
-    internal static int TotalMaterials => cache.Values.Sum(mats => mats.Length);
+    public static int TotalMaterials => cache.Values.Sum(mats => mats.Length);
 
     public static bool TargetCached(IMaterialCacheTarget target)
     {
@@ -46,7 +47,6 @@ namespace Vehicles
 
         return materials[rot.AsInt];
       }
-
       return null;
     }
 
@@ -97,14 +97,92 @@ namespace Vehicles
       OnTargetCached?.Invoke(target);
     }
 
-    public static bool SetProperties(IMaterialCacheTarget target, PatternData patternData,
+    public static void SetPropertyBlock(IMaterialCacheTarget target, PatternData patternData,
+      Texture2D mainTex, Texture2D maskTex, Rot8 rot)
+    {
+      if (!cache.ContainsKey(target))
+      {
+        Log.Error(
+          $"Materials for {target} have not been created. Out of sequence material editing.");
+        return;
+      }
+      MaterialPropertyBlock block = target.PropertyBlock;
+      Assert.IsNotNull(block);
+      block.Clear();
+
+      block.SetTexture("_MainTex", mainTex);
+
+      if (patternData.patternDef != PatternDefOf.Default)
+      {
+        float tiles = patternData.tiles;
+        if (patternData.patternDef.properties.tiles.TryGetValue("All", out float allTiles))
+        {
+          tiles *= allTiles;
+        }
+
+        if (!Mathf.Approximately(tiles, 0))
+        {
+          block.SetFloat(AdditionalShaderPropertyIDs.TileNum, tiles);
+        }
+
+        if (patternData.patternDef.properties.equalize)
+        {
+          float scaleX = 1;
+          float scaleY = 1;
+          if (mainTex.width > mainTex.height)
+          {
+            scaleY = (float)mainTex.height / mainTex.width;
+          }
+          else
+          {
+            scaleX = (float)mainTex.width / mainTex.height;
+          }
+
+          block.SetFloat(AdditionalShaderPropertyIDs.ScaleX, scaleX);
+          block.SetFloat(AdditionalShaderPropertyIDs.ScaleY, scaleY);
+        }
+
+        if (patternData.patternDef.properties.dynamicTiling)
+        {
+          block.SetFloat(AdditionalShaderPropertyIDs.DisplacementX,
+            patternData.displacement.x);
+          block.SetFloat(AdditionalShaderPropertyIDs.DisplacementY,
+            patternData.displacement.y);
+        }
+      }
+
+      Texture2D patternTex = patternData.patternDef[rot];
+
+
+      if (patternData.patternDef.ShaderTypeDef == RGBShaderTypeDefOf.CutoutComplexSkin)
+      {
+        // Null reverts to original tex. Default would calculate to red
+        target.PropertyBlock.SetTexture(AdditionalShaderPropertyIDs.SkinTex, patternTex);
+      }
+      else if (patternData.patternDef.ShaderTypeDef == RGBShaderTypeDefOf.CutoutComplexPattern)
+      {
+        // Default to full red mask for full ColorOne pattern
+        target.PropertyBlock.SetTexture(AdditionalShaderPropertyIDs.PatternTex, patternTex);
+      }
+
+      if (maskTex != null)
+      {
+        target.PropertyBlock.SetTexture(ShaderPropertyIDs.MaskTex, maskTex);
+      }
+
+      target.PropertyBlock.SetColor(AdditionalShaderPropertyIDs.ColorOne, patternData.color);
+      target.PropertyBlock.SetColor(ShaderPropertyIDs.ColorTwo, patternData.colorTwo);
+      target.PropertyBlock.SetColor(AdditionalShaderPropertyIDs.ColorThree, patternData.colorThree);
+    }
+
+    public static void SetProperties(IMaterialCacheTarget target, PatternData patternData,
       Func<Rot8, Texture2D> mainTexGetter = null, Func<Rot8, Texture2D> maskTexGetter = null)
     {
       if (!cache.TryGetValue(target, out Material[] materials))
       {
         Log.Error(
           $"Materials for {target} have not been created. Out of sequence material editing.");
-        return false;
+        return;
       }
 
       for (int i = 0; i < materials.Length; i++)
@@ -115,7 +193,7 @@ namespace Vehicles
         material.SetColor(ShaderPropertyIDs.ColorTwo, patternData.colorTwo);
         material.SetColor(AdditionalShaderPropertyIDs.ColorThree, patternData.colorThree);
 
-        Rot8 rot = new Rot8(i);
+        Rot8 rot = new(i);
         Texture2D mainTex = material.mainTexture as Texture2D;
         if (mainTexGetter != null)
         {
@@ -131,7 +209,7 @@ namespace Vehicles
             tiles *= allTiles;
           }
 
-          if (tiles != 0)
+          if (!Mathf.Approximately(tiles, 0))
           {
             material.SetFloat(AdditionalShaderPropertyIDs.TileNum, tiles);
           }
@@ -189,8 +267,6 @@ namespace Vehicles
         material.SetColor(ShaderPropertyIDs.ColorTwo, patternData.colorTwo);
         material.SetColor(AdditionalShaderPropertyIDs.ColorThree, patternData.colorThree);
       }
-
-      return true;
     }
 
     public static void Release(IMaterialCacheTarget target)

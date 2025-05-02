@@ -49,7 +49,7 @@ namespace Vehicles
           {
             (float pawnDamage, float vehicleDamage) = CalculateImpactDamage(pawn, this, moveSpeed);
             Pawn culprit = GetPriorityHandlers(HandlingTypeFlags.Movement)
-            ?.FirstOrDefault(handler => handler.handlers.Any)?.handlers.InnerListForReading
+            ?.FirstOrDefault(handler => handler.thingOwner.Any)?.thingOwner.InnerListForReading
              .FirstOrDefault();
             IntVec3 position = pawn.Position;
             DamageWorker.DamageResult result =

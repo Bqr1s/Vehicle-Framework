@@ -124,26 +124,23 @@ namespace Vehicles
       }
     }
 
-    public virtual bool CanDraft(out string reason)
+    public virtual AcceptanceReport CanDraft()
     {
-      reason = "";
       bool draftAnyVehicle = VehicleMod.settings.debug.debugDraftAnyVehicle;
       foreach (ThingComp thingComp in AllComps)
       {
         if (thingComp is VehicleComp vehicleComp)
         {
-          if (!vehicleComp.CanDraft(out string failReason, out bool allowDevMode) &&
-            (!draftAnyVehicle || !allowDevMode))
+          AcceptanceReport report = vehicleComp.CanDraft();
+          if (!report.Accepted)
           {
-            reason = failReason;
-            return false;
+            return report;
           }
         }
       }
       if (!draftAnyVehicle && !CanMoveWithOperators)
       {
-        reason = "VF_NotEnoughToOperate".Translate(this);
-        return false;
+        return "VF_NotEnoughToOperate".Translate(this);
       }
       return true;
     }

@@ -6,6 +6,7 @@ using Verse;
 using Verse.Sound;
 using RimWorld;
 using SmashTools;
+using Vehicles.Rendering;
 
 namespace Vehicles
 {

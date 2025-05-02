@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-using SmashTools;
+﻿using UnityEngine;
 
-namespace Vehicles
+namespace Vehicles;
+
+public interface IMaterialCacheTarget
 {
-	public interface IMaterialCacheTarget
-	{
-		int MaterialCount { get; }
+  int MaterialCount { get; }
 
-		PatternDef PatternDef { get; }
+  PatternDef PatternDef { get; }
 
-		string Name { get; }
-	}
+  string Name { get; }
+
+  MaterialPropertyBlock PropertyBlock { get; }
 }

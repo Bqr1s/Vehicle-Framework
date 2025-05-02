@@ -20,6 +20,7 @@ namespace Vehicles
     {
       TimedExplosion timedExplosion = new(this, explosionData, drawOffsets: drawOffsets);
       explosives.Add(timedExplosion);
+      DrawTracker.AddRenderer(timedExplosion);
       return timedExplosion;
     }
 
@@ -58,7 +59,8 @@ namespace Vehicles
     {
       if (!VehicleMod.settings.main.opportunisticTicking)
       {
-        //If opportunistic ticking is off, disallow removal from ticker list. VehicleComp should then always tick
+        // If opportunistic ticking is off, disallow removal from ticker list.
+        // VehicleComp should then always tick.
         return false;
       }
       return compTickers.Remove(comp);
@@ -66,15 +68,13 @@ namespace Vehicles
 
     private void TickExplosives()
     {
-      if (explosives.Count > 0)
+      for (int i = explosives.Count - 1; i >= 0; i--)
       {
-        for (int i = explosives.Count - 1; i >= 0; i--)
+        TimedExplosion timedExplosion = explosives[i];
+        if (!timedExplosion.Tick())
         {
-          TimedExplosion timedExplosion = explosives[i];
-          if (!timedExplosion.Tick())
-          {
-            explosives.Remove(timedExplosion);
-          }
+          explosives.Remove(timedExplosion);
+          DrawTracker.RemoveRenderer(timedExplosion);
         }
       }
     }
@@ -83,15 +83,13 @@ namespace Vehicles
     {
       for (int i = compTickers.Count - 1; i >= 0; i--)
       {
-        compTickers[i]
-         .CompTick(); //Must run back to front in case CompTick methods trigger their own removal
+        // Must run back to front in case CompTick methods trigger their own removal
+        compTickers[i].CompTick();
       }
-
-      if (CompFueledTravel != null)
-      {
-        CompFueledTravel
-         .LeakTick(); //Tick manually for leak checks that is separate from tick by request.
-      }
+      // TODO - should check leaking when vehicle takes damage
+      // Leak tick is separate from tick by request so the fuel can continue to leak even if
+      // the comp itself does not need to be ticking.
+      CompFueledTravel?.LeakTick();
     }
 
     public override void TickRare()
@@ -120,7 +118,7 @@ namespace Vehicles
         animator?.AnimationTick();
         vehiclePather.PatherTick();
         stances.StanceTrackerTick();
-        if (Drafted || Deploying)
+        if (Drafted || CompVehicleTurrets is { Deploying: true })
         {
           jobs.JobTrackerTick();
         }

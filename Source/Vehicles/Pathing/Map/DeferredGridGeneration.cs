@@ -1,11 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using DevTools;
-using DevTools.UnitTesting;
 using LudeonTK;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
@@ -103,7 +102,7 @@ public class DeferredGridGeneration
   {
     if (!longOperation.IsValid)
     {
-      Assert.Fail("Trying to send long op to thread but it's already invalid.");
+      Trace.Fail("Trying to send long op to thread but it's already invalid.");
       longOperation.ReturnToPool();
       return;
     }
@@ -124,7 +123,7 @@ public class DeferredGridGeneration
     }
   }
 
-  internal void DoPassExpectClear()
+  public void DoPassExpectClear()
   {
     DoPass();
     Assert.IsTrue(
@@ -237,10 +236,6 @@ public class DeferredGridGeneration
     if (pathData.Suspended)
       return;
 
-#if DEV_TOOLS
-    Assert.IsTrue(UnitTestManager.RunningUnitTests,
-      "Failed to release region grid from path grid ownership transfer outside of unit test scenario.");
-#endif
     pathData.VehicleRegionAndRoomUpdater.Release();
 
 #if DEBUG

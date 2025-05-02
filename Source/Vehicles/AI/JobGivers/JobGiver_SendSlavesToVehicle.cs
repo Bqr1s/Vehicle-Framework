@@ -17,7 +17,7 @@ namespace Vehicles
 			if (pawn2 is null)
 				return null;
 			VehiclePawn vehicle = FindShipToDeposit(pawn, pawn2);
-			VehicleHandler handler = vehicle.handlers.Find(x => x.role.HandlingTypes == HandlingTypeFlags.None);
+			VehicleRoleHandler handler = vehicle.handlers.Find(x => x.role.HandlingTypes == HandlingTypeFlags.None);
 			return new Job(JobDefOf.PrepareCaravan_GatherDownedPawns, pawn2)
 			{
 				count = 1

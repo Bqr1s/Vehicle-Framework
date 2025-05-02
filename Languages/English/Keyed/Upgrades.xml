@@ -1,10 +1,8 @@
-<?xml version="1.0" encoding="utf-8" ?>
-
+<?xml version="1.0" encoding="UTF-8"?>
 <LanguageData>
-	<!-- Upgrades -->
-	<VF_Upgrade>Upgrade</VF_Upgrade>
-	<VF_DisabledFromOtherNode>Inaccessible, disabled from other upgrade.</VF_DisabledFromOtherNode>
-	<VF_MissingPrerequisiteUpgrade>Missing prerequisites.</VF_MissingPrerequisiteUpgrade>
-	
-	<VF_RemoveUpgrade>Remove</VF_RemoveUpgrade>
+  <VF_Upgrade>Upgrade</VF_Upgrade>
+  <VF_DisabledFromOtherNode>Inaccessible, disabled from other upgrade.</VF_DisabledFromOtherNode>
+  <VF_MissingPrerequisiteUpgrade>Missing prerequisites.</VF_MissingPrerequisiteUpgrade>
+  <VF_RemoveUpgrade>Remove</VF_RemoveUpgrade>
 </LanguageData>
+

@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 using JetBrains.Annotations;
+using RimWorld;
 using SmashTools;
-using SmashTools.Rendering;
 using Verse;
 using Verse.AI;
 
@@ -42,10 +42,6 @@ public class VehicleComp : ThingComp
   {
   }
 
-  public virtual void PostDrawUnspawned(ref readonly TransformData transform)
-  {
-  }
-
   /// <summary>
   /// Called when newly generated, unlike PostSpawnSetup called every time it is spawned in-map
   /// </summary>
@@ -65,10 +61,13 @@ public class VehicleComp : ThingComp
   {
   }
 
-  public virtual bool CanDraft(out string failReason, out bool allowDevMode)
+  public virtual AcceptanceReport CanMove(FloatMenuContext context)
   {
-    failReason = string.Empty;
-    allowDevMode = true;
+    return true;
+  }
+
+  public virtual AcceptanceReport CanDraft()
+  {
     return true;
   }
 

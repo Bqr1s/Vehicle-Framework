@@ -222,8 +222,7 @@ namespace Vehicles
       }
       result.drawPos.y = AltitudeLayer.Skyfaller.AltitudeFor();
       Rot8 rot = CurAnimationProperties.forcedRotation ?? vehicle.Rotation;
-      TransformData transform = new TransformData(result.drawPos, rot, result.rotation);
-      vehicle.DrawAt(in transform);
+      vehicle.DrawAt(result.drawPos, rot, result.rotation);
       (DrawPos, Angle) = result;
       if (VehicleMod.settings.main.aerialVehicleEffects)
       {
@@ -241,7 +240,7 @@ namespace Vehicles
       return result;
     }
 
-    protected void DrawShadow(Vector3 drawPos, float width, float height, Color color)
+    private void DrawShadow(Vector3 drawPos, float width, float height, Color color)
     {
       Material shadowMaterial = ShadowMaterial;
       if (shadowMaterial is null)

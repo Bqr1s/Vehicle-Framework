@@ -6,6 +6,7 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using Vehicles.Rendering;
 using Verse;
 
 namespace Vehicles
@@ -47,8 +48,6 @@ namespace Vehicles
     private Material vehicleMat;
     private Material vehicleMatNonLit;
     private Material material;
-
-    protected List<Graphic_Rotator> rotatorGraphics = [];
 
     public AerialVehicleInFlight()
     {
@@ -160,9 +159,6 @@ namespace Vehicles
     public virtual void Initialize()
     {
       position = base.DrawPos;
-      rotatorGraphics = vehicle.overlayRenderer.AllOverlaysListForReading
-       .Where(g => g.Graphic is Graphic_Rotator)
-       .Select(g => g.Graphic).Cast<Graphic_Rotator>().ToList();
     }
 
     public virtual Vector3 DrawPosAhead(int ticksAhead)
@@ -177,25 +173,6 @@ namespace Vehicles
       {
         WorldHelper.DrawQuadTangentialToPlanet(DrawPos, 0.7f * Find.WorldGrid.AverageTileSize,
           0.015f, Material);
-      }
-    }
-
-    protected virtual void RenderGraphicOverlays(Vector3 normalized, Vector3 direction,
-      Vector3 size)
-    {
-      foreach (GraphicOverlay graphicOverlay in vehicle.overlayRenderer.AllOverlaysListForReading)
-      {
-        Material overlayMaterial = graphicOverlay.Graphic.MatAt(FullRotation);
-        float quatRotation = 90;
-        if (graphicOverlay.Graphic is Graphic_Rotator rotator)
-        {
-          quatRotation += vehicle.overlayRenderer.rotationRegistry[rotator.RegistryKey];
-        }
-        Quaternion quat = Quaternion.LookRotation(direction, normalized) *
-          Quaternion.Euler(0, quatRotation, 0);
-        Matrix4x4 matrix = default;
-        matrix.SetTRS(DrawPos + normalized * TransitionTakeoff, quat, size);
-        Graphics.DrawMesh(MeshPool.plane10, matrix, overlayMaterial, WorldCameraManager.WorldLayer);
       }
     }
 
@@ -268,7 +245,7 @@ namespace Vehicles
           yield return new Command_Action
           {
             defaultLabel = "Debug: Land at Nearest Player Settlement",
-            action = delegate { Debugging.DebugLandAerialVehicle(this); }
+            action = delegate { Patch_Debug.DebugLandAerialVehicle(this); }
           };
           yield return new Command_Action
           {
@@ -346,7 +323,6 @@ namespace Vehicles
       if (vehicle.CompVehicleLauncher.inFlight)
       {
         MoveForward();
-        TickRotators();
         SpendFuel();
 
         if (vehicle.CompFueledTravel?.Fuel <= 0)
@@ -466,16 +442,6 @@ namespace Vehicles
       arrivalAction?.Arrived(this, tile);
       vehicle.CompVehicleLauncher.inFlight = false;
       AirDefensePositionTracker.DeregisterAerialVehicle(this);
-    }
-
-    public virtual void TickRotators()
-    {
-      foreach (Graphic_Rotator rotator in rotatorGraphics)
-      {
-        //hardcoded to 59° per tick to still allow room for eye to capture rotation
-        vehicle.overlayRenderer.rotationRegistry[rotator.RegistryKey] +=
-          PropellerTakeoff.MaxRotationStep;
-      }
     }
 
     public void OrderFlyToTiles(List<FlightNode> flightPath, Vector3 origin,

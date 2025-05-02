@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using DevTools;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.Sound;
 
@@ -124,8 +125,7 @@ namespace Vehicles
           DrawJobSettings(rect, vehicle);
           break;
         default:
-          Assert.Fail();
-          break;
+          throw new NotImplementedException(nameof(onTab));
       }
       Widgets.EndGroup();
       // End GUI Group

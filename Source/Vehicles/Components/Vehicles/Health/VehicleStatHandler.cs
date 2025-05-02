@@ -792,7 +792,7 @@ namespace Vehicles
     private bool HitPawn(DamageInfo dinfo, VehicleComponent.VehiclePartDepth hitDepth, IntVec2 cell,
       Rot4 dir, out Pawn hitPawn, StringBuilder report = null)
     {
-      VehicleHandler handler;
+      VehicleRoleHandler handler;
       float multiplier = 1;
       hitPawn = null;
       if (hitDepth == VehicleComponent.VehiclePartDepth.External)
@@ -839,10 +839,10 @@ namespace Vehicles
         }
       }
 
-      if (handler != null && handler.handlers.Count > 0 &&
+      if (handler != null && handler.thingOwner.Count > 0 &&
         Rand.Chance(handler.role.ChanceToHit * multiplier))
       {
-        hitPawn = handler.handlers.InnerListForReading.RandomElement();
+        hitPawn = handler.thingOwner.InnerListForReading.RandomElement();
         report?.AppendLine(
           $"Hitting {handler} with chance {handler.role.ChanceToHit * multiplier}");
         hitPawn.TakeDamage(dinfo);
@@ -852,11 +852,12 @@ namespace Vehicles
       return false;
     }
 
-    private bool TrySelectHandler(IntVec2 cell, out VehicleHandler handler, bool exposed = false)
+    private bool TrySelectHandler(IntVec2 cell, out VehicleRoleHandler handler,
+      bool exposed = false)
     {
       handler = vehicle.handlers.FirstOrDefault(handler =>
         handler.role.Hitbox != null && handler.role.Hitbox.Contains(cell) &&
-        handler.handlers.Count > 0 && handler.role.Exposed == exposed);
+        handler.thingOwner.Count > 0 && handler.role.Exposed == exposed);
       return handler != null;
     }
 

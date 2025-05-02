@@ -1,9 +1,9 @@
-﻿using RimWorld;
+﻿using System;
+using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
 using Verse;
-using DevTools;
 
 namespace Vehicles;
 
@@ -11,8 +11,8 @@ public class WorldGridOwners : GridOwnerList<WorldGridOwners.PathConfig>
 {
   protected override bool CanTransferOwnershipTo(VehicleDef vehicleDef)
   {
-    Assert.Fail("Trying to transfer ownership of world grid. This is not set up yet.");
-    return false;
+    throw new NotSupportedException(
+      "Trying to transfer ownership of world grid.");
   }
 
   // Accessed from Init, already locked for the duration of owner generation

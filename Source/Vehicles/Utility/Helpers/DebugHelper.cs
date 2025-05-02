@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using Verse;
+using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using System.Linq;
-using DevTools;
+using UnityEngine.Assertions;
+using Verse;
 
 namespace Vehicles
 {
@@ -62,7 +62,7 @@ namespace Vehicles
     /// <param name="to"></param>
     public static void DebugDrawSettlement(PlanetTile from, PlanetTile to)
     {
-      Assert.IsTrue(from.Layer == to.Layer);
+      Assert.AreEqual(from.Layer, to.Layer);
       PeaceTalks o =
         (PeaceTalks)WorldObjectMaker.MakeWorldObject(WorldObjectDefOfVehicles.DebugSettlement);
       o.Tile = from;
@@ -88,11 +88,19 @@ namespace Vehicles
       foreach (T @enum in Enum.GetValues(typeof(T)))
       {
         bool flags = typeof(T).IsDefined(typeof(FlagsAttribute), false);
+
+        // Skip empty flag, this is messy but it's strictly for debugging and I can't imagine
+        // the enum count of these flags will exceed 32.
+        if (flags && Convert.ToInt32(@enum) == 0)
+          continue;
+
         Toggle toggle = new(@enum.ToString(), stateGetter: delegate
         {
           if (debugData.VehicleDef != vehicleDef)
             return false;
-          return flags ? debugData.DebugType.HasFlag(@enum) : debugData.DebugType.Equals(@enum);
+          if (!flags)
+            return debugData.DebugType.Equals(@enum);
+          return debugData.DebugType.HasFlag(@enum);
         }, stateSetter: delegate(bool value)
         {
           debugData.VehicleDef = vehicleDef;

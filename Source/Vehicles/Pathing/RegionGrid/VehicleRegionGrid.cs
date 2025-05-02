@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using DevTools;
-using DevTools.UnitTesting;
 using SmashTools;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
@@ -70,7 +69,7 @@ public sealed class VehicleRegionGrid : VehicleGridManager
   {
     get
     {
-      Assert.IsTrue(UnitTestManager.RunningUnitTests);
+      Assert.IsTrue(VehicleHarmony.RunningUnitTests);
       if (regionUpdater is not { Enabled: true })
         return false;
 
@@ -222,7 +221,7 @@ public sealed class VehicleRegionGrid : VehicleGridManager
       VehicleRegion region = regionGrid[curCleanIndex];
       if (region != null && !region.valid)
       {
-        Assert.Fail("Cleaning region which should have already been returned to pool.");
+        Trace.Fail("Cleaning region which should have already been returned to pool.");
         SetRegionAt(curCleanIndex, null);
       }
 

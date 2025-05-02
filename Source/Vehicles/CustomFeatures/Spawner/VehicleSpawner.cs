@@ -134,7 +134,7 @@ namespace Vehicles
 
 			if (autoFill)
 			{
-				foreach (VehicleHandler handler in vehicle.handlers.Where(h => h.role.HandlingTypes > HandlingTypeFlags.None))
+				foreach (VehicleRoleHandler handler in vehicle.handlers.Where(h => h.role.HandlingTypes > HandlingTypeFlags.None))
 				{
 					Pawn pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Colonist, faction ));
 					pawn.SetFactionDirect(faction);

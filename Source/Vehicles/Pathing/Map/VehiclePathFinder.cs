@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using DevTools;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 
@@ -17,26 +17,15 @@ public class VehiclePathFinder : VehicleGridManager
   private const float RoadAvoidalCost = 250;
   private const float RoadHeuristicWeight = 0.15f;
 
-  private const int NodesToOpenBeforeRegionBasedPathing = 100000;
   public const int DefaultMoveTicksCardinal = 13;
   public const int DefaultMoveTicksDiagonal = 18;
+
+  private const int NodesToOpenBeforeRegionBasedPathing = 100000;
   private const int SearchLimit = 160000;
   private const int TurnCostTicks = 3;
-  private const float SecondsBetweenDebugDrawing = 1 / 1000f;
-
   private const float RootPosWeight = 0.75f;
 
-  private readonly Dictionary<IntVec3, float> postCalculatedCells = [];
-
-  private readonly FastPriorityQueue<CostNode> openList;
-  private readonly VehiclePathFinderNodeFast[] calcGrid;
-
-  private ushort statusOpenValue = 1;
-  private ushort statusClosedValue = 2;
-
-  private readonly int mapSizeX;
-  private readonly int mapSizeZ;
-
+  private readonly ObjectPool<PathFinderContext> contextPool;
   private VehiclePathGrid vehiclePathGrid;
   private readonly VehicleRegionCostCalculatorWrapper regionCostCalculator;
 
@@ -105,11 +94,7 @@ public class VehiclePathFinder : VehicleGridManager
     edificeGrid = mapping.map.edificeGrid;
     blueprintGrid = mapping.map.blueprintGrid;
     cellIndices = mapping.map.cellIndices;
-
-    mapSizeX = mapping.map.Size.x;
-    mapSizeZ = mapping.map.Size.z;
-    calcGrid = new VehiclePathFinderNodeFast[mapSizeX * mapSizeZ];
-    openList = new FastPriorityQueue<CostNode>(new CostNodeComparer());
+    contextPool = new ObjectPool<PathFinderContext>(10, preWarm: 5);
     regionCostCalculator = new VehicleRegionCostCalculatorWrapper(mapping, vehicleDef);
   }
 
@@ -148,7 +133,6 @@ public class VehiclePathFinder : VehicleGridManager
   public VehiclePath FindPath(IntVec3 start, LocalTargetInfo dest,
     TraverseParms traverseParms, CancellationToken token, PathEndMode peMode = PathEndMode.OnCell)
   {
-    postCalculatedCells.Clear();
     if (DebugSettings.pathThroughWalls)
     {
       traverseParms.mode = TraverseMode.PassAllDestroyableThings;
@@ -167,11 +151,14 @@ public class VehiclePathFinder : VehicleGridManager
     int destIndex = cellIndices.CellToIndex(dest.Cell);
     vehicle.TryGetAvoidGrid(out AvoidGrid avoidGrid);
 
+    PathFinderContext context = contextPool.Get();
+    context.Init(mapping);
+
     roadGrid ??= mapping.map.areaManager.Get<Area_Road>();
     roadAvoidalGrid ??= mapping.map.areaManager.Get<Area_RoadAvoidal>();
 
-    bool passAllDestroyableThings = traverseParms.mode == TraverseMode.PassAllDestroyableThings ||
-      traverseParms.mode == TraverseMode.PassAllDestroyableThingsNotWater;
+    bool passAllDestroyableThings = traverseParms.mode is TraverseMode.PassAllDestroyableThings
+      or TraverseMode.PassAllDestroyableThingsNotWater;
     bool freeTraversal = traverseParms.mode != TraverseMode.NoPassClosedDoorsOrWater &&
       traverseParms.mode != TraverseMode.PassAllDestroyableThingsNotWater;
     CellRect cellRect = CalculateDestinationRect(dest, peMode);
@@ -187,7 +174,7 @@ public class VehiclePathFinder : VehicleGridManager
     bool weightedHeuristics = false;
     bool drafted = vehicle.Drafted;
 
-    float heuristicStrength = DetermineHeuristicStrength(vehicle, start, dest);
+    float heuristicStrength = DetermineHeuristicStrength(start, dest);
     float ticksCardinal = vehicle.TicksPerMoveCardinal;
     float ticksDiagonal = vehicle.TicksPerMoveDiagonal;
 
@@ -219,8 +206,8 @@ public class VehiclePathFinder : VehicleGridManager
     const bool useHPA = false;
 #endif
 
-    InitStatusesAndPushStartNode(ref startIndex, start);
-    while (openList.Count > 0)
+    context.InitStatusesAndPushStartNode(startIndex);
+    while (context.openList.Count > 0)
     {
       if (token.IsCancellationRequested)
       {
@@ -228,11 +215,11 @@ public class VehiclePathFinder : VehicleGridManager
         return VehiclePath.NotFound;
       }
 
-      CostNode costNode = openList.Pop();
+      CostNode costNode = context.openList.Dequeue();
       startIndex = costNode.index;
 
-      if (!Mathf.Approximately(costNode.cost, calcGrid[startIndex].costNodeCost) ||
-        calcGrid[startIndex].status == statusClosedValue)
+      if (!Mathf.Approximately(costNode.cost, context.calcGrid[startIndex].costNodeCost) ||
+        context.calcGrid[startIndex].status == context.statusClosedValue)
       {
         continue;
       }
@@ -244,25 +231,25 @@ public class VehiclePathFinder : VehicleGridManager
       if (drawPaths)
       {
         float colorWeight = Mathf.Lerp(5000, 15000, vehicleSize / 15f);
-        DebugFlash(prevCell, calcGrid[startIndex].knownCost / colorWeight,
-          calcGrid[startIndex].knownCost.ToString("0"));
+        DebugFlash(mapping, prevCell, context.calcGrid[startIndex].knownCost / colorWeight,
+          context.calcGrid[startIndex].knownCost.ToString("0"));
       }
 
       if (singleRect && startIndex == destIndex) //Single cell vehicles
       {
-        return FinalizedPath(startIndex, weightedHeuristics);
+        return FinalizedPath(context, startIndex, weightedHeuristics);
       }
       else if (!singleRect && cellRect.Contains(prevCell) &&
         !disallowedCornerIndices.Contains(startIndex)) //Multi-cell vehicles
       {
-        return FinalizedPath(startIndex, weightedHeuristics);
+        return FinalizedPath(context, startIndex, weightedHeuristics);
       }
 
       if (searchCount > SearchLimit)
       {
         Log.Warning(
           $"Vehicle {vehicle} pathing from {start} to {dest} hit search limit of {SearchLimit}.");
-        DebugDrawRichData();
+        context.DebugDrawRichData();
         return VehiclePath.NotFound;
       }
 
@@ -271,7 +258,8 @@ public class VehiclePathFinder : VehicleGridManager
         int cellIntX = x2 + neighborOffsets[i];
         int cellIntZ = z2 + neighborOffsets[i + 8];
 
-        if (cellIntX < 0 || cellIntX >= mapSizeX || cellIntZ < 0 || cellIntZ >= mapSizeZ)
+        if (cellIntX < 0 || cellIntX >= mapping.map.Size.x || cellIntZ < 0 ||
+          cellIntZ >= mapping.map.Size.z)
         {
           goto SkipNode; //skip out of bounds
         }
@@ -285,7 +273,7 @@ public class VehiclePathFinder : VehicleGridManager
           goto SkipNode; //Node not included in hierarchal path, ignore
         }
 
-        if (calcGrid[cellIndex].status != statusClosedValue || weightedHeuristics)
+        if (context.calcGrid[cellIndex].status != context.statusClosedValue || weightedHeuristics)
         {
           int initialCost = 0;
           if (!vehicle.DrivableFast(cellIndex))
@@ -293,10 +281,7 @@ public class VehiclePathFinder : VehicleGridManager
             if (!passAllDestroyableThings)
             {
               if (drawPaths)
-              {
-                DebugFlash(cellToCheck, 0.22f, "impass");
-              }
-
+                DebugFlash(mapping, cellToCheck, 0.22f, "impass");
               goto SkipNode;
             }
 
@@ -305,20 +290,14 @@ public class VehiclePathFinder : VehicleGridManager
             if (building is null)
             {
               if (drawPaths)
-              {
-                DebugFlash(cellToCheck, 0.22f, "impass");
-              }
-
+                DebugFlash(mapping, cellToCheck, 0.22f, "impass");
               goto SkipNode;
             }
 
             if (!IsDestroyable(building))
             {
               if (drawPaths)
-              {
-                DebugFlash(cellToCheck, 0.22f, "impass");
-              }
-
+                DebugFlash(mapping, cellToCheck, 0.22f, "impass");
               goto SkipNode;
             }
 
@@ -339,19 +318,14 @@ public class VehiclePathFinder : VehicleGridManager
 
           float totalAreaCost = 0;
           float rootCost = 0;
-          CellRect
-            cellToCheckRect =
-              vehicle.VehicleRect(cellToCheck,
-                pathDir); // CellRect.CenteredOn(cellToCheck, Mathf.FloorToInt(minSize / 2f));
+          //= CellRect.CenteredOn(cellToCheck, Mathf.FloorToInt(minSize / 2f));
+          CellRect cellToCheckRect = vehicle.VehicleRect(cellToCheck, pathDir);
           foreach (IntVec3 cellInRect in cellToCheckRect)
           {
             if (!vehicle.Drivable(cellInRect))
             {
               if (drawPaths)
-              {
-                DebugFlash(cellInRect, 0.22f, "impass");
-              }
-
+                DebugFlash(mapping, cellInRect, 0.22f, "impass");
               goto SkipNode; //hitbox has invalid node, ignore in neighbor search
             }
 
@@ -404,44 +378,38 @@ public class VehiclePathFinder : VehicleGridManager
             tickCost += 1000;
           }
 
-          float calculatedCost = tickCost + calcGrid[startIndex].knownCost;
-          ushort status = calcGrid[cellIndex].status;
+          float calculatedCost = tickCost + context.calcGrid[startIndex].knownCost;
+          ushort status = context.calcGrid[cellIndex].status;
 
-          //For debug path drawing
-          if (VehicleMod.settings.debug.debugDrawVehiclePathCosts)
-          {
-            postCalculatedCells[cellToCheck] = calculatedCost;
-          }
-
-          if (status == statusClosedValue || status == statusOpenValue)
+          if (status == context.statusClosedValue || status == context.statusOpenValue)
           {
             float closedValueCost = 0;
-            if (status == statusClosedValue)
-            {
+            if (status == context.statusClosedValue)
               closedValueCost = ticksCardinal;
-            }
 
-            if (calcGrid[cellIndex].knownCost <= calculatedCost + closedValueCost)
-            {
+            if (context.calcGrid[cellIndex].knownCost <= calculatedCost + closedValueCost)
               goto SkipNode;
-            }
           }
+
+          // For debug path drawing
+          if (VehicleMod.settings.debug.debugDrawVehiclePathCosts)
+            context.postCalculatedCells.Add((cellToCheck, calculatedCost));
 
           if (weightedHeuristics)
           {
             int pathCostFromDestToRegion =
               Mathf.RoundToInt(regionCostCalculator.GetPathCostFromDestToRegion(cellIndex));
             float heuristicWeight = regionHeuristicWeightByNodesOpened.Evaluate(nodesOpened);
-            calcGrid[cellIndex].heuristicCost = pathCostFromDestToRegion * heuristicWeight;
-            if (calcGrid[cellIndex].heuristicCost < 0)
+            context.calcGrid[cellIndex].heuristicCost = pathCostFromDestToRegion * heuristicWeight;
+            if (context.calcGrid[cellIndex].heuristicCost < 0)
             {
               Log.ErrorOnce(
                 $"Heuristic cost overflow for vehicle {vehicle} pathing from {start} to {dest}.",
                 vehicle.GetHashCode() ^ "FVPHeuristicCostOverflow".GetHashCode());
-              calcGrid[cellIndex].heuristicCost = 0;
+              context.calcGrid[cellIndex].heuristicCost = 0;
             }
           }
-          else if (status != statusClosedValue && status != statusOpenValue)
+          else if (status != context.statusClosedValue && status != context.statusOpenValue)
           {
             int dx = Math.Abs(cellIntX - x);
             int dz = Math.Abs(cellIntZ - z);
@@ -454,12 +422,12 @@ public class VehiclePathFinder : VehicleGridManager
               roadHeuristicMultiplier *= RoadHeuristicWeight;
             }
 
-            calcGrid[cellIndex].heuristicCost =
+            context.calcGrid[cellIndex].heuristicCost =
               Mathf.RoundToInt(octileDist * heuristicStrength * heuristicWeight) *
               roadHeuristicMultiplier;
           }
 
-          float costWithHeuristic = calculatedCost + calcGrid[cellIndex].heuristicCost;
+          float costWithHeuristic = calculatedCost + context.calcGrid[cellIndex].heuristicCost;
           if (costWithHeuristic < 0)
           {
             Log.ErrorOnce(
@@ -468,19 +436,20 @@ public class VehiclePathFinder : VehicleGridManager
             costWithHeuristic = 0;
           }
 
-          calcGrid[cellIndex].parentIndex = startIndex;
-          calcGrid[cellIndex].knownCost = calculatedCost;
-          calcGrid[cellIndex].status = statusOpenValue;
-          calcGrid[cellIndex].costNodeCost = costWithHeuristic;
+          context.calcGrid[cellIndex].parentIndex = startIndex;
+          context.calcGrid[cellIndex].knownCost = calculatedCost;
+          context.calcGrid[cellIndex].status = context.statusOpenValue;
+          context.calcGrid[cellIndex].costNodeCost = costWithHeuristic;
           nodesOpened++;
-          openList.Push(new CostNode(cellIndex, costWithHeuristic, pathDir));
+          context.openList.Enqueue(new CostNode(cellIndex, costWithHeuristic, pathDir),
+            costWithHeuristic);
         }
 
         SkipNode: ;
       }
 
       searchCount++;
-      calcGrid[startIndex].status = statusClosedValue;
+      context.calcGrid[startIndex].status = context.statusClosedValue;
       if (nodesOpened >= NodesToOpenBeforeRegionBasedPathing && allowedRegionTraversal &&
         !weightedHeuristics)
       {
@@ -488,7 +457,7 @@ public class VehiclePathFinder : VehicleGridManager
         regionCostCalculator.Init(cellRect, traverseParms, ticksCardinal, ticksDiagonal,
           avoidGrid,
           drafted, disallowedCornerIndices);
-        InitStatusesAndPushStartNode(ref startIndex, start);
+        context.InitStatusesAndPushStartNode(startIndex);
         nodesOpened = 0;
         searchCount = 0;
       }
@@ -498,7 +467,7 @@ public class VehiclePathFinder : VehicleGridManager
     string curFaction = vehicle.Faction?.ToString() ?? "NULL";
     Log.Warning(
       $"Vehicle {vehicle} pathing from {start} to {dest} ran out of cells to process. Job={curJob} Faction={curFaction}");
-    DebugDrawRichData();
+    context.DebugDrawRichData();
     return VehiclePath.NotFound;
   }
 
@@ -582,7 +551,7 @@ public class VehiclePathFinder : VehicleGridManager
   /// </summary>
   /// <param name="vehicle"></param>
   /// <param name="index"></param>
-  public static bool BlocksDiagonalMovement(VehiclePawn vehicle, int index)
+  private static bool BlocksDiagonalMovement(VehiclePawn vehicle, int index)
   {
     return !vehicle.DrivableFast(index) || vehicle.Map.edificeGrid[index] is Building_Door;
   }
@@ -590,7 +559,7 @@ public class VehiclePathFinder : VehicleGridManager
   /// <summary>
   /// Flash cell on map
   /// </summary>
-  private void DebugFlash(IntVec3 cell, float colorPct, string label)
+  private static void DebugFlash(VehicleMapping mapping, IntVec3 cell, float colorPct, string label)
   {
     if (cell.InBounds(mapping.map))
     {
@@ -604,25 +573,22 @@ public class VehiclePathFinder : VehicleGridManager
   private static void DebugFlash(IntVec3 cell, Map map, float colorPct, string label,
     int duration = 50)
   {
-    //map.debugDrawer.FlashCell(cell, colorPct, text: label, duration: duration);
-    CoroutineManager.QueueOrInvoke(
-      () => map.debugDrawer.FlashCell(cell, colorPct, label, duration), SecondsBetweenDebugDrawing);
+    map.DrawCell_ThreadSafe(cell, colorPct, label, duration);
   }
 
   /// <summary>
   /// Finalize path results from internal algorithm call
   /// </summary>
-  /// <param name="finalIndex"></param>
-  /// <param name="usedRegionHeuristics"></param>
-  private VehiclePath FinalizedPath(int finalIndex, bool usedRegionHeuristics)
+  private VehiclePath FinalizedPath(PathFinderContext context, int finalIndex,
+    bool usedRegionHeuristics)
   {
-    DebugDrawPathCost();
+    context.DebugDrawPathCost();
 
     VehiclePath newPath = AsyncPool<VehiclePath>.Get();
     int index = finalIndex;
     while (true)
     {
-      int parentIndex = calcGrid[index].parentIndex;
+      int parentIndex = context.calcGrid[index].parentIndex;
       IntVec3 cell = mapping.map.cellIndices.IndexToCell(index);
       newPath.AddNode(cell);
       if (index == parentIndex)
@@ -634,84 +600,9 @@ public class VehiclePathFinder : VehicleGridManager
   }
 
   /// <summary>
-  /// Push <paramref name="start"/> onto node list and reset associated <paramref name="curIndex"/> costs
-  /// </summary>
-  /// <param name="curIndex"></param>
-  /// <param name="start"></param>
-  private void InitStatusesAndPushStartNode(ref int curIndex, IntVec3 start)
-  {
-    statusOpenValue += 2;
-    statusClosedValue += 2;
-    if (statusClosedValue >= 65435)
-    {
-      ResetStatuses();
-    }
-
-    curIndex = cellIndices.CellToIndex(start);
-    calcGrid[curIndex].knownCost = 0;
-    calcGrid[curIndex].heuristicCost = 0;
-    calcGrid[curIndex].costNodeCost = 0;
-    calcGrid[curIndex].parentIndex = curIndex;
-    calcGrid[curIndex].status = statusOpenValue;
-    openList.Clear();
-    openList.Push(new CostNode(curIndex, 0, Rot8.Invalid));
-  }
-
-  /// <summary>
-  /// Reset all node statuses
-  /// </summary>
-  private void ResetStatuses()
-  {
-    for (int i = 0; i < calcGrid.Length; i++)
-    {
-      calcGrid[i].status = 0;
-    }
-
-    statusOpenValue = 1;
-    statusClosedValue = 2;
-  }
-
-  /// <summary>
-  /// Draw all open cells
-  /// </summary>
-  private void DebugDrawRichData()
-  {
-    if (VehicleMod.settings.debug.debugDrawVehiclePathCosts)
-    {
-      while (openList.Count > 0)
-      {
-        int index = openList.Pop().index;
-        IntVec3 cell = new IntVec3(index % mapSizeX, 0, index / mapSizeX);
-        DebugFlash(cell, 0, "open");
-      }
-    }
-  }
-
-  /// <summary>
-  /// Draw all calculated path costs
-  /// </summary>
-  /// <param name="colorPct"></param>
-  /// <param name="duration"></param>
-  private void DebugDrawPathCost(float colorPct = 0f, int duration = 50)
-  {
-    if (VehicleMod.settings.debug.debugDrawVehiclePathCosts)
-    {
-      foreach ((IntVec3 cell, float cost) in postCalculatedCells)
-      {
-        DebugFlash(cell, mapping.map, colorPct, cost.ToString(), duration: duration);
-      }
-    }
-  }
-
-  //REDO - Allow player to modify weighted heuristic or spin into seperate thread for long distance traversal with accurate pathing
-  /// <summary>
   /// Heuristic strength to use for A* algorithm
   /// </summary>
-  /// <param name="vehicle"></param>
-  /// <param name="start"></param>
-  /// <param name="dest"></param>
-  private float DetermineHeuristicStrength(VehiclePawn vehicle, IntVec3 start,
-    LocalTargetInfo dest)
+  private static float DetermineHeuristicStrength(IntVec3 start, LocalTargetInfo dest)
   {
     float lengthHorizontal = (start - dest.Cell).LengthHorizontal;
     return Mathf.RoundToInt(nonRegionBasedHeuristicCurve.Evaluate(lengthHorizontal));
@@ -722,10 +613,9 @@ public class VehiclePathFinder : VehicleGridManager
   /// </summary>
   /// <param name="dest"></param>
   /// <param name="peMode"></param>
-  private CellRect CalculateDestinationRect(LocalTargetInfo dest, PathEndMode peMode)
+  private static CellRect CalculateDestinationRect(LocalTargetInfo dest, PathEndMode peMode)
   {
-    CellRect result;
-    result = (!dest.HasThing || peMode == PathEndMode.OnCell) ?
+    CellRect result = (!dest.HasThing || peMode == PathEndMode.OnCell) ?
       CellRect.SingleCell(dest.Cell) :
       dest.Thing.OccupiedRect();
     result = (peMode == PathEndMode.Touch) ? result.ExpandedBy(1) : result;
@@ -735,10 +625,10 @@ public class VehiclePathFinder : VehicleGridManager
   /// <summary>
   /// Node data
   /// </summary>
-  internal struct CostNode
+  private struct CostNode
   {
-    public int index;
-    public float cost;
+    public readonly int index;
+    public readonly float cost;
     public Rot8 direction;
 
     public CostNode(int index, float cost, Rot8 direction)
@@ -761,14 +651,97 @@ public class VehiclePathFinder : VehicleGridManager
     public ushort status;
   }
 
-  /// <summary>
-  /// Node cost comparer for path determination
-  /// </summary>
-  internal class CostNodeComparer : IComparer<CostNode>
+  private class PathFinderContext : IPoolable
   {
-    public int Compare(CostNode a, CostNode b)
+    public readonly List<(IntVec3, float)> postCalculatedCells = [];
+
+    private VehicleMapping mapping;
+
+    public PriorityQueue<CostNode, float> openList;
+    public VehiclePathFinderNodeFast[] calcGrid;
+
+    public ushort statusOpenValue = 1;
+    public ushort statusClosedValue = 2;
+
+    bool IPoolable.InPool { get; set; }
+
+    // Need to ensure data is initialized, and ObjectPool only accepts default constructor
+    // objects so it was either this or another ObjectPool implementation locally defined.
+    public void Init(VehicleMapping mapping)
     {
-      return a.cost.CompareTo(b.cost);
+      if (this.mapping is null)
+      {
+        this.mapping = mapping;
+        calcGrid = new VehiclePathFinderNodeFast[mapping.map.Size.x * mapping.map.Size.z];
+        openList = new PriorityQueue<CostNode, float>();
+      }
+    }
+
+    void IPoolable.Reset()
+    {
+      // Prewarm will 'return' N items to pool, so openList will be null initially.
+      openList?.Clear();
+      postCalculatedCells.Clear();
+    }
+
+    public void InitStatusesAndPushStartNode(int startIndex)
+    {
+      statusOpenValue += 2;
+      statusClosedValue += 2;
+      if (statusClosedValue >= 65435)
+        ResetStatuses();
+      calcGrid[startIndex].knownCost = 0;
+      calcGrid[startIndex].heuristicCost = 0;
+      calcGrid[startIndex].costNodeCost = 0;
+      calcGrid[startIndex].parentIndex = startIndex;
+      calcGrid[startIndex].status = statusOpenValue;
+      openList.Clear();
+      openList.Enqueue(new CostNode(startIndex, 0, Rot8.Invalid), 0);
+    }
+
+    /// <summary>
+    /// Reset all node statuses
+    /// </summary>
+    private void ResetStatuses()
+    {
+      for (int i = 0; i < calcGrid.Length; i++)
+      {
+        calcGrid[i].status = 0;
+      }
+      statusOpenValue = 1;
+      statusClosedValue = 2;
+    }
+
+    /// <summary>
+    /// Draw all open cells
+    /// </summary>
+    public void DebugDrawRichData()
+    {
+      if (!VehicleMod.settings.debug.debugDrawVehiclePathCosts)
+        return;
+
+      int mapSizeX = mapping.map.Size.x;
+      int mapSizeZ = mapping.map.Size.z;
+      while (openList.Count > 0)
+      {
+        int index = openList.Dequeue().index;
+        IntVec3 cell = new(index % mapSizeX, 0, index / mapSizeZ);
+        DebugFlash(mapping, cell, 0, "open");
+      }
+    }
+
+    /// <summary>
+    /// Draw all calculated path costs
+    /// </summary>
+    public void DebugDrawPathCost(float colorPct = 0f, int duration = 50)
+    {
+      if (!VehicleMod.settings.debug.debugDrawVehiclePathCosts)
+        return;
+
+      foreach ((IntVec3 cell, float cost) in postCalculatedCells)
+      {
+        DebugFlash(cell, mapping.map, colorPct, cost.ToString(), duration: duration);
+      }
     }
   }
 }

@@ -28,7 +28,7 @@ namespace Vehicles
       pathGrid.onPathGridRecalculated += RegenerateRegionsFor;
     }
 
-    internal WorldRegionGrid GetRegionGrid(VehicleDef vehicleDef)
+    public WorldRegionGrid GetRegionGrid(VehicleDef vehicleDef)
     {
       return regionGrids[vehicleDef.DefIndex];
     }
@@ -142,7 +142,7 @@ namespace Vehicles
       }
     }
 
-    internal class WorldRegionGrid
+    public class WorldRegionGrid
     {
       private readonly WorldVehiclePathGrid pathGrid;
       private readonly VehicleDef owner;

@@ -12,7 +12,6 @@ public class VehiclePath : IDisposable
 {
   private const int InitialPathSize = 1 << 7;
 
-  private int current;
   private readonly List<IntVec3> nodes = new(InitialPathSize);
 
   public bool Found { get; private set; }
@@ -21,7 +20,9 @@ public class VehiclePath : IDisposable
 
   public IntVec3 LastNode => nodes[0];
 
-  public int NodesLeft => current + 1;
+  public int Current { get; private set; }
+
+  public int NodesLeft => Current + 1;
 
   public bool Finished => NodesLeft <= 0;
 
@@ -34,7 +35,7 @@ public class VehiclePath : IDisposable
   public void Init(bool usedHeuristics)
   {
     UsedHeuristics = usedHeuristics;
-    current = nodes.Count - 1;
+    Current = nodes.Count - 1;
     Found = true;
   }
 
@@ -46,13 +47,13 @@ public class VehiclePath : IDisposable
   public IntVec3 ConsumeNextNode()
   {
     IntVec3 cell = Peek(1);
-    current--;
+    Current--;
     return cell;
   }
 
   public IntVec3 Peek(int nodesAhead)
   {
-    return nodes[current - nodesAhead];
+    return nodes[Current - nodesAhead];
   }
 
   public void DrawPath(VehiclePawn vehicle)
@@ -86,7 +87,7 @@ public class VehiclePath : IDisposable
 
   public void Dispose()
   {
-    current = -1;
+    Current = -1;
     UsedHeuristics = false;
     Found = false;
     nodes.Clear();

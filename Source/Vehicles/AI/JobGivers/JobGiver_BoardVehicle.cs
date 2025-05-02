@@ -15,7 +15,7 @@ namespace Vehicles
       if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Moving)) return null;
       if (pawn.GetLord().LordJob is LordJob_FormAndSendVehicles)
       {
-        (VehiclePawn vehicle, VehicleHandler handler) vehicleMapping =
+        (VehiclePawn vehicle, VehicleRoleHandler handler) vehicleMapping =
           ((LordJob_FormAndSendVehicles)pawn.GetLord().LordJob).GetVehicleAssigned(pawn);
 
         if (vehicleMapping.handler is null)

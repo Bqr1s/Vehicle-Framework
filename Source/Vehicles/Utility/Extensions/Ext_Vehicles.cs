@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using DevTools;
 using JetBrains.Annotations;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -610,7 +610,7 @@ namespace Vehicles
     /// <returns><c>null</c> if pawn is not currently inside a VehicleCaravan</returns>
     public static VehicleCaravan GetVehicleCaravan(this Pawn pawn)
     {
-      if (pawn.ParentHolder is VehicleHandler handler)
+      if (pawn.ParentHolder is VehicleRoleHandler handler)
       {
         return handler.vehicle.GetVehicleCaravan();
       }
@@ -832,7 +832,7 @@ namespace Vehicles
     /// <returns>VehiclePawn <paramref name="pawn"/> is in, or null if they aren't in a vehicle.</returns>
     public static VehiclePawn GetVehicle(this Pawn pawn)
     {
-      return (pawn.ParentHolder as VehicleHandler)?.vehicle;
+      return (pawn.ParentHolder as VehicleRoleHandler)?.vehicle;
     }
 
     /// <summary>
@@ -842,7 +842,7 @@ namespace Vehicles
     /// <returns>true if <paramref name="pawn"/> is in a vehicle, false otherwise</returns>
     public static bool IsInVehicle(this Pawn pawn)
     {
-      return pawn.ParentHolder is VehicleHandler;
+      return pawn.ParentHolder is VehicleRoleHandler;
     }
 
     public static float GetStatValueAbstract(this VehicleDef vehicleDef, VehicleStatDef statDef)

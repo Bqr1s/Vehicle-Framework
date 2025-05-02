@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using DevTools;
-using DevTools.UnitTesting;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
@@ -14,7 +13,7 @@ using Verse;
 namespace Vehicles;
 
 [StaticConstructorOnStartup]
-internal static class VehicleHarmony
+public static class VehicleHarmony
 {
   // Project Start Date: 7 DEC 2019
 
@@ -22,19 +21,12 @@ internal static class VehicleHarmony
   public const string VehiclesLabel = "Vehicle Framework";
   internal const string LogLabel = "[VehicleFramework]";
 
-  internal static ModMetaData VehicleMMD;
-  internal static ModContentPack VehicleMCP;
+  public static readonly ModMetaData VehicleMMD;
+  public static readonly ModContentPack VehicleMCP;
 
   private static string methodPatching = string.Empty;
 
   internal static List<UpdateLog> updates = [];
-
-#if DEBUG && DEV_TOOLS
-  // Debugging with HarmonyMod's stack trace suppression for duplicates is a massive pain and for
-  // some reason it isn't a mod setting, but rather a tweak value that has to be toggled off after
-  // every startup! Just disable it permanently for debug builds, I'd rather not deal with this.
-  private static StackTraceCacheDisabler stcDisabler = new();
-#endif
 
   private static Harmony Harmony { get; } = new(VehiclesUniqueId);
 
@@ -42,6 +34,8 @@ internal static class VehicleHarmony
 
   internal static string BuildDatePath =>
     Path.Combine(VehicleMMD.RootDir.FullName, "BuildDate.txt");
+
+  public static bool RunningUnitTests { get; internal set; }
 
   public static List<VehicleDef> AllMoveableVehicleDefs { get; internal set; }
 
@@ -83,10 +77,6 @@ internal static class VehicleHarmony
     Utilities.InvokeWithLogging(RegisterVehicleAreas);
 
     DebugProperties.Init();
-
-#if DEV_TOOLS
-    UnitTestManager.OnUnitTestStateChange += SuppressDebugLogging;
-#endif
   }
 
   private static void RunAllPatches()
@@ -267,10 +257,5 @@ internal static class VehicleHarmony
   {
     Ext_Map.RegisterArea<Area_Road>();
     Ext_Map.RegisterArea<Area_RoadAvoidal>();
-  }
-
-  private static void SuppressDebugLogging(bool value)
-  {
-    VehicleMod.settings.debug.debugLogging = false;
   }
 }

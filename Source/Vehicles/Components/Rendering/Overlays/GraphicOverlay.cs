@@ -1,53 +1,57 @@
-﻿using RimWorld;
+﻿using System;
+using RimWorld;
 using SmashTools;
 using SmashTools.Animations;
 using SmashTools.Rendering;
 using UnityEngine;
+using Vehicles.Rendering;
 using Verse;
 using Transform = SmashTools.Rendering.Transform;
+using PreRenderResults = Vehicles.Graphic_Rgb.PreRenderResults;
+using System.Collections.Generic;
 
 namespace Vehicles;
 
-public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
+public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelRenderer, IBlitTarget
 {
   [TweakField]
   public GraphicDataOverlay data;
 
   private readonly VehiclePawn vehicle;
 
-  // Specific to vehicle instance
-  private readonly GraphicOverlayRenderer renderer;
-
   // Vehicle may be null, but overlays should always originate from a VehicleDef
   private readonly VehicleDef vehicleDef;
 
+  private PreRenderResults results;
+
   private Graphic graphic;
+
+  // ReSharper disable once FieldCanBeMadeReadOnly.Local
   private Graphic_DynamicShadow graphicShadow;
 
   [AnimationProperty(Name = "Transform")]
   private readonly Transform transform = new();
 
   [AnimationProperty(Name = "Propeller Acceleration")]
-  private float acceleration;
+  internal float acceleration;
 
-  public GraphicOverlay(GraphicDataOverlay graphicDataOverlay, VehicleDef vehicleDef)
+  private GraphicOverlay(GraphicDataOverlay graphicDataOverlay, VehicleDef vehicleDef)
   {
     data = graphicDataOverlay;
     this.vehicleDef = vehicleDef;
   }
 
-  public GraphicOverlay(GraphicDataOverlay graphicDataOverlay, VehiclePawn vehicle)
+  private GraphicOverlay(GraphicDataOverlay graphicDataOverlay, VehiclePawn vehicle)
   {
     data = graphicDataOverlay;
     this.vehicle = vehicle;
     this.vehicleDef = vehicle.VehicleDef;
-    this.renderer = vehicle.overlayRenderer;
 
     this.vehicle.AddEvent(VehicleEventDefOf.Destroyed, Destroy);
 
     if (data.dynamicShadows)
     {
-      ShadowData shadowData = new ShadowData()
+      ShadowData shadowData = new()
       {
         volume = new Vector3(data.graphicData.drawSize.x, 0, data.graphicData.drawSize.y),
         offset = new Vector3(data.graphicData.drawOffset.x, 0, data.graphicData.drawOffset.z + 5),
@@ -63,6 +67,8 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
 
   public string Name => $"{vehicleDef.Name}_{data.graphicData.texPath}";
 
+  public MaterialPropertyBlock PropertyBlock { get; private set; }
+
   string IAnimationObject.ObjectId => data.identifier ?? nameof(GraphicOverlay);
 
   public Graphic_DynamicShadow ShadowGraphic => graphicShadow;
@@ -73,7 +79,8 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
     {
       if (graphic is null)
       {
-        if (vehicle != null && vehicle.Destroyed && !RGBMaterialPool.GetAll(this).NullOrEmpty())
+        PropertyBlock ??= new MaterialPropertyBlock();
+        if (vehicle is { Destroyed: true } && !RGBMaterialPool.GetAll(this).NullOrEmpty())
         {
           Log.Error(
             $"Reinitializing RGB Materials but {this} has already been destroyed and the cache " +
@@ -84,10 +91,10 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
         PatternData patternData = vehicle?.patternData ?? VehicleMod.settings.vehicles
          .defaultGraphics
          .TryGetValue(vehicleDef.defName, new PatternData(vehicleDef.graphicData));
-        GraphicDataRGB graphicData = new GraphicDataRGB();
+        GraphicDataRGB graphicData = new();
         graphicData.CopyFrom(data.graphicData);
 
-        if (graphicData.graphicClass.SameOrSubclass(typeof(Graphic_RGB)) && graphicData.shaderType
+        if (graphicData.graphicClass.SameOrSubclass(typeof(Graphic_Rgb)) && graphicData.shaderType
          .Shader
          .SupportsRGBMaskTex())
         {
@@ -101,7 +108,7 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
           RGBMaterialPool.CacheMaterialsFor(this);
           graphicData.Init(this);
           graphic = graphicData.Graphic;
-          var graphicRGB = graphic as Graphic_RGB;
+          Graphic_Rgb graphicRGB = (Graphic_Rgb)graphic;
           RGBMaterialPool.SetProperties(this, patternData, graphicRGB.TexAt, graphicRGB.MaskAt);
         }
         else
@@ -114,49 +121,73 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
     }
   }
 
-  public void Draw(ref readonly TransformData transformData)
+  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
   {
-    Vector3 position = transform.position + transformData.position;
-    float rotation = transform.rotation + transformData.rotation + data.rotation;
+    switch (phase)
+    {
+      case DrawPhase.EnsureInitialized:
+        _ = Graphic; // Force Graphic to cache before any predraw occurs
+        break;
+      case DrawPhase.ParallelPreDraw:
+        results = ParallelGetPreRenderResults(in transformData);
+        break;
+      case DrawPhase.Draw:
+        // Out of phase drawing must immediately generate pre-render results for valid data.
+        if (!results.valid)
+          results = ParallelGetPreRenderResults(in transformData);
+        Draw(in transformData);
+        results = default;
+        break;
+      default:
+        throw new NotImplementedException();
+    }
+  }
 
+  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData)
+  {
     if (data.component != null)
     {
-      // TODO - Move to queue based system where overlays get pulled from a render pool
+      // Skip rendering if health percent is below set amount for rendering
       float healthPercent = vehicle.statHandler.GetComponentHealthPercent(data.component.key);
       if (!data.component.comparison.Compare(healthPercent, data.component.healthPercent))
       {
-        return; //Skip rendering if health percent is below set amount for rendering
+        return new PreRenderResults { valid = true, draw = false };
       }
     }
 
-    if (!data.graphicData.AboveBody)
+    if (Graphic is Graphic_Rgb graphicRgb)
     {
-      position.y -= (VehicleRenderer.YOffset_Body + VehicleRenderer.SubInterval);
+      float extraRotation = transform.rotation + data.rotation;
+      PreRenderResults render =
+        graphicRgb.ParallelGetPreRenderResults(in transformData, extraRotation);
+      render.position += transform.position;
+      return render;
     }
+    return new PreRenderResults { valid = true, draw = true };
+  }
 
-    if (renderer != null && Graphic is Graphic_Rotator rotator)
+  private void Draw(ref readonly TransformData transformData)
+  {
+    if (!results.draw)
+      return;
+
+    if (Graphic is Graphic_Rgb)
     {
-      if (acceleration != 0)
+      Graphics.DrawMesh(results.mesh, results.position, results.quaternion, results.material, 0);
+
+      if (Graphic is Graphic_Rotator)
       {
-        renderer.rotationRegistry[rotator.RegistryKey] += acceleration;
+        transform.rotation = (transform.rotation + acceleration).ClampAndWrap(0, 360);
       }
-
-      rotation = renderer.rotationRegistry[rotator.RegistryKey].ClampAndWrap(0, 359);
-    }
-
-    if (Graphic is Graphic_RGB graphicRGB)
-    {
-      graphicRGB.DrawWorker(position, transformData.orientation, null, null, rotation);
     }
     else
     {
-      Graphic.DrawWorker(position, transformData.orientation, null, null, rotation);
+      Graphic.DrawWorker(transformData.position, transformData.orientation, null, null,
+        transformData.rotation);
     }
-
-    ShadowGraphic?.DrawWorker(position, transformData.orientation, null, null, rotation);
   }
 
-  public void Notify_ColorChanged()
+  private void Notify_ColorChanged()
   {
     if (data.graphicData.shaderType.Shader.SupportsRGBMaskTex())
     {
@@ -170,6 +201,7 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
 
   public void Destroy()
   {
+    vehicle.RemoveEvent(VehicleEventDefOf.ColorChanged, Notify_ColorChanged);
     RGBMaterialPool.Release(this);
   }
 
@@ -177,11 +209,11 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
   {
     if (!UnityData.IsInMainThread)
     {
-      Log.Error($"Trying to create GraphicOverlay outside of the main thread.");
+      Log.Error("Trying to create GraphicOverlay outside of the main thread.");
       return null;
     }
 
-    GraphicOverlay graphicOverlay = new GraphicOverlay(graphicDataOverlay, vehicle);
+    GraphicOverlay graphicOverlay = new(graphicDataOverlay, vehicle);
     graphicDataOverlay.graphicData.shaderType ??= ShaderTypeDefOf.Cutout;
     if (!VehicleMod.settings.main.useCustomShaders)
     {
@@ -196,22 +228,22 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
       RGBMaterialPool.CacheMaterialsFor(graphicOverlay);
       graphicDataOverlay.graphicData.Init(graphicOverlay);
       PatternData patternData = vehicle.patternData;
-      RGBMaterialPool.SetProperties(graphicOverlay, patternData,
-        (graphicOverlay.Graphic as Graphic_RGB)
-       .TexAt, (graphicOverlay.Graphic as Graphic_RGB).MaskAt);
+      Graphic_Rgb graphic = (Graphic_Rgb)graphicOverlay.Graphic;
+      RGBMaterialPool.SetProperties(graphicOverlay, patternData, graphic.TexAt, graphic.MaskAt);
     }
     else
     {
       _ = graphicDataOverlay.graphicData.Graphic;
     }
 
+    vehicle.AddEvent(VehicleEventDefOf.ColorChanged, graphicOverlay.Notify_ColorChanged);
     return graphicOverlay;
   }
 
   public static GraphicOverlay Create(GraphicDataOverlay graphicDataOverlay,
     VehicleDef vehicleDef)
   {
-    GraphicOverlay graphicOverlay = new GraphicOverlay(graphicDataOverlay, vehicleDef);
+    GraphicOverlay graphicOverlay = new(graphicDataOverlay, vehicleDef);
     graphicDataOverlay.graphicData.shaderType ??= ShaderTypeDefOf.Cutout;
     if (!VehicleMod.settings.main.useCustomShaders)
     {
@@ -228,15 +260,43 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget
       PatternData patternData = VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(
         vehicleDef.defName,
         new PatternData(vehicleDef.graphicData));
-      RGBMaterialPool.SetProperties(graphicOverlay, patternData,
-        (graphicOverlay.Graphic as Graphic_RGB).TexAt,
-        (graphicOverlay.Graphic as Graphic_RGB).MaskAt);
+
+      Graphic_Rgb graphic = (Graphic_Rgb)graphicOverlay.Graphic;
+      RGBMaterialPool.SetProperties(graphicOverlay, patternData, graphic.TexAt, graphic.MaskAt);
     }
     else
     {
       _ = graphicDataOverlay.graphicData.Graphic;
     }
-
     return graphicOverlay;
+  }
+
+  IEnumerable<RenderData> IBlitTarget.GetRenderData(Rect rect, BlitRequest request)
+  {
+    Rect overlayRect = VehicleGraphics.OverlayRect(rect, vehicleDef, this, request.rot);
+    bool canMask = Graphic.Shader.SupportsMaskTex() || Graphic.Shader.SupportsRGBMaskTex();
+
+    Material material = canMask ? Graphic.MatAt(request.rot) : null;
+
+    Texture2D texture = graphic.MatAt(request.rot).mainTexture as Texture2D;
+    if (canMask)
+    {
+      if (graphic is Graphic_Rgb graphicRgb)
+      {
+        RGBMaterialPool.SetProperties(this, request.patternData, graphicRgb.TexAt,
+          graphicRgb.MaskAt);
+      }
+      else
+      {
+        RGBMaterialPool.SetProperties(this, request.patternData,
+          forRot => graphic.MatAt(forRot).mainTexture as Texture2D,
+          forRot => graphic.MatAt(forRot).GetMaskTexture());
+      }
+    }
+    // TODO - vehicleDef.PropertyBlock here would be incorrect for VehiclePawn instance rendering. Will
+    // need a refactor later if and when I get to drawing all of this via material property blocks.
+    RenderData overlayRenderData = new(overlayRect, texture, material, vehicleDef.PropertyBlock,
+      data.graphicData.DrawOffsetFull(request.rot).y, data.rotation);
+    yield return overlayRenderData;
   }
 }

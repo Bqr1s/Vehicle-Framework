@@ -37,7 +37,7 @@ public class VehicleRole : ITweakFields
   {
   }
 
-  public VehicleRole(VehicleHandler group) : this(group.role)
+  public VehicleRole(VehicleRoleHandler group) : this(group.role)
   {
   }
 

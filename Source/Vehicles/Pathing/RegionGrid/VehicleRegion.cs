@@ -83,7 +83,7 @@ public sealed class VehicleRegion : IPoolable
   /// Should be used with RAII pattern to allow for List object to be returned
   /// to async object pool after ListSnapshot goes out of scope.
   /// </summary>
-  internal ListSnapshot<VehicleRegionLink> Links
+  public ListSnapshot<VehicleRegionLink> Links
   {
     get
     {

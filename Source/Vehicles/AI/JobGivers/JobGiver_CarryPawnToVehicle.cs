@@ -24,7 +24,7 @@ namespace Vehicles
 			{ 
 				return null;
 			}
-			(VehiclePawn vehicle, VehicleHandler handler) = lordJob.GetVehicleAssigned(downedPawn);
+			(VehiclePawn vehicle, VehicleRoleHandler handler) = lordJob.GetVehicleAssigned(downedPawn);
 			if (vehicle is null || handler is null)
 			{
 				(vehicle, handler) = FindAvailableVehicle(downedPawn);
@@ -61,13 +61,13 @@ namespace Vehicles
 			return null;
 		}
 
-		private (VehiclePawn vehicle, VehicleHandler handler) FindAvailableVehicle(Pawn pawn)
+		private (VehiclePawn vehicle, VehicleRoleHandler handler) FindAvailableVehicle(Pawn pawn)
 		{
 			Lord lord = pawn.GetLord();
 			LordJob_FormAndSendVehicles lordJob = (LordJob_FormAndSendVehicles)lord.LordJob;
 			foreach (VehiclePawn vehicle in lordJob.vehicles)
 			{
-				foreach (VehicleHandler handler in vehicle.handlers)
+				foreach (VehicleRoleHandler handler in vehicle.handlers)
 				{
 					if (handler.CanOperateRole(pawn) && !lordJob.SeatAssigned(vehicle, handler))
 					{

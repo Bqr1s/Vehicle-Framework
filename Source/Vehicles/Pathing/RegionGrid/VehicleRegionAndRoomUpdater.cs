@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Threading;
-using DevTools;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using RegionResult = Vehicles.VehicleRegionMaker.RegionResult;
 
@@ -152,7 +152,7 @@ namespace Vehicles
       {
         if (!cell.InBounds(mapping.map))
         {
-          Assert.Fail("Dirtied invalid cell.");
+          Trace.Fail($"Dirtied invalid cell at {cell}");
           continue;
         }
 

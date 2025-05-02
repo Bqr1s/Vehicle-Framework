@@ -71,10 +71,10 @@ namespace Vehicles
       {
         foreach (VehicleRole role in VehicleDef.properties.roles)
         {
-          handlers.Add(new VehicleHandler(this, role));
+          handlers.Add(new VehicleRoleHandler(this, role));
         }
       }
-
+      CacheCompRenderers();
       RecacheComponents();
     }
 
@@ -130,6 +130,7 @@ namespace Vehicles
       // Events must be registered before comp post loads, SpawnSetup won't trigger register in this case
       this.RegisterEvents();
       RegenerateUnsavedComponents();
+      CacheCompRenderers();
       RecacheComponents();
       RecachePawnCount();
       animator?.PostLoad();
@@ -145,7 +146,6 @@ namespace Vehicles
     {
       vehicleAI = new VehicleAI(this);
       drawTracker = new VehicleDrawTracker(this);
-      overlayRenderer = new GraphicOverlayRenderer(this);
       sustainers ??= new VehicleSustainers(this);
     }
 
@@ -153,15 +153,6 @@ namespace Vehicles
     {
       this.RegisterEvents(); //Must register before comps call SpawnSetup to allow comps to access Registry
       base.SpawnSetup(map, respawningAfterLoad);
-
-      if (!UnityData.IsInMainThread)
-      {
-        LongEventHandler.ExecuteWhenFinished(overlayRenderer.Init);
-      }
-      else
-      {
-        overlayRenderer.Init();
-      }
 
 #if ANIMATOR
       if (VehicleDef.drawProperties.controller != null)
@@ -171,6 +162,9 @@ namespace Vehicles
         animator.PostLoad();
       }
 #endif
+
+      if (PropertyBlock == null)
+        LongEventHandler.ExecuteWhenFinished(() => PropertyBlock = new MaterialPropertyBlock());
 
       // Ensure SustainerTarget and sustainer manager is given a clean slate to work with
       ReleaseSustainerTarget();
@@ -239,8 +233,9 @@ namespace Vehicles
       base.ExposeData();
 
       Scribe_Collections.Look(ref activatableComps, nameof(activatableComps),
-        lookMode: LookMode.Deep);
-      activatableComps ??= new List<ActivatableThingComp>();
+        lookMode: LookMode.Deep, this);
+      activatableComps ??= [];
+
       if (Scribe.mode == LoadSaveMode.LoadingVars)
       {
         SyncActivatableComps();
@@ -254,12 +249,11 @@ namespace Vehicles
         }
       }
 
-      Scribe_Deep.Look(ref vehiclePather, nameof(vehiclePather), [this]);
-      Scribe_Deep.Look(ref ignition, nameof(ignition), [this]);
-      Scribe_Deep.Look(ref statHandler, nameof(statHandler), [this]);
+      Scribe_Deep.Look(ref vehiclePather, nameof(vehiclePather), this);
+      Scribe_Deep.Look(ref ignition, nameof(ignition), this);
+      Scribe_Deep.Look(ref statHandler, nameof(statHandler), this);
       Scribe_Deep.Look(ref sharedJob, nameof(sharedJob));
-      Scribe_Deep.Look(ref animator, nameof(animator),
-        [this, VehicleDef.drawProperties.controller]);
+      Scribe_Deep.Look(ref animator, nameof(animator), this, VehicleDef.drawProperties.controller);
 
       Scribe_Values.Look(ref angle, nameof(angle));
       Scribe_Values.Look(ref reverse, nameof(reverse));

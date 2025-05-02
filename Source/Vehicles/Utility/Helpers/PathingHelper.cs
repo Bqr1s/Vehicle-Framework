@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using DevTools;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Performance;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -20,7 +20,7 @@ namespace Vehicles
     private const string AllowTerrainWithTag = "PassableVehicles";
     private const string DisallowTerrainWithTag = "ImpassableVehicles";
 
-    internal static readonly Dictionary<ThingDef, List<VehicleDef>> regionEffectors = [];
+    public static readonly Dictionary<ThingDef, List<VehicleDef>> regionEffectors = [];
 
     /// <summary>
     /// VehicleDef, (TerrainDef, pathCost)

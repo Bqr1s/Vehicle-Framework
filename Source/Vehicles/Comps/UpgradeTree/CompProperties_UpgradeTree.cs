@@ -81,12 +81,7 @@ namespace Vehicles
 
     public List<GraphicOverlay> TryGetOverlays(UpgradeNode node)
     {
-      if (!overlays.NullOrEmpty())
-      {
-        return overlays.TryGetValue(node, null);
-      }
-
-      return null;
+      return overlays?.TryGetValue(node);
     }
   }
 }

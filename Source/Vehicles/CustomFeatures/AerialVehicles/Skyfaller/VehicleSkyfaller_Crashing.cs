@@ -104,8 +104,7 @@ namespace Vehicles
           def.skyfaller.zPositionCurve.Evaluate(vehicle.CompVehicleLauncher.launchProtocol
            .TimeInAnimation);
       }
-      TransformData transform = new TransformData(drawLoc, Rotation, num + Rotation.AsInt * 90);
-      vehicle.DrawAt(in transform);
+      vehicle.DrawAt(drawLoc, Rotation, num + Rotation.AsInt * 90);
       DrawDropSpotShadow();
     }
 

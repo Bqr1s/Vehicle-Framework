@@ -21,7 +21,7 @@ namespace Vehicles
 		private static List<(int, int)> tmpTicksToArrive = new List<(int, int)>();
 
 		/// <summary>
-		/// Replaces <see cref="Caravan.NightResting"/> with patch hook in <seealso cref="CaravanHandling.NoRestForVehicles(Caravan, ref bool)"/>
+		/// Replaces <see cref="Caravan.NightResting"/> with patch hook in <seealso cref="Patch_CaravanHandling.NoRestForVehicles(Caravan, ref bool)"/>
 		/// </summary>
 		public static bool ShouldRestAt(VehicleCaravan caravan, int tile)
 		{
