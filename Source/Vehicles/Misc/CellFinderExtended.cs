@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using DevTools;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 
@@ -14,7 +14,7 @@ namespace Vehicles
   {
     private static List<IntVec3> mapEdgeCells;
     private static IntVec3 mapEdgeCellsSize;
-    private static List<VehicleRegion> workingRegions = new List<VehicleRegion>();
+    private static readonly List<VehicleRegion> workingRegions = [];
 
     public static bool TryFindRandomEdgeCell(Rot4 dir, Map map, Predicate<IntVec3> validator,
       int offset, out IntVec3 result)

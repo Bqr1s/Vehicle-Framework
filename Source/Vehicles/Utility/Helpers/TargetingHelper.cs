@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using DevTools;
 using RimWorld;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 
@@ -358,7 +358,7 @@ namespace Vehicles
           return false;
         }
         if (!turret.vehicle.CanSee(target.Thing,
-          validator: (IntVec3 cell) => LOSValidator(turret, map, target, cell)))
+          validator: cell => LOSValidator(turret, map, target, cell)))
         {
           return false;
         }
@@ -384,7 +384,7 @@ namespace Vehicles
     private static bool TargetValidator(VehicleTurret turret, Map map, LocalTargetInfo target)
     {
       Assert.IsTrue(target.HasThing,
-        $"non-Thing target passed to TargetValidator. Will always be false if any scan flags are set.");
+        "non-Thing target passed to TargetValidator. Will always be false if any scan flags are set.");
       TargetScanFlags scanFlags = turret.turretDef.targetScanFlags;
       if (scanFlags.HasFlag(TargetScanFlags.NeedThreat) &&
         !LOSHasThreat(turret.vehicle, target.Thing))

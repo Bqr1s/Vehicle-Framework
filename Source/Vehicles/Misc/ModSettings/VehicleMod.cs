@@ -25,6 +25,8 @@ public class VehicleMod : Mod
 
   internal static VehicleDef selectedDef;
 
+  private static SettingsSection currentSection;
+
   internal static Vector2 saveableFieldsScrollPosition;
   private static Vector2 vehicleDefsScrollPosition;
   internal static float scrollableViewHeight;
@@ -61,7 +63,19 @@ public class VehicleMod : Mod
     CurrentSection = settings.main;
   }
 
-  public static SettingsSection CurrentSection { get; internal set; }
+  public static SettingsSection CurrentSection
+  {
+    get { return currentSection; }
+    set
+    {
+      if (currentSection == value)
+        return;
+
+      currentSection?.OnClose();
+      currentSection = value;
+      currentSection?.OnOpen();
+    }
+  }
 
   public static bool ModifiableSettings => settings.main.modifiableSettings;
 
@@ -126,7 +140,6 @@ public class VehicleMod : Mod
     selectedDefUpgradeComp = vehicleDef.GetSortedCompProperties<CompProperties_UpgradeTree>();
     CurrentSection.VehicleSelected();
     RecalculateHeight(selectedDef);
-    SetVehicleTex(selectedDef);
   }
 
   private static void DeselectVehicle()
@@ -135,18 +148,6 @@ public class VehicleMod : Mod
     selectedPatterns.Clear();
     selectedDefUpgradeComp = null;
     selectedNode = null;
-    SetVehicleTex(null);
-  }
-
-  public static void SetVehicleTex(VehicleDef selectedDef)
-  {
-    if (selectedDef is null)
-    {
-      return;
-    }
-    var bodyGraphicData = selectedDef.graphicData;
-    var graphicData = new GraphicDataRGB();
-    graphicData.CopyFrom(bodyGraphicData);
   }
 
   private static void InitializeSections()
@@ -249,7 +250,7 @@ public class VehicleMod : Mod
 #endif
     }
     tabs.Add(new TabRecord("VF_DevMode".Translate(),
-      delegate() { CurrentSection = settings.debug; }, () => CurrentSection == settings.debug));
+      delegate { CurrentSection = settings.debug; }, () => CurrentSection == settings.debug));
   }
 
   public override void DoSettingsWindowContents(Rect inRect)
@@ -263,7 +264,7 @@ public class VehicleMod : Mod
     Widgets.DrawMenuSection(menuRect);
     TabDrawer.DrawTabs(menuRect, tabs, 200f);
 
-    CurrentSection.DrawSection(menuRect);
+    CurrentSection.OnGUI(menuRect);
 
     /* Reset Buttons */
     float padding = ResetImageSize + 5;
@@ -422,7 +423,6 @@ public class VehicleMod : Mod
         selectedPatterns.Clear();
         selectedDefUpgradeComp = null;
         selectedNode = null;
-        SetVehicleTex(null);
         settingsDisabledFor.Add(vehicle.defName);
       }
     }

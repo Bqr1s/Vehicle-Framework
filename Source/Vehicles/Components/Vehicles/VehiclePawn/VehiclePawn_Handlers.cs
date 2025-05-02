@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using DevTools;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI.Group;
 
@@ -15,17 +14,17 @@ public partial class VehiclePawn
 {
   //Bills related to boarding VehicleHandler
   public List<Bill_BoardVehicle> bills = [];
-  public List<VehicleHandler> handlers = [];
+  public List<VehicleRoleHandler> handlers = [];
 
   /* ----- Caches for VehicleHandlers ----- */
 
-  public List<VehicleHandler> OccupiedHandlers { get; private set; } = [];
+  public List<VehicleRoleHandler> OccupiedHandlers { get; private set; } = [];
 
   public List<Pawn> AllPawnsAboard { get; private set; } = [];
 
   /* -------------------------------------- */
 
-  public IOrderedEnumerable<VehicleHandler> HandlersOrdered
+  public IOrderedEnumerable<VehicleRoleHandler> HandlersOrdered
   {
     get
     {
@@ -57,11 +56,11 @@ public partial class VehiclePawn
     get
     {
       int pawnsMounted = 0;
-      foreach (VehicleHandler handler in handlers)
+      foreach (VehicleRoleHandler handler in handlers)
       {
         if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
         {
-          pawnsMounted += handler.handlers.Count;
+          pawnsMounted += handler.thingOwner.Count;
         }
       }
 
@@ -78,7 +77,7 @@ public partial class VehiclePawn
         return true;
       }
 
-      foreach (VehicleHandler handler in handlers)
+      foreach (VehicleRoleHandler handler in handlers)
       {
         if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement) &&
           !handler.RoleFulfilled)
@@ -98,11 +97,11 @@ public partial class VehiclePawn
       List<Pawn> crewOnShip = new List<Pawn>();
       if (!(handlers is null))
       {
-        foreach (VehicleHandler handler in handlers)
+        foreach (VehicleRoleHandler handler in handlers)
         {
           if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
           {
-            crewOnShip.AddRange(handler.handlers);
+            crewOnShip.AddRange(handler.thingOwner);
           }
         }
       }
@@ -116,11 +115,11 @@ public partial class VehiclePawn
     get
     {
       List<Pawn> weaponCrewOnShip = new List<Pawn>();
-      foreach (VehicleHandler handler in handlers)
+      foreach (VehicleRoleHandler handler in handlers)
       {
         if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Turret))
         {
-          weaponCrewOnShip.AddRange(handler.handlers);
+          weaponCrewOnShip.AddRange(handler.thingOwner);
         }
       }
 
@@ -135,11 +134,11 @@ public partial class VehiclePawn
       List<Pawn> passengers = new List<Pawn>();
       if (!handlers.NullOrEmpty())
       {
-        foreach (VehicleHandler handler in handlers)
+        foreach (VehicleRoleHandler handler in handlers)
         {
           if (handler.role.HandlingTypes == HandlingTypeFlags.None)
           {
-            passengers.AddRange(handler.handlers);
+            passengers.AddRange(handler.thingOwner);
           }
         }
       }
@@ -155,10 +154,10 @@ public partial class VehiclePawn
       List<Pawn> pawnsOnShip = new List<Pawn>();
       if (!(handlers is null) && handlers.Count > 0)
       {
-        foreach (VehicleHandler handler in handlers)
+        foreach (VehicleRoleHandler handler in handlers)
         {
-          if (!(handler.handlers is null) && handler.handlers.Count > 0)
-            pawnsOnShip.AddRange(handler.handlers);
+          if (!(handler.thingOwner is null) && handler.thingOwner.Count > 0)
+            pawnsOnShip.AddRange(handler.thingOwner);
         }
       }
 
@@ -173,9 +172,9 @@ public partial class VehiclePawn
     get
     {
       int x = 0;
-      foreach (VehicleHandler handler in handlers)
+      foreach (VehicleRoleHandler handler in handlers)
       {
-        x += handler.role.Slots - handler.handlers.Count;
+        x += handler.role.Slots - handler.thingOwner.Count;
       }
 
       return x;
@@ -187,7 +186,7 @@ public partial class VehiclePawn
     get
     {
       int x = 0;
-      foreach (VehicleHandler handler in handlers)
+      foreach (VehicleRoleHandler handler in handlers)
       {
         x += handler.role.Slots;
       }
@@ -200,12 +199,12 @@ public partial class VehiclePawn
   {
     OccupiedHandlers.Clear();
     AllPawnsAboard.Clear();
-    foreach (VehicleHandler handler in handlers)
+    foreach (VehicleRoleHandler handler in handlers)
     {
-      if (handler.handlers.Any)
+      if (handler.thingOwner.Any)
       {
         OccupiedHandlers.Add(handler);
-        foreach (Pawn pawn in handler.handlers)
+        foreach (Pawn pawn in handler.thingOwner)
         {
           AllPawnsAboard.Add(pawn);
         }
@@ -216,7 +215,7 @@ public partial class VehiclePawn
   public void AddRole(VehicleRole role)
   {
     role.ResolveReferences(VehicleDef);
-    handlers.Add(new VehicleHandler(this, role));
+    handlers.Add(new VehicleRoleHandler(this, role));
   }
 
   public void RemoveRole(VehicleRole role)
@@ -224,7 +223,7 @@ public partial class VehiclePawn
     DisembarkAll(); //Temporary measure to avoid the destruction of all pawns within the role being removed
     for (int i = handlers.Count - 1; i >= 0; i--)
     {
-      VehicleHandler handler = handlers[i];
+      VehicleRoleHandler handler = handlers[i];
       if (handler.role.key == role.key)
       {
         handlers.RemoveAt(i);
@@ -237,7 +236,7 @@ public partial class VehiclePawn
     DisembarkAll(); //Temporary measure to avoid the destruction of all pawns within the role being removed
     for (int i = handlers.Count - 1; i >= 0; i--)
     {
-      VehicleHandler handler = handlers[i];
+      VehicleRoleHandler handler = handlers[i];
       if (handler.role.key == roleKey)
       {
         handlers.RemoveAt(i);
@@ -245,9 +244,9 @@ public partial class VehiclePawn
     }
   }
 
-  public VehicleHandler GetHandler(string roleKey)
+  public VehicleRoleHandler GetHandler(string roleKey)
   {
-    foreach (VehicleHandler handler in handlers)
+    foreach (VehicleRoleHandler handler in handlers)
     {
       if (handler.role.key == roleKey)
       {
@@ -258,7 +257,7 @@ public partial class VehiclePawn
     return null;
   }
 
-  public List<VehicleHandler> GetAllHandlersMatch(HandlingTypeFlags? handlingTypeFlag,
+  public List<VehicleRoleHandler> GetAllHandlersMatch(HandlingTypeFlags? handlingTypeFlag,
     string turretKey = "")
   {
     if (handlingTypeFlag is null)
@@ -273,22 +272,22 @@ public partial class VehiclePawn
         x.role.TurretIds.Contains(turretKey))));
   }
 
-  public List<VehicleHandler> GetPriorityHandlers(HandlingTypeFlags? handlingTypeFlag = null)
+  public List<VehicleRoleHandler> GetPriorityHandlers(HandlingTypeFlags? handlingTypeFlag = null)
   {
     return handlers.Where(h =>
       h.role.HandlingTypes > HandlingTypeFlags.None && (handlingTypeFlag is null ||
         h.role.HandlingTypes.HasFlag(handlingTypeFlag.Value))).ToList();
   }
 
-  public VehicleHandler GetHandlersMatch(Pawn pawn)
+  public VehicleRoleHandler GetHandlersMatch(Pawn pawn)
   {
-    return handlers.FirstOrDefault(x => x.handlers.Contains(pawn));
+    return handlers.FirstOrDefault(x => x.thingOwner.Contains(pawn));
   }
 
-  public VehicleHandler NextAvailableHandler(HandlingTypeFlags? handlingTypeFlag = null,
+  public VehicleRoleHandler NextAvailableHandler(HandlingTypeFlags? handlingTypeFlag = null,
     bool priorityHandlers = false)
   {
-    foreach (VehicleHandler handler in HandlersOrdered)
+    foreach (VehicleRoleHandler handler in HandlersOrdered)
     {
       if (priorityHandlers && handler.role.HandlingTypes == HandlingTypeFlags.None) continue;
       if (handlingTypeFlag != null &&
@@ -303,7 +302,7 @@ public partial class VehiclePawn
     return null;
   }
 
-  public void GiveLoadJob(Pawn pawn, VehicleHandler handler)
+  public void GiveLoadJob(Pawn pawn, VehicleRoleHandler handler)
   {
     if (bills != null && bills.Count > 0)
     {
@@ -355,7 +354,7 @@ public partial class VehiclePawn
   {
     if (handlers.NullOrEmpty()) return false;
 
-    foreach (VehicleHandler handler in HandlersOrdered)
+    foreach (VehicleRoleHandler handler in HandlersOrdered)
     {
       if (TryAddPawn(pawn, handler))
       {
@@ -366,7 +365,7 @@ public partial class VehiclePawn
     return false;
   }
 
-  public bool TryAddPawn(Pawn pawn, VehicleHandler handler)
+  public bool TryAddPawn(Pawn pawn, VehicleRoleHandler handler)
   {
     // Pawn can be boarded pre-spawned for events such as raids, in this case the map will be null
     // and no reservation checks are needed.
@@ -374,7 +373,7 @@ public partial class VehiclePawn
     if (Spawned)
     {
       reservationManager = Map.GetCachedMapComponent<VehicleReservationManager>();
-      if (!reservationManager.ReservedBy<VehicleHandler, VehicleHandlerReservation>(this, pawn,
+      if (!reservationManager.ReservedBy<VehicleRoleHandler, VehicleHandlerReservation>(this, pawn,
           handler) && !handler.AreSlotsAvailable)
       {
         //If pawn attempts to board vehicle role which is already full, stop immediately
@@ -394,11 +393,11 @@ public partial class VehiclePawn
       pawn.DeSpawn(DestroyMode.WillReplace);
     }
 
-    if (!handler.handlers.TryAddOrTransfer(pawn, canMergeWithExistingStacks: false) &&
+    if (!handler.thingOwner.TryAddOrTransfer(pawn, canMergeWithExistingStacks: false) &&
       pawn.holdingOwner != null)
     {
       //If can't add to handler and currently has other owner, transfer
-      result = pawn.holdingOwner.TryTransferToContainer(pawn, handler.handlers);
+      result = pawn.holdingOwner.TryTransferToContainer(pawn, handler.thingOwner);
     }
 
     reservationManager?.ReleaseAllClaimedBy(pawn);
@@ -434,8 +433,8 @@ public partial class VehiclePawn
   {
     for (int i = 0; i < handlers.Count; i++)
     {
-      VehicleHandler handler = handlers[i];
-      if (handler.handlers.Remove(pawn))
+      VehicleRoleHandler handler = handlers[i];
+      if (handler.thingOwner.Remove(pawn))
       {
         EventRegistry[VehicleEventDefOf.PawnRemoved].ExecuteEvents();
         if (Spawned)
@@ -488,11 +487,11 @@ public partial class VehiclePawn
   {
     if (this.GetVehicleCaravan() is VehicleCaravan caravan && !Spawned)
     {
-      List<VehicleHandler> handlerList = handlers;
+      List<VehicleRoleHandler> handlerList = handlers;
       for (int i = 0; i < handlerList.Count; i++)
       {
-        VehicleHandler handler = handlerList[i];
-        handler.handlers.TryTransferAllToContainer(caravan.pawns, false);
+        VehicleRoleHandler handler = handlerList[i];
+        handler.thingOwner.TryTransferAllToContainer(caravan.pawns, false);
       }
     }
     else
@@ -512,10 +511,10 @@ public partial class VehiclePawn
 
   internal void TickHandlers()
   {
-    //Only need to tick VehicleHandlers with pawns inside them
-    for (int i = 0; i < OccupiedHandlers.Count; i++)
+    // Only need to tick VehicleHandlers with pawns inside them
+    foreach (VehicleRoleHandler handler in OccupiedHandlers)
     {
-      OccupiedHandlers[i].Tick();
+      handler.DoTick();
     }
   }
 
@@ -537,7 +536,7 @@ public partial class VehiclePawn
     if (pawn.Dead) return;
 
     List<Need> allNeeds = pawn.needs.AllNeeds;
-    VehicleHandler handler = pawn.ParentHolder as VehicleHandler;
+    VehicleRoleHandler handler = pawn.ParentHolder as VehicleRoleHandler;
     int tile;
     VehicleCaravan vehicleCaravan = pawn.GetVehicleCaravan();
     if (vehicleCaravan != null)
@@ -626,7 +625,7 @@ public partial class VehiclePawn
     }
   }
 
-  private static void TrySatisfyRest(VehicleHandler handler, Pawn pawn, Need_Rest rest)
+  private static void TrySatisfyRest(VehicleRoleHandler handler, Pawn pawn, Need_Rest rest)
   {
     bool cantRestWhileMoving = false;
     VehiclePawn vehicle = handler?.vehicle;
@@ -649,7 +648,7 @@ public partial class VehiclePawn
   }
 
   //REDO - Incorporate ChildCare from Biotech (ie. like Caravan_NeedsTracker.TrySatisfyFoodNeed)
-  private static void TrySatisfyFood(VehicleHandler handler, Pawn pawn, Need_Food food)
+  private static void TrySatisfyFood(VehicleRoleHandler handler, Pawn pawn, Need_Food food)
   {
     if (food.CurCategory < HungerCategory.Hungry) return;
 
@@ -687,7 +686,7 @@ public partial class VehiclePawn
         owner = CaravanInventoryUtility.GetOwnerOf(vehicleCaravan, food);
       }
     }
-    else if (forPawn.ParentHolder is VehicleHandler handler)
+    else if (forPawn.ParentHolder is VehicleRoleHandler handler)
     {
       owner = forPawn;
       CheckInventory(forPawn.inventory.innerContainer, forPawn, ref food, ref num);
@@ -719,7 +718,7 @@ public partial class VehiclePawn
     }
   }
 
-  private static void TrySatisfyChemicalNeed(VehicleHandler handler, Pawn pawn,
+  private static void TrySatisfyChemicalNeed(VehicleRoleHandler handler, Pawn pawn,
     Need_Chemical chemical)
   {
     if (chemical.CurCategory >= DrugDesireCategory.Satisfied)
@@ -748,7 +747,7 @@ public partial class VehiclePawn
     }
   }
 
-  private static bool TryGetDrugToSatisfyNeed(VehicleHandler handler, Pawn forPawn,
+  private static bool TryGetDrugToSatisfyNeed(VehicleRoleHandler handler, Pawn forPawn,
     Need_Chemical chemical, out Thing drug, out Pawn owner)
   {
     Hediff_Addiction addictionHediff = chemical.AddictionHediff;
@@ -821,7 +820,7 @@ public partial class VehiclePawn
         FoodPreferability.DesperateOnlyForHumanlikes);
   }
 
-  private static void TrySatisfyJoyNeed(VehicleHandler handler, Pawn pawn, Need_Joy joy)
+  private static void TrySatisfyJoyNeed(VehicleRoleHandler handler, Pawn pawn, Need_Joy joy)
   {
     if (pawn.IsHashIntervalTick(1250))
     {
@@ -853,7 +852,7 @@ public partial class VehiclePawn
     }
   }
 
-  private static List<JoyKindDef> GetAvailableJoyKindsFor(VehicleHandler handler, Pawn forPawn)
+  private static List<JoyKindDef> GetAvailableJoyKindsFor(VehicleRoleHandler handler, Pawn forPawn)
   {
     List<JoyKindDef> outJoyKinds = new List<JoyKindDef>();
     if (!forPawn.needs.joy.tolerances.BoredOf(JoyKindDefOf.Meditative))
@@ -899,7 +898,7 @@ public partial class VehiclePawn
     }
   }
 
-  private static void TrySatisfyHemogenNeed(VehicleHandler handler, Pawn forPawn,
+  private static void TrySatisfyHemogenNeed(VehicleRoleHandler handler, Pawn forPawn,
     Gene_Hemogen hemogenGene)
   {
     if (hemogenGene.ShouldConsumeHemogenNow())
@@ -958,7 +957,7 @@ public partial class VehiclePawn
     }
   }
 
-  private static void TryGainPsyfocus(VehicleHandler handler, Pawn pawn,
+  private static void TryGainPsyfocus(VehicleRoleHandler handler, Pawn pawn,
     Pawn_PsychicEntropyTracker tracker)
   {
     if (pawn.GetVehicleCaravan() is VehicleCaravan vehicleCaravan &&

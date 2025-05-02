@@ -10,7 +10,7 @@ namespace Vehicles
 {
 	public class Job_Vehicle : Job
 	{
-		public VehicleHandler handler;
+		public VehicleRoleHandler handler;
 
 		public Job_Vehicle()
 		{

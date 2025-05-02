@@ -3,18 +3,21 @@ using RimWorld;
 using SmashTools.Rendering;
 using UnityEngine;
 using Verse;
+using PreRenderResults = Vehicles.Graphic_Rgb.PreRenderResults;
 
 namespace Vehicles;
 
-public sealed class VehicleRenderer
+public sealed class VehicleRenderer : IParallelRenderer
 {
   // values pulled from RimWorld pawn offsets
   //public const float SubInterval = 0.003787879f;
   //public const float YOffset_Body = 0.007575758f;
-  public const float YOffset_Damage = 0.018939395f;
-  public const float YOffset_CoveredInOverlay = 0.033301156f;
+  //public const float YOffset_Damage = 0.018939395f;
+  //public const float YOffset_CoveredInOverlay = 0.033301156f;
 
   private readonly VehiclePawn vehicle;
+
+  private PreRenderResults results;
 
   //public VehicleGraphicSet graphics;
 
@@ -33,41 +36,43 @@ public sealed class VehicleRenderer
   [Obsolete("Not currently implemented, still WIP. Do not reference.", error: true)]
   public PawnFirefoamDrawer FirefoamOverlays => throw new NotImplementedException();
 
-  public void RenderVehicle(ref readonly TransformData transform)
+  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
   {
-    RenderVehicleWithOverlays(in transform);
-    vehicle.VehicleGraphic.ShadowGraphic?.Draw(transform.position, vehicle.FullRotation, vehicle);
-    if (vehicle.Spawned && !vehicle.Dead)
+    switch (phase)
     {
-      vehicle.vehiclePather.PatherDraw();
+      case DrawPhase.EnsureInitialized:
+        _ = vehicle.VehicleGraphic; // Ensure graphic has been created
+        // TODO - generate combined mesh here and/or build list of things that should be batch rendered
+        break;
+      case DrawPhase.ParallelPreDraw:
+        results = ParallelGetPreRenderResults(in transformData);
+        break;
+      case DrawPhase.Draw:
+        // Out of phase drawing must immediately generate pre-render results for valid data.
+        if (!results.valid)
+          results = ParallelGetPreRenderResults(in transformData);
+        Draw();
+        results = default;
+        break;
+      default:
+        throw new NotImplementedException();
     }
   }
 
-  private void RenderVehicleWithOverlays(ref readonly TransformData transform)
+  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData)
   {
-    Vector3 aboveBodyPos = RenderVehicleInternal(in transform);
-    vehicle.DrawExplosiveWicks(aboveBodyPos, transform.orientation);
-    vehicle.overlayRenderer.DrawOverlays(in transform);
+    return vehicle.VehicleGraphic.ParallelGetPreRenderResults(in transformData);
   }
 
-  // Vehicle body rendering
-  private Vector3 RenderVehicleInternal(ref readonly TransformData transform)
+  private void Draw()
   {
-    Quaternion quaternion = Quaternion.AngleAxis(
-      (transform.orientation.AsRotationAngle + transform.rotation) *
-      (vehicle.NorthSouthRotation ? -1 : 1), Vector3.up);
+    // TODO - use material property blocks
+    Graphics.DrawMesh(results.mesh, results.position, results.quaternion, results.material, 0);
+    vehicle.VehicleGraphic.ShadowGraphic?.Draw(results.position, vehicle.FullRotation, vehicle);
 
-    Vector3 aboveBodyPos =
-      transform.position + vehicle.VehicleGraphic.DrawOffset(transform.orientation);
-    //aboveBodyPos.y += YOffset_Body;
-    Mesh mesh = vehicle.VehicleGraphic.MeshAtFull(transform.orientation);
-    Material material = vehicle.VehicleGraphic.MatAtFull(transform.orientation);
+    if (vehicle.Spawned && !vehicle.Dead)
+      vehicle.vehiclePather.PatherDraw();
 
-    GenDraw.DrawMeshNowOrLater(mesh, aboveBodyPos, quaternion, material, false);
-    //aboveBodyPos.y += SubInterval;
-
-    Vector3 drawLoc = transform.position;
-    drawLoc.y += YOffset_Damage;
     // TODO - Firefoam overlays for vehicle
     //if (firefoamOverlays.IsCoveredInFoam)
     //{
@@ -81,10 +86,5 @@ public sealed class VehicleRenderer
     //{
     //	Graphics.DrawMesh(mesh, drawLoc, quaternion, graphics.packGraphic.MatAt(bodyFacing, null), 0);
     //}
-    return aboveBodyPos;
-  }
-
-  public void ProcessPostTickVisuals(int ticksPassed)
-  {
   }
 }

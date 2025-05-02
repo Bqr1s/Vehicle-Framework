@@ -9,7 +9,7 @@
 		<altitudeLayer>LayingPawn</altitudeLayer>
 		<hasTooltip>true</hasTooltip>
 		
-		<passability>Standable</passability>
+		<passability>PassThroughOnly</passability>
 		<pathCost>250</pathCost>
 		
 		<useHitPoints>false</useHitPoints>

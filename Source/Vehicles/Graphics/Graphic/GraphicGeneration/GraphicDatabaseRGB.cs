@@ -10,14 +10,19 @@ namespace Vehicles
 {
   public static class GraphicDatabaseRGB
   {
-    private static readonly Dictionary<IMaterialCacheTarget, Graphic_RGB> allGraphics = [];
+    private static readonly Dictionary<IMaterialCacheTarget, Graphic_Rgb> allGraphics = [];
 
-    public static Graphic_RGB Get(IMaterialCacheTarget target, Type graphicClass, string path, Shader shader, 
-      Vector2 drawSize, Color color, Color colorTwo, Color colorThree, float tiles = 1, float displacementX = 0, 
-      float displacementY = 0, GraphicDataRGB data = null, List<ShaderParameter> shaderParameters = null)
+    public static Graphic_Rgb Get(IMaterialCacheTarget target, Type graphicClass, string path,
+      Shader shader,
+      Vector2 drawSize, Color color, Color colorTwo, Color colorThree, float tiles = 1,
+      float displacementX = 0,
+      float displacementY = 0, GraphicDataRGB data = null,
+      List<ShaderParameter> shaderParameters = null)
     {
-      GraphicRequestRGB graphicRequest = new GraphicRequestRGB(target, graphicClass, path, shader, drawSize, 
-        color, colorTwo, colorThree, tiles, new Vector2(displacementX, displacementY), data, 0, shaderParameters);
+      GraphicRequestRGB graphicRequest = new GraphicRequestRGB(target, graphicClass, path, shader,
+        drawSize,
+        color, colorTwo, colorThree, tiles, new Vector2(displacementX, displacementY), data, 0,
+        shaderParameters);
       try
       {
         if (graphicRequest.graphicClass == typeof(Graphic_Vehicle))
@@ -28,7 +33,7 @@ namespace Vehicles
         {
           return GetInner<Graphic_Turret>(graphicRequest);
         }
-        return (Graphic_RGB)GenGeneric.InvokeStaticGenericMethod(typeof(GraphicDatabaseRGB), 
+        return (Graphic_Rgb)GenGeneric.InvokeStaticGenericMethod(typeof(GraphicDatabaseRGB),
           graphicRequest.graphicClass, "GetInner", [graphicRequest]);
       }
       catch (Exception ex)
@@ -38,9 +43,9 @@ namespace Vehicles
       return null;
     }
 
-    private static T GetInner<T>(GraphicRequestRGB req) where T : Graphic_RGB, new()
+    private static T GetInner<T>(GraphicRequestRGB req) where T : Graphic_Rgb, new()
     {
-      if (!allGraphics.TryGetValue(req.target, out Graphic_RGB graphic))
+      if (!allGraphics.TryGetValue(req.target, out Graphic_Rgb graphic))
       {
         graphic = Activator.CreateInstance<T>();
         graphic.Init(req);

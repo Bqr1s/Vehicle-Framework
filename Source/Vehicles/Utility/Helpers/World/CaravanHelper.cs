@@ -285,7 +285,7 @@ public static class CaravanHelper
         else if (!pawn.IsInVehicle())
         {
           assignedSeats[pawn].vehicle
-           .Notify_BoardedCaravan(pawn, assignedSeats[pawn].handler.handlers);
+           .Notify_BoardedCaravan(pawn, assignedSeats[pawn].handler.thingOwner);
         }
         pawns.Remove(pawn);
       }

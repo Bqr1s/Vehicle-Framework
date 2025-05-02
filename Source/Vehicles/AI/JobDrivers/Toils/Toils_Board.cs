@@ -17,7 +17,7 @@ namespace Vehicles
 				VehiclePawn vehicle = toil.actor.jobs.curJob.GetTarget(TargetIndex.A).Thing as VehiclePawn;
 				if (pawn.GetLord()?.LordJob is LordJob_FormAndSendVehicles lordJob)
 				{
-					(VehiclePawn vehicle, VehicleHandler handler)  assignedSeat = lordJob.GetVehicleAssigned(pawn);
+					(VehiclePawn vehicle, VehicleRoleHandler handler)  assignedSeat = lordJob.GetVehicleAssigned(pawn);
 					assignedSeat.vehicle.TryAddPawn(pawn, assignedSeat.handler);
 					return;
 				}

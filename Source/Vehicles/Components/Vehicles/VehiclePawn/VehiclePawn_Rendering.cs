@@ -6,8 +6,8 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Animations;
-using SmashTools.Rendering;
 using UnityEngine;
+using Vehicles.Rendering;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -23,11 +23,8 @@ namespace Vehicles;
 public partial class VehiclePawn
 {
   [Unsaved]
-  private VehicleDrawTracker drawTracker;
-
-  [Unsaved]
   [AnimationProperty]
-  public GraphicOverlayRenderer overlayRenderer;
+  private VehicleDrawTracker drawTracker;
 
   public PatternData patternData;
   private RetextureDef retextureDef;
@@ -36,7 +33,7 @@ public partial class VehiclePawn
   private float angle;
   private bool reverse;
 
-  // Transform relative to map position, excluding tweener offset
+  // Transform relative to DrawPos, excluding tweener offset
   [AnimationProperty(Name = "Transform")]
   private readonly Transform transform = new();
 
@@ -49,7 +46,7 @@ public partial class VehiclePawn
 
   public float CachedAngle { get; set; }
 
-  private List<VehicleHandler> HandlersWithPawnRenderer { get; set; } = [];
+  internal List<VehicleRoleHandler> HandlersWithPawnRenderer { get; set; } = [];
 
   public bool NorthSouthRotation => VehicleGraphic.EastDiagonalRotated &&
     (FullRotation == Rot8.NorthEast ||
@@ -69,6 +66,8 @@ public partial class VehiclePawn
   public ThingWithComps Thing => this;
 
   public RetextureDef Retexture => retextureDef;
+
+  public MaterialPropertyBlock PropertyBlock { get; private set; }
 
   ModContentPack IAnimator.ModContentPack => VehicleDef.modContentPack;
 
@@ -314,9 +313,7 @@ public partial class VehiclePawn
     {
       if (rot.IsHorizontal)
       {
-        int x = size.x;
-        size.x = size.z;
-        size.z = x;
+        (size.x, size.z) = (size.z, size.x);
       }
 
       switch (rot.AsInt)
@@ -355,89 +352,39 @@ public partial class VehiclePawn
 
   public override void DynamicDrawPhaseAt(DrawPhase phase, Vector3 drawLoc, bool flip = false)
   {
+    if (phase == DrawPhase.Draw && this.AnimationLocked())
+      return;
+
+    DrawTracker.DynamicDrawPhaseAt(phase, drawLoc, FullRotation, transform.rotation);
+
     if (phase == DrawPhase.Draw)
     {
-      Draw();
+      if (HighlightedComponent != null)
+        statHandler.DrawHitbox(HighlightedComponent);
+      Comps_PostDraw();
     }
   }
 
   protected override void DrawAt(Vector3 drawLoc, bool flip = false)
   {
-    DrawAt(new TransformData(drawLoc, FullRotation, transform.rotation));
+    Log.ErrorOnce("Calling DrawAt instead of DynamicDrawPhaseAt", GetHashCode());
+    DrawAt(drawLoc, FullRotation, transform.rotation);
   }
 
-  public virtual void Draw()
+  public virtual void DrawAt(in Vector3 drawLoc, Rot8 rot, float rotation)
   {
-    if (this.AnimationLocked()) return;
-
-    if (VehicleDef.drawerType == DrawerType.RealtimeOnly)
-    {
-      TransformData transformData = new(DrawPos, FullRotation, 0);
-      DrawAt(in transformData, compDraw: false);
-    }
-
-    Comps_PostDraw();
-  }
-
-  // Main draw function
-  public virtual void DrawAt(in TransformData transform, bool compDraw = true)
-  {
-    DrawTracker.Draw(in transform);
-
-    foreach (VehicleHandler handler in HandlersWithPawnRenderer)
-    {
-      handler.RenderPawns(transform.orientation);
-    }
-
-    if (compDraw) // TODO - Temp fix till I get to cleaning up these 3 Draw methods
-    {
-      Comps_PostDrawUnspawned(in transform);
-    }
-
-    if (HighlightedComponent != null)
-    {
-      // Must be rendered with the vehicle or the field edges will not render quickly enough
-      statHandler.DrawHitbox(HighlightedComponent);
-    }
-  }
-
-  public virtual void Comps_PostDrawUnspawned(ref readonly TransformData transform)
-  {
-    if (AllComps != null)
-    {
-      foreach (ThingComp thingComp in AllComps)
-      {
-        if (thingComp is VehicleComp vehicleComp)
-        {
-          vehicleComp.PostDrawUnspawned(in transform);
-        }
-      }
-    }
-  }
-
-  public virtual void DrawExplosiveWicks(Vector3 drawLoc, Rot8 rot)
-  {
-    for (int i = 0; i < explosives.Count; i++)
-    {
-      TimedExplosion timedExplosion = explosives[i];
-      if (timedExplosion.Active)
-      {
-        timedExplosion.DrawAt(drawLoc, rot);
-      }
-    }
+    // Normally transform position and rotation
+    DrawTracker.DynamicDrawPhaseAt(DrawPhase.Draw, drawLoc, rot, rotation);
   }
 
   public new void ProcessPostTickVisuals(int ticksPassed, CellRect viewRect)
   {
-    if (!Suspended && Spawned)
+    if (!Suspended && Spawned && Current.ProgramState != ProgramState.Playing ||
+      viewRect.Contains(Position))
     {
-      if (Current.ProgramState != ProgramState.Playing || viewRect.Contains(Position))
-      {
-        DrawTracker.ProcessPostTickVisuals(ticksPassed);
-      }
-
-      rotationTracker.ProcessPostTickVisuals(ticksPassed);
+      DrawTracker.ProcessPostTickVisuals(ticksPassed);
     }
+    rotationTracker.ProcessPostTickVisuals(ticksPassed);
   }
 
   public void ResetRenderStatus()
@@ -449,7 +396,7 @@ public partial class VehiclePawn
   public override void Notify_ColorChanged()
   {
     ResetMaterialProperties();
-    overlayRenderer.Notify_ColorChanged();
+    EventRegistry[VehicleEventDefOf.ColorChanged].ExecuteEvents();
     base.Notify_ColorChanged();
   }
 
@@ -483,16 +430,8 @@ public partial class VehiclePawn
     }
 
     Graphic_Vehicle newGraphic;
-    GraphicDataRGB graphicData = new GraphicDataRGB();
-    if (retextureDef != null)
-    {
-      graphicData.CopyFrom(retextureDef.graphicData);
-    }
-    else
-    {
-      graphicData.CopyFrom(VehicleDef.graphicData);
-    }
-
+    GraphicDataRGB graphicData = new();
+    graphicData.CopyFrom(retextureDef?.graphicData ?? VehicleDef.graphicData);
     graphicData.color = patternData.color;
     graphicData.colorTwo = patternData.colorTwo;
     graphicData.colorThree = patternData.colorThree;
@@ -761,7 +700,7 @@ public partial class VehiclePawn
         {
           if (target.Thing is Pawn pawn && pawn.IsColonistPlayerControlled && !pawn.Downed)
           {
-            VehicleHandler handler = pawn.IsColonistPlayerControlled ?
+            VehicleRoleHandler handler = pawn.IsColonistPlayerControlled ?
               NextAvailableHandler() :
               handlers.FirstOrDefault(handler => handler.AreSlotsAvailableAndReservable &&
                 handler.role.HandlingTypes == HandlingTypeFlags.None);
@@ -793,7 +732,7 @@ public partial class VehiclePawn
       {
         defaultLabel = "VF_DisembarkAllPawns".Translate(),
         icon = VehicleTex.UnloadAll,
-        action = delegate() { DisembarkAll(); },
+        action = DisembarkAll,
         hotKey = KeyBindingDefOf.Misc2
       };
       yield return unloadAll;
@@ -803,12 +742,12 @@ public partial class VehiclePawn
         unloadAll.Disable("VF_DisembarkNoExit".Translate());
       }
 
-      foreach (VehicleHandler handler in handlers)
+      foreach (VehicleRoleHandler handler in handlers)
       {
-        for (int i = 0; i < handler.handlers.Count; i++)
+        for (int i = 0; i < handler.thingOwner.Count; i++)
         {
-          Pawn currentPawn = handler.handlers.InnerListForReading[i];
-          Command_Action_PawnDrawer unloadAction = new Command_Action_PawnDrawer();
+          Pawn currentPawn = handler.thingOwner.InnerListForReading[i];
+          Command_ActionPawnDrawer unloadAction = new Command_ActionPawnDrawer();
           unloadAction.defaultLabel = "VF_DisembarkSinglePawn".Translate(currentPawn.LabelShort);
           unloadAction.groupable = false;
           unloadAction.pawn = currentPawn;
@@ -1082,7 +1021,7 @@ public partial class VehiclePawn
       }
     }
 
-    foreach (VehicleHandler handler in handlers)
+    foreach (VehicleRoleHandler handler in handlers)
     {
       if (handler.AreSlotsAvailableAndReservable)
       {
@@ -1090,7 +1029,7 @@ public partial class VehiclePawn
           Map.GetCachedMapComponent<VehicleReservationManager>();
         FloatMenuOption opt = new("VF_EnterVehicle".Translate(LabelShort,
             handler.role.label,
-            (handler.role.Slots - (handler.handlers.Count +
+            (handler.role.Slots - (handler.thingOwner.Count +
               reservationManager.GetReservation<VehicleHandlerReservation>(this)
               ?.ClaimantsOnHandler(handler) ?? 0)).ToString()),
           delegate { PromptToBoardVehicle(selPawn, handler); });
@@ -1099,7 +1038,7 @@ public partial class VehiclePawn
     }
   }
 
-  public void PromptToBoardVehicle(Pawn pawn, VehicleHandler handler)
+  public void PromptToBoardVehicle(Pawn pawn, VehicleRoleHandler handler)
   {
     if (handler == null)
     {
@@ -1118,7 +1057,7 @@ public partial class VehiclePawn
     }
 
     Map.GetCachedMapComponent<VehicleReservationManager>()
-     .Reserve<VehicleHandler, VehicleHandlerReservation>(this, pawn, pawn.CurJob, handler);
+     .Reserve<VehicleRoleHandler, VehicleHandlerReservation>(this, pawn, pawn.CurJob, handler);
   }
 
   public bool IdeoAllowsBoarding(Pawn selPawn)
@@ -1219,7 +1158,7 @@ public partial class VehiclePawn
 
   public virtual float DoInspectPaneButtons(float x)
   {
-    Rect rect = new Rect(x, 0f, Extra.IconBarDim, Extra.IconBarDim);
+    Rect rect = new Rect(x, 0f, Patch_Misc.IconBarDim, Patch_Misc.IconBarDim);
     float usedWidth = 0;
     if (Nameable)
     {
@@ -1317,20 +1256,20 @@ public partial class VehiclePawn
               continue;
             }
 
-            VehicleHandler handler = p.IsColonistPlayerControlled ?
+            VehicleRoleHandler handler = p.IsColonistPlayerControlled ?
               NextAvailableHandler() :
               handlers.FirstOrDefault(handler => handler.AreSlotsAvailableAndReservable &&
                 handler.role.HandlingTypes == HandlingTypeFlags.None);
             PromptToBoardVehicle(p, handler);
           }
-        }, MenuOptionPriority.Default, null, null, 0f, null, null);
-      FloatMenuOption opt2 = new FloatMenuOption("VF_BoardVehicleGroupFail".Translate(LabelShort),
-        null, MenuOptionPriority.Default, null, null, 0f, null, null)
-      {
-        Disabled = true
-      };
+        });
+      FloatMenuOption opt2 =
+        new FloatMenuOption("VF_BoardVehicleGroupFail".Translate(LabelShort), null)
+        {
+          Disabled = true
+        };
       int r = 0;
-      foreach (VehicleHandler h in handlers)
+      foreach (VehicleRoleHandler h in handlers)
       {
         r += reservationManager.GetReservation<VehicleHandlerReservation>(this)
         ?.ClaimantsOnHandler(h) ?? 0;

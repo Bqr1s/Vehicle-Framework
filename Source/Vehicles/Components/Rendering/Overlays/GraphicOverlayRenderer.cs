@@ -2,16 +2,13 @@
 using SmashTools;
 using SmashTools.Animations;
 using SmashTools.Rendering;
-using UnityEngine;
 using Verse;
 
 namespace Vehicles;
 
-public sealed class GraphicOverlayRenderer
+public sealed class GraphicOverlayRenderer : IParallelRenderer
 {
-  public readonly VehiclePawn vehicle;
-
-  public readonly ExtraRotationRegistry rotationRegistry;
+  private readonly VehiclePawn vehicle;
 
   [AnimationProperty(Name = "Overlays")]
   private readonly List<GraphicOverlay> overlays = [];
@@ -23,17 +20,15 @@ public sealed class GraphicOverlayRenderer
   public GraphicOverlayRenderer(VehiclePawn vehicle)
   {
     this.vehicle = vehicle;
-    rotationRegistry = new ExtraRotationRegistry(this);
   }
 
   public List<GraphicOverlay> Overlays => overlays;
 
   public List<GraphicOverlay> ExtraOverlays => extraOverlays;
 
-  public List<GraphicOverlay> AllOverlaysListForReading { get; private set; } = [];
+  public List<GraphicOverlay> AllOverlaysListForReading { get; } = [];
 
-  public List<GraphicOverlay> ExtraOverlaysByKey(string key) =>
-    extraOverlayLookup.TryGetValue(key, fallback: null);
+  private List<GraphicOverlay> RotatorOverlays { get; } = [];
 
   public void Init()
   {
@@ -47,6 +42,17 @@ public sealed class GraphicOverlayRenderer
         overlays.Add(graphicOverlay);
         AllOverlaysListForReading.Add(graphicOverlay);
       }
+      RecacheRotatorOverlays();
+    }
+  }
+
+  private void RecacheRotatorOverlays()
+  {
+    RotatorOverlays.Clear();
+    foreach (GraphicOverlay overlay in AllOverlaysListForReading)
+    {
+      if (overlay.Graphic is Graphic_Rotator)
+        RotatorOverlays.Add(overlay);
     }
   }
 
@@ -55,6 +61,7 @@ public sealed class GraphicOverlayRenderer
     extraOverlayLookup.AddOrInsert(key, graphicOverlay);
     extraOverlays.Add(graphicOverlay);
     AllOverlaysListForReading.Add(graphicOverlay);
+    RecacheRotatorOverlays();
   }
 
   public void RemoveOverlays(string key)
@@ -68,104 +75,27 @@ public sealed class GraphicOverlayRenderer
         graphicOverlay.Destroy();
       }
       extraOverlayLookup.Remove(key);
+      RecacheRotatorOverlays();
     }
   }
 
-  public void DrawOverlays(ref readonly TransformData transformData)
-  {
-    for (int i = 0; i < AllOverlaysListForReading.Count; i++)
-    {
-      GraphicOverlay graphicOverlay = AllOverlaysListForReading[i];
-      graphicOverlay.Draw(in transformData);
-    }
-  }
-
-  public void RenderGraphicOverlays(Vector3 drawPos, float extraRotation, Rot8 rot)
-  {
-    float extraAngle;
-    foreach (GraphicOverlay graphicOverlay in AllOverlaysListForReading)
-    {
-      float overlayAngle = rot.AsRotationAngle;
-      extraAngle = graphicOverlay.data.rotation + extraRotation;
-      Vector3 overlayDrawPos = drawPos;
-      if (graphicOverlay.data.component != null)
-      {
-        float healthPercent =
-          vehicle.statHandler.GetComponentHealthPercent(graphicOverlay.data.component.key);
-        if (!graphicOverlay.data.component.comparison.Compare(healthPercent,
-          graphicOverlay.data.component.healthPercent))
-        {
-          continue; //Skip rendering if health percent is below set amount for rendering
-        }
-      }
-      if (!graphicOverlay.data.graphicData.AboveBody)
-      {
-        overlayDrawPos -=
-          new Vector3(0, VehicleRenderer.YOffset_Body + VehicleRenderer.SubInterval, 0);
-      }
-      if (graphicOverlay.Graphic is Graphic_Rotator rotator)
-      {
-        extraAngle += rotationRegistry[rotator.RegistryKey].ClampAndWrap(0, 359);
-      }
-      if (overlayAngle != 0)
-      {
-        Rot8 graphicRot = rot;
-        if (rot == Rot8.NorthEast && vehicle.VehicleGraphic.EastDiagonalRotated)
-        {
-          graphicRot = Rot8.North;
-          overlayAngle *= -1; //Flip angle for clockwise rotation facing north
-        }
-        else if (rot == Rot8.SouthEast && vehicle.VehicleGraphic.EastDiagonalRotated)
-        {
-          graphicRot = Rot8.South;
-          overlayAngle *= -1; //Flip angle for clockwise rotation facing south
-        }
-        else if (rot == Rot8.SouthWest && vehicle.VehicleGraphic.WestDiagonalRotated)
-        {
-          graphicRot = Rot8.South;
-          overlayAngle *= -1; //Flip angle for clockwise rotation facing south
-        }
-        else if (rot == Rot8.NorthWest && vehicle.VehicleGraphic.WestDiagonalRotated)
-        {
-          graphicRot = Rot8.North;
-          overlayAngle *= -1; //Flip angle for clockwise rotation facing north
-        }
-
-        Vector3 drawOffset = graphicOverlay.Graphic.DrawOffset(rot);
-        Vector2 drawOffsetNoY = new Vector2(drawOffset.x, drawOffset.z); //p0
-
-        Vector3 drawOffsetActual = graphicOverlay.Graphic.DrawOffset(graphicRot);
-        Vector2 drawOffsetActualNoY = new Vector2(drawOffsetActual.x, drawOffsetActual.z); //p1
-
-        Vector2 drawOffsetAdjusted =
-          Ext_Math.RotatePointClockwise(drawOffsetActualNoY, overlayAngle); //p2
-        drawOffsetAdjusted -= drawOffsetNoY; //p3
-        //Adds p3 (p2 - p0) which offsets the drawOffset being added in the draw worker, resulting in the drawOffset being p2 or the rotated p1 
-        overlayDrawPos = new Vector3(overlayDrawPos.x + drawOffsetAdjusted.x, overlayDrawPos.y,
-          overlayDrawPos.z + drawOffsetAdjusted.y);
-      }
-      if (graphicOverlay.Graphic is Graphic_RGB graphicRGB)
-      {
-        graphicRGB.DrawWorker(overlayDrawPos, rot, null, null, overlayAngle + extraAngle);
-      }
-      else
-      {
-        graphicOverlay.Graphic.DrawWorker(overlayDrawPos, rot, null, null,
-          overlayAngle + extraAngle);
-      }
-      if (graphicOverlay.ShadowGraphic != null)
-      {
-        graphicOverlay.ShadowGraphic.DrawWorker(overlayDrawPos, rot, null, null,
-          overlayAngle + extraAngle);
-      }
-    }
-  }
-
-  public void Notify_ColorChanged()
+  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
   {
     foreach (GraphicOverlay graphicOverlay in AllOverlaysListForReading)
     {
-      graphicOverlay.Notify_ColorChanged();
+      graphicOverlay.DynamicDrawPhaseAt(phase, transformData);
+    }
+  }
+
+  // Right now this is strictly for the old animation system which has applies the same
+  // rotation rates for all Graphic_Rotator overlays. The new animator will remove the necessity
+  // for all of this and directly right to the transform / acceleration rate of the overlay.
+  public void AddRotation(float rotation)
+  {
+    foreach (GraphicOverlay graphicOverlay in RotatorOverlays)
+    {
+      graphicOverlay.acceleration +=
+        ((Graphic_Rotator)graphicOverlay.Graphic).ModifyIncomingRotation(rotation);
     }
   }
 }

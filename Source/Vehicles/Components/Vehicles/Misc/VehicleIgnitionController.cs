@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Verse;
-using Verse.AI;
+﻿using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using Verse;
+using Verse.AI;
 
 namespace Vehicles
 {
@@ -32,9 +30,10 @@ namespace Vehicles
 
         if (value)
         {
-          if (!vehicle.CanDraft(out string reason))
+          AcceptanceReport canDraftReport = vehicle.CanDraft();
+          if (!canDraftReport.Accepted)
           {
-            Messages.Message(reason, MessageTypeDefOf.RejectInput);
+            Messages.Message(canDraftReport.Reason, MessageTypeDefOf.RejectInput);
             return;
           }
 
@@ -52,7 +51,7 @@ namespace Vehicles
 
         if (!value)
         {
-          vehicle.jobs.ClearQueuedJobs(true);
+          vehicle.jobs.ClearQueuedJobs();
           if (vehicle.jobs.curJob != null && vehicle.jobs.IsCurrentJobPlayerInterruptible())
           {
             vehicle.jobs.EndCurrentJob(JobCondition.InterruptForced);
@@ -127,11 +126,11 @@ namespace Vehicles
     /// </summary>
     public IEnumerable<Gizmo> GetGizmos()
     {
-      Command draftCommand = new Command_Toggle()
+      Command draftCommand = new Command_Toggle
       {
         hotKey = KeyBindingDefOf.Command_ColonistDraft,
         isActive = () => Drafted,
-        toggleAction = delegate()
+        toggleAction = delegate
         {
           if (Drafted && vehicle.vehiclePather.Moving)
           {
@@ -151,28 +150,17 @@ namespace Vehicles
       if (!Drafted)
       {
         draftCommand.defaultLabel = vehicle.VehicleDef.draftLabel;
-        if (!vehicle.CanDraft(out string reason))
+        AcceptanceReport canDraftReport = vehicle.CanDraft();
+        if (!canDraftReport.Accepted)
         {
-          draftCommand.Disable(reason);
+          draftCommand.Disable(canDraftReport.Reason);
         }
         if (!vehicle.CanMove)
         {
           draftCommand.Disable("VF_VehicleUnableToMove".Translate(vehicle));
         }
       }
-      if (vehicle.Deploying)
-      {
-        draftCommand.Disable("VF_VehicleUnableToMove".Translate(vehicle));
-      }
-
-      if (!Drafted)
-      {
-        draftCommand.tutorTag = "Draft";
-      }
-      else
-      {
-        draftCommand.tutorTag = "Undraft";
-      }
+      draftCommand.tutorTag = Drafted ? "Undraft" : "Draft";
       yield return draftCommand;
     }
 

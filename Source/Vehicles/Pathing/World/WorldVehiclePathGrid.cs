@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using DevTools.UnitTesting;
 using HarmonyLib;
 using LudeonTK;
 using RimWorld;
@@ -91,7 +90,7 @@ namespace Vehicles
       if (!Recalculating && allPathCostsRecalculatedDayOfYear != DayOfYearAt0Long)
       {
 #if DEV_TOOLS
-        if (!UnitTestManager.RunningUnitTests)
+        if (!VehicleHarmony.RunningUnitTests)
           RunTaskRecalculateAllPathCosts();
         else
           RecalculateAllPerceivedPathCosts();

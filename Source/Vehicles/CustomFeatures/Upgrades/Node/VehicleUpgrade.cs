@@ -177,7 +177,7 @@ namespace Vehicles
         roleUpgrade.remove ^ isRefund; //XOR operation for inverse behavior of removal upgrades
       if (needsRemoval)
       {
-        VehicleHandler handler = vehicle.GetHandler(roleUpgrade.key);
+        VehicleRoleHandler handler = vehicle.GetHandler(roleUpgrade.key);
         if (!roleUpgrade.editKey.NullOrEmpty())
         {
           if (handler == null)
@@ -199,7 +199,7 @@ namespace Vehicles
       }
       else
       {
-        VehicleHandler handler = vehicle.GetHandler(roleUpgrade.key);
+        VehicleRoleHandler handler = vehicle.GetHandler(roleUpgrade.key);
         if (!roleUpgrade.editKey.NullOrEmpty())
         {
           if (handler == null)

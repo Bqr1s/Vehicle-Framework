@@ -115,7 +115,7 @@ public class Section_Debug : SettingsSection
 #endif
   }
 
-  public override void DrawSection(Rect rect)
+  public override void OnGUI(Rect rect)
   {
     Rect devModeRect = rect.ContractedBy(10);
     devModeRect.yMin += VehicleMod.ResetImageSize + 5;
@@ -351,7 +351,7 @@ public class Section_Debug : SettingsSection
      .ThenBy(d => d.defName))
     {
       Toggle toggle = new(vehicleDef.defName, vehicleDef.modContentPack.Name,
-        stateGetter: () => DebugHelper.Local.VehicleDef == vehicleDef,
+        stateGetter: () => false,
         stateSetter: delegate(bool value)
         {
           if (value)

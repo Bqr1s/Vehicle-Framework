@@ -1,55 +1,64 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
+using RimWorld;
+using UnityEngine;
 using Verse;
 using Verse.Sound;
-using RimWorld;
-using SmashTools;
-using UnityEngine;
 
 namespace Vehicles
 {
-	public abstract class SettingsSection : IExposable
-	{
-		protected static Listing_Standard listingStandard = new Listing_Standard();
-		protected static Listing_Settings listingSplit = new Listing_Settings();
+  public abstract class SettingsSection : IExposable
+  {
+    protected static Listing_Standard listingStandard = new();
+    protected static Listing_Settings listingSplit = new();
 
-		public virtual IEnumerable<FloatMenuOption> ResetOptions
-		{
-			get
-			{
-				yield return new FloatMenuOption("VF_DevMode_ResetPage".Translate(), () => ResetSettings());
+    public virtual IEnumerable<FloatMenuOption> ResetOptions
+    {
+      get
+      {
+        yield return new FloatMenuOption("VF_DevMode_ResetPage".Translate(), ResetSettings);
+        yield return new FloatMenuOption("VF_DevMode_ResetAll".Translate(),
+          VehicleMod.ResetAllSettings);
+      }
+    }
 
-				yield return new FloatMenuOption("VF_DevMode_ResetAll".Translate(), delegate ()
-				{
-					VehicleMod.ResetAllSettings();
-				});
-			}
-		}
+    public virtual Rect ButtonRect(Rect rect)
+    {
+      return new Rect(rect.x + 2.5f, rect.y - 2.5f, rect.width, rect.height);
+    }
 
-		public virtual Rect ButtonRect(Rect rect) => new Rect(rect.x + 2.5f, rect.y - 2.5f, rect.width, rect.height);
+    public virtual void ResetSettings()
+    {
+      SoundDefOf.Click.PlayOneShotOnCamera();
+    }
 
-		public virtual void ResetSettings()
-		{
-			SoundDefOf.Click.PlayOneShotOnCamera(null);
-		}
+    public virtual void OnClose()
+    {
+    }
 
-		public abstract void DrawSection(Rect rect);
+    public virtual void OnOpen()
+    {
+    }
 
-		public virtual void Initialize()
-		{
-		}
+    public virtual void Update()
+    {
+    }
 
-		public virtual void ExposeData()
-		{
-		}
+    public abstract void OnGUI(Rect rect);
 
-		public virtual void PostDefDatabase()
-		{
-		}
+    public virtual void Initialize()
+    {
+    }
 
-		public virtual void VehicleSelected()
-		{
-		}
-	}
+    public virtual void ExposeData()
+    {
+    }
+
+    public virtual void PostDefDatabase()
+    {
+    }
+
+    public virtual void VehicleSelected()
+    {
+    }
+  }
 }

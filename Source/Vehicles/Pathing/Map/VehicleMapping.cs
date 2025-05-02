@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DevTools;
-using DevTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Performance;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
@@ -26,8 +25,8 @@ public sealed class VehicleMapping : MapComponent
   private VehicleDef buildingFor;
   private int ownerCleanIndex;
 
-  internal DedicatedThread dedicatedThread;
-  internal DeferredGridGeneration deferredGridGeneration;
+  public DedicatedThread dedicatedThread;
+  public DeferredGridGeneration deferredGridGeneration;
 
   private int defGridCalculatedDayOfYear;
 
@@ -69,7 +68,7 @@ public sealed class VehicleMapping : MapComponent
 #if DEBUG
       if (buildingFor == vehicleDef)
       {
-        Assert.Fail(
+        Trace.Fail(
           "Trying to pull VehiclePathData by indexing when it's currently in the middle of " +
           "generation. Recursion is not supported here.");
         return null;
@@ -149,7 +148,7 @@ public sealed class VehicleMapping : MapComponent
     // getting suspended sporadically during unit testing so using deferred grid generation would
     // lead to inconsistent results.
 #if DEV_TOOLS
-    if (UnitTestManager.RunningUnitTests)
+    if (VehicleHarmony.RunningUnitTests)
       deferment = GridDeferment.Forced;
 #endif
 
@@ -521,7 +520,7 @@ public sealed class VehicleMapping : MapComponent
     // Region grid is currently disabled.
     public bool Suspended => !VehicleRegionAndRoomUpdater.Enabled;
 
-    internal VehicleReachabilitySettings ReachabilityData { get; set; }
+    public VehicleReachabilitySettings ReachabilityData { get; set; }
 
     public VehiclePathGrid VehiclePathGrid { get; set; }
 

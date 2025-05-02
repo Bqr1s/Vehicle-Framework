@@ -3,11 +3,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using DevTools;
 using LudeonTK;
 using SmashTools;
 using SmashTools.Pathfinding;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Dijkstra = SmashTools.Pathfinding.Dijkstra<int>;
 

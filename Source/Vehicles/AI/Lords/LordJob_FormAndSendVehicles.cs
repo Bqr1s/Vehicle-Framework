@@ -168,7 +168,7 @@ namespace Vehicles
 			lord.GotoToil(Board.source);
 		}
 
-		public (VehiclePawn vehicle, VehicleHandler handler) GetVehicleAssigned(Pawn p)
+		public (VehiclePawn vehicle, VehicleRoleHandler handler) GetVehicleAssigned(Pawn p)
 		{
 			if (vehicleAssigned.ContainsKey(p))
 			{
@@ -177,7 +177,7 @@ namespace Vehicles
 			return (null, null);
 		}
 
-		public bool SeatAssigned(VehiclePawn vehicle, VehicleHandler handler)
+		public bool SeatAssigned(VehiclePawn vehicle, VehicleRoleHandler handler)
 		{
 			foreach (var assignment in vehicleAssigned.Values)
 			{
@@ -189,7 +189,7 @@ namespace Vehicles
 			return false;
 		}
 
-		public bool AssignSeat(Pawn pawn, VehiclePawn vehicle, VehicleHandler handler)
+		public bool AssignSeat(Pawn pawn, VehiclePawn vehicle, VehicleRoleHandler handler)
 		{
 			return vehicleAssigned.TryAdd(pawn, (vehicle, handler));
 		}
@@ -468,24 +468,24 @@ namespace Vehicles
 	public class AssignedSeat : IExposable
 	{
 		public VehiclePawn vehicle;
-		public VehicleHandler handler;
+		public VehicleRoleHandler handler;
 
 		public AssignedSeat()
 		{
 		}
 
-		public AssignedSeat(VehiclePawn vehicle, VehicleHandler handler)
+		public AssignedSeat(VehiclePawn vehicle, VehicleRoleHandler handler)
 		{
 			this.vehicle = vehicle;
 			this.handler = handler;
 		}
 
-		public static implicit operator ValueTuple<VehiclePawn, VehicleHandler>(AssignedSeat assignedSeat)
+		public static implicit operator ValueTuple<VehiclePawn, VehicleRoleHandler>(AssignedSeat assignedSeat)
 		{
 			return (assignedSeat.vehicle, assignedSeat.handler);
 		}
 
-		public static implicit operator AssignedSeat(ValueTuple<VehiclePawn, VehicleHandler> tuple)
+		public static implicit operator AssignedSeat(ValueTuple<VehiclePawn, VehicleRoleHandler> tuple)
 		{
 			return new AssignedSeat(tuple.Item1, tuple.Item2);
 		}

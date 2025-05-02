@@ -440,25 +440,16 @@ namespace Vehicles
       }
     }
 
-    public override bool CanDraft(out string failReason, out bool allowDevMode)
+    public override AcceptanceReport CanDraft()
     {
-      allowDevMode = false;
       if (Upgrading)
-      {
-        failReason = "VF_DisabledByVehicleUpgrading".Translate(Vehicle.LabelCap);
-        return false;
-      }
-      return base.CanDraft(out failReason, out allowDevMode);
+        return "VF_DisabledByVehicleUpgrading".Translate(Vehicle.LabelCap);
+      return true;
     }
 
     public override void PostGeneration()
     {
       InitializeUpgradeTree();
-    }
-
-    public override void PostSpawnSetup(bool respawningAfterLoad)
-    {
-      base.PostSpawnSetup(respawningAfterLoad);
     }
 
     public override void CompTickRare()

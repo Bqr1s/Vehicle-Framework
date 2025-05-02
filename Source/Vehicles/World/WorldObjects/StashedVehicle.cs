@@ -192,9 +192,9 @@ public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
     foreach (VehiclePawn vehicle in vehicleCaravan.VehiclesListForReading)
     {
       vehicles.Add(vehicle);
-      foreach (VehicleHandler handler in vehicle.handlers)
+      foreach (VehicleRoleHandler handler in vehicle.handlers)
       {
-        pawns.AddRange(handler.handlers);
+        pawns.AddRange(handler.thingOwner);
       }
       foreach (Thing thing in vehicle.inventory.innerContainer)
       {

@@ -31,9 +31,9 @@ namespace Vehicles
     private float cachedSourceTilesPerDay;
     private string cachedSourceTilesPerDayExplanation;
     private bool sourceDaysWorthOfFoodDirty = true;
-    private Pair<float, float> cachedSourceDaysWorthOfFood;
+    private (float days, float tillRot) cachedSourceDaysWorthOfFood;
     private bool sourceForagedFoodPerDayDirty = true;
-    private Pair<ThingDef, float> cachedSourceForagedFoodPerDay;
+    private (ThingDef, float) cachedSourceForagedFoodPerDay;
     private string cachedSourceForagedFoodPerDayExplanation;
     private bool sourceVisibilityDirty = true;
     private float cachedSourceVisibility;
@@ -49,7 +49,7 @@ namespace Vehicles
     private bool destDaysWorthOfFoodDirty = true;
     private Pair<float, float> cachedDestDaysWorthOfFood;
     private bool destForagedFoodPerDayDirty = true;
-    private Pair<ThingDef, float> cachedDestForagedFoodPerDay;
+    private (ThingDef food, float perDay) cachedDestForagedFoodPerDay;
     private string cachedDestForagedFoodPerDayExplanation;
     private bool destVisibilityDirty = true;
     private float cachedDestVisibility;
@@ -141,27 +141,25 @@ namespace Vehicles
       }
     }
 
-    private Pair<float, float> SourceDaysWorthOfFood
+    private (float days, float tillRot) SourceDaysWorthOfFood
     {
       get
       {
         if (sourceDaysWorthOfFoodDirty)
         {
           sourceDaysWorthOfFoodDirty = false;
-          float first;
-          float second;
-          first = DaysWorthOfFoodCalculator.ApproxDaysWorthOfFood(transferables, caravan.Tile,
+          float days = DaysWorthOfFoodCalculator.ApproxDaysWorthOfFood(transferables, caravan.Tile,
             IgnorePawnsInventoryMode.DontIgnore, caravan.Faction);
-          second = DaysUntilRotCalculator.ApproxDaysUntilRotLeftAfterTransfer(transferables,
-            caravan.Tile, IgnorePawnsInventoryMode.Ignore, null, 0f, 3300);
+          float toRot = DaysUntilRotCalculator.ApproxDaysUntilRotLeftAfterTransfer(transferables,
+            caravan.Tile, IgnorePawnsInventoryMode.Ignore);
 
-          cachedSourceDaysWorthOfFood = new Pair<float, float>(first, second);
+          cachedSourceDaysWorthOfFood = (days, toRot);
         }
         return cachedSourceDaysWorthOfFood;
       }
     }
 
-    private Pair<ThingDef, float> SourceForagedFoodPerDay
+    private (ThingDef food, float perDay) SourceForagedFoodPerDay
     {
       get
       {
@@ -272,7 +270,7 @@ namespace Vehicles
       }
     }
 
-    private Pair<ThingDef, float> DestForagedFoodPerDay
+    private (ThingDef food, float perDay) DestForagedFoodPerDay
     {
       get
       {

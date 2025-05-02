@@ -10,7 +10,7 @@ namespace Vehicles
 	{
 		public VehiclePawn Vehicle => job.GetTarget(TargetIndex.B).Thing as VehiclePawn;
 
-		public VehicleHandler VehicleHandler
+		public VehicleRoleHandler VehicleHandler
 		{
 			get
 			{
@@ -18,7 +18,7 @@ namespace Vehicles
 				{
 					return jobVehicle.handler;
 				}
-				VehicleHandler operationalHandler = Vehicle.handlers.FirstOrDefault(handler => handler.CanOperateRole(Pawn));
+				VehicleRoleHandler operationalHandler = Vehicle.handlers.FirstOrDefault(handler => handler.CanOperateRole(Pawn));
 				if (operationalHandler == null)
 				{
 					operationalHandler = Vehicle.handlers.FirstOrDefault(handler => handler.CanOperateRole(Pawn));
@@ -53,7 +53,7 @@ namespace Vehicles
 			yield return PutPawnOnVehicle(Pawn, Vehicle, VehicleHandler);
 		}
 
-		public static Toil PutPawnOnVehicle(Pawn pawn, VehiclePawn vehicle, VehicleHandler handler)
+		public static Toil PutPawnOnVehicle(Pawn pawn, VehiclePawn vehicle, VehicleRoleHandler handler)
 		{
 			Toil toil = new Toil();
 			toil.initAction = delegate ()

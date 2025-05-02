@@ -391,15 +391,14 @@ namespace Vehicles
     }
 
     public ChunkSet FindChunks(IntVec3 start, LocalTargetInfo dest, PathEndMode peMode,
-      TraverseParms traverseParms, bool debugDrawSearch = false, float secondsBetweenDrawing = 0)
+      TraverseParms traverseParms, bool debugDrawSearch = false)
     {
       if (ValidateCanStart(start, dest, traverseParms, out VehicleDef _))
       {
         openQueue.Clear();
         reachedIndex++;
 
-        return chunkSearch.Run(start, dest, traverseParms, debugDrawSearch: debugDrawSearch,
-          secondsBetweenDrawing: secondsBetweenDrawing);
+        return chunkSearch.Run(start, dest, traverseParms, debugDrawSearch: debugDrawSearch);
       }
 
       Log.Error($"Can't validate for chunk search");
@@ -829,7 +828,7 @@ namespace Vehicles
       public Map Map => mapping.map;
 
       public ChunkSet Run(IntVec3 start, LocalTargetInfo dest, TraverseParms traverseParms,
-        bool debugDrawSearch = false, float secondsBetweenDrawing = 0)
+        bool debugDrawSearch = false)
       {
         if (!InitRegions(start, dest, traverseParms, out VehicleRegion startingRegion,
           out VehicleRegion destinationRegion))
@@ -839,8 +838,7 @@ namespace Vehicles
 
         if (debugDrawSearch)
         {
-          CoroutineManager.QueueOrInvoke(() => MarkRegionForDrawing(startingRegion, Map),
-            secondsBetweenDrawing);
+          UnityThread.ExecuteOnMainThread(() => MarkRegionForDrawing(startingRegion, Map));
         }
 
         VehicleRegionLink closestLinkHeuristically = null;
