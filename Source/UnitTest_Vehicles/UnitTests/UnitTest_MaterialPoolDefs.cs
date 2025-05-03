@@ -44,12 +44,12 @@ internal sealed class UnitTest_MaterialPoolDefs
         foreach (VehicleTurret turret in compTurrets.turrets)
         {
           if (!turret.NoGraphic &&
-            turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+            turret.def.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             Expect.IsTrue(RGBMaterialPool.TargetCached(turret),
-              $"{turret.key ?? turret.turretDef.defName} Target Cached");
+              $"{turret.key ?? turret.def.defName} Target Cached");
             Expect.AreEqual(RGBMaterialPool.GetAll(turret)?.Length, turret.MaterialCount,
-              $"{turret.key ?? turret.turretDef.defName} Materials Allocated");
+              $"{turret.key ?? turret.def.defName} Materials Allocated");
           }
 
           if (!turret.TurretGraphics.NullOrEmpty())
@@ -59,9 +59,9 @@ internal sealed class UnitTest_MaterialPoolDefs
               if (drawData.graphicData.shaderType.Shader.SupportsRGBMaskTex())
               {
                 Expect.IsTrue(RGBMaterialPool.TargetCached(drawData),
-                  $"{turret.key ?? turret.turretDef.defName} DrawData Target Cached");
+                  $"{turret.key ?? turret.def.defName} DrawData Target Cached");
                 Expect.AreEqual(RGBMaterialPool.GetAll(drawData)?.Length, drawData.MaterialCount,
-                  $"{turret.key ?? turret.turretDef.defName} Materials Allocated");
+                  $"{turret.key ?? turret.def.defName} Materials Allocated");
               }
             }
           }
@@ -134,7 +134,7 @@ internal sealed class UnitTest_MaterialPoolDefs
         foreach (VehicleTurret turret in compTurrets.turrets)
         {
           if (!turret.NoGraphic &&
-            turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+            turret.def.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             count += turret.MaterialCount;
           }

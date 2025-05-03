@@ -40,7 +40,7 @@ namespace Vehicles
           turret.ResetAngle();
           turret.vehicleDef = vehicleDef;
           ResolveChildTurrets(turret);
-          turret.turretDef.ammunition?.ResolveReferences();
+          turret.def.ammunition?.ResolveReferences();
         }
       }
     }

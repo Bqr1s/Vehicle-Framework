@@ -49,13 +49,13 @@ namespace Vehicles
 
 		public void Notify_TurretRecoil(VehicleTurret turret, float angle)
 		{
-			if (turret.turretDef.vehicleRecoil is null)
+			if (turret.def.vehicleRecoil is null)
 			{
 				return;
 			}
-			targetRecoil = turret.turretDef.vehicleRecoil.distanceTotal;
-			recoilStep = turret.turretDef.vehicleRecoil.distancePerTick;
-			speedMultiplierPostRecoil = turret.turretDef.vehicleRecoil.speedMultiplierPostRecoil;
+			targetRecoil = turret.def.vehicleRecoil.distanceTotal;
+			recoilStep = turret.def.vehicleRecoil.distancePerTick;
+			speedMultiplierPostRecoil = turret.def.vehicleRecoil.speedMultiplierPostRecoil;
 			curRecoil = 0;
 			recoilingBack = true;
 			Angle = angle;

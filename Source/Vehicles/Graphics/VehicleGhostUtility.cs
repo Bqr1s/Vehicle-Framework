@@ -165,7 +165,7 @@ public static class VehicleGhostUtility
         catch (Exception ex)
         {
           Log.Error(
-            $"Failed to render Cannon=\"{turret.turretDef.defName}\" for VehicleDef=\"{vehicleDef.defName}\", Exception: {ex}");
+            $"Failed to render Cannon=\"{turret.def.defName}\" for VehicleDef=\"{vehicleDef.defName}\", Exception: {ex}");
         }
       }
     }

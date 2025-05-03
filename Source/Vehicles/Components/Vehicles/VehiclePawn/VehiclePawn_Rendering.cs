@@ -1106,7 +1106,7 @@ public partial class VehiclePawn
 
   public void ChangeColor()
   {
-    Dialog_ColorPicker.OpenColorPicker(this, delegate(Color colorOne, Color colorTwo,
+    Dialog_VehiclePainter.OpenColorPicker(this, delegate(Color colorOne, Color colorTwo,
       Color colorThree,
       PatternDef patternDef, Vector2 displacement, float tiles)
     {

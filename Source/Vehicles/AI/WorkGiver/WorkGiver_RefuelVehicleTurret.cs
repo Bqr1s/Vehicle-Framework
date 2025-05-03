@@ -64,13 +64,13 @@ namespace Vehicles
 		{
 			List<Thing> ammo = RefuelWorkGiverUtility.FindEnoughReservableThings(pawn, vehicle.Position, new IntRange(1, count), delegate (Thing thing)
 			{
-				if (turret.turretDef.ammunition is null)
+				if (turret.def.ammunition is null)
 				{
 					return false;
 				}
 				if (turret.loadedAmmo is null)
 				{
-					return turret.turretDef.ammunition.Allows(thing);
+					return turret.def.ammunition.Allows(thing);
 				}
 				return turret.loadedAmmo == thing.def;
 			});

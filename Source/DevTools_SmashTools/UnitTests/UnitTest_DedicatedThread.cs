@@ -22,15 +22,22 @@ internal class UnitTest_DedicatedThread
     // Should never start suspended
     Assert.IsFalse(dedicatedThread.IsSuspended);
 
-    ManualResetEventSlim mres = new(false);
+    using ManualResetEventSlim mres = new(false);
 
     // No signal should be received, it should've already entered a blocked state while waiting 
     // for an item to enqueue.
     Expect.IsTrue(dedicatedThread.IsBlocked, "No Polling");
 
+    // ReSharper disable AccessToDisposedClosure
+    // NOTE - Yes this may seem a little dubious but we're using the wait handle to run this test
+    // synchronously specifically so we can verify that this thread is processing items correctly.
+    // That means signaling the thread to resume execution, but then wait for us to finish testing.
     AsyncLongOperationAction pollingOp = AsyncPool<AsyncLongOperationAction>.Get();
+    pollingOp.OnValidate += () => !mres.WaitHandle.SafeWaitHandle.IsClosed;
     pollingOp.OnInvoke += () => SleepThread(ItemWorkMS, mres: mres);
     dedicatedThread.Enqueue(pollingOp);
+    // ReSharper restore AccessToDisposedClosure
+
     // Signal should be received this time, enqueueing item will set the event handler and resume
     // the thread's execution.
     Expect.IsFalse(dedicatedThread.IsBlocked, "Execution Resumed");

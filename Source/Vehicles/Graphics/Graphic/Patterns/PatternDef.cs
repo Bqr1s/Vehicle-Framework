@@ -114,7 +114,6 @@ public class PatternDef : Def, IMaterialCacheTarget
       patterns[7] = patterns[2];
     }
 
-    Ext_Texture.TryReplaceInContentFinder(path, patterns[0]);
     for (int i = 0; i < patterns.Length; i++)
     {
       Texture2D texture = patterns[i];

@@ -25,8 +25,7 @@ public class Command_CooldownAction : Command_Turret
 
   private bool textureDirty = true;
 
-  private RenderTextureIdler rtIdler = new(VehicleGui.GetTexture(VehicleGui.ImageSize.Medium),
-    IdlerExpiryTime);
+  private RenderTextureIdler rtIdler;
 
   protected override float RecalculateWidth()
   {
@@ -177,7 +176,7 @@ public class Command_CooldownAction : Command_Turret
       // top right
       Rect subIconRect = new(gizmoRect.xMax - SubIconSize, gizmoRect.y, SubIconSize, SubIconSize);
       if ((turret.loadedAmmo is null || turret.shellCount <= 0) &&
-        turret.turretDef.ammunition != null)
+        turret.def.ammunition != null)
       {
         disabledReason += "VF_NoAmmoLoadedTurret".Translate();
         ammoLoaded = false;
@@ -204,7 +203,7 @@ public class Command_CooldownAction : Command_Turret
       using (new TextBlock(Color.white))
       {
         Rect turretRect = gizmoRect.ContractedBy(2);
-        if (!turret.turretDef.gizmoIconTexPath.NullOrEmpty())
+        if (!turret.def.gizmoIconTexPath.NullOrEmpty())
         {
           Widgets.BeginGroup(turretRect);
           Rect iconRect = turretRect.AtZero().ExpandedBy(turretRect.width * (iconDrawScale - 1));
@@ -216,9 +215,12 @@ public class Command_CooldownAction : Command_Turret
           if (textureDirty)
           {
             BlitRequest request = new(vehicle)
-              { rot = Rot8.North, scale = turret.turretDef.gizmoIconScale };
+              { rot = Rot8.North };
             request.blitTargets.Add(turret);
-            VehicleGui.Blit(rtIdler.GetWrite(), turretRect, request);
+            rtIdler ??= new RenderTextureIdler(VehicleGui.CreateRenderTexture(turretRect, request),
+              IdlerExpiryTime);
+            VehicleGui.Blit(rtIdler.GetWrite(), turretRect, request,
+              iconScale: turret.def.gizmoIconScale);
             textureDirty = false;
           }
           GUI.DrawTexture(turretRect, rtIdler.Read);
@@ -332,13 +334,13 @@ public class Command_CooldownAction : Command_Turret
 
   protected virtual void DrawBottomBar(Rect rect, ref bool mouseOver)
   {
-    Widgets.FillableBar(rect, (float)turret.shellCount / turret.turretDef.magazineCapacity,
+    Widgets.FillableBar(rect, (float)turret.shellCount / turret.def.magazineCapacity,
       VehicleTex.FullBarTex, VehicleTex.EmptyBarTex, true);
 
     using (new TextBlock(GameFont.Small, TextAnchor.MiddleCenter))
     {
-      string ammoCountLabel = $"{turret.shellCount:F0} / {turret.turretDef.magazineCapacity:F0}";
-      if (turret.turretDef.magazineCapacity <= 0)
+      string ammoCountLabel = $"{turret.shellCount:F0} / {turret.def.magazineCapacity:F0}";
+      if (turret.def.magazineCapacity <= 0)
       {
         ammoCountLabel = "\u221E";
         Text.Font = GameFont.Medium;
@@ -346,7 +348,7 @@ public class Command_CooldownAction : Command_Turret
       Widgets.Label(rect, ammoCountLabel);
     }
 
-    if (turret.turretDef.ammunition != null)
+    if (turret.def.ammunition != null)
     {
       Rect configureRect = new(rect.xMax - ConfigureButtonSize,
         rect.yMax - ConfigureButtonSize, ConfigureButtonSize, ConfigureButtonSize);
@@ -360,7 +362,7 @@ public class Command_CooldownAction : Command_Turret
         const int min = 0;
 
         ThingDef ammoDef = turret.loadedAmmo ??
-          turret.turretDef.ammunition.AllowedThingDefs.FirstOrDefault();
+          turret.def.ammunition.AllowedThingDefs.FirstOrDefault();
         int max = Mathf.RoundToInt(
           vehicle.VehicleDef.GetStatValueAbstract(VehicleStatDefOf.CargoCapacity) /
           ammoDef.GetStatValueAbstract(StatDefOf.Mass));
