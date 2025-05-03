@@ -245,7 +245,7 @@ namespace Vehicles
       //    foreach (VehicleTurret cannon in LeadVehicle.CompCannons.Cannons)
       //    {
       //        cPos.y += 0.1f;
-      //        Vector3 s2 = new Vector3(cannon.turretDef.graphicData.drawSize.x / ratio, 1f, cannon.turretDef.graphicData.drawSize.y / ratio);
+      //        Vector3 s2 = new Vector3(cannon.def.graphicData.drawSize.x / ratio, 1f, cannon.def.graphicData.drawSize.y / ratio);
       //        Quaternion q2 = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) * Quaternion.Euler(0, cannon.defaultAngleRotated, 0);
       //        matrix.SetTRS(cPos + normalized * altOffset, q2, s2);
       //        Graphics.DrawMesh(MeshPool.plane10, matrix, cannon.CannonMaterial, layer);

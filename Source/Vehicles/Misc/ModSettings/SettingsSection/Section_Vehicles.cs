@@ -59,15 +59,12 @@ public class Section_Vehicles : SettingsSection
 
   public override void OnClose()
   {
-    buffer.Dispose();
+    buffer?.Dispose();
     buffer = null;
   }
 
   public override void OnOpen()
   {
-    RenderTexture rtA = VehicleGui.GetTexture(VehicleGui.ImageSize.Large);
-    RenderTexture rtB = VehicleGui.GetTexture(VehicleGui.ImageSize.Large);
-    buffer = new RenderTextureBuffer(rtA, rtB);
     textureDirty = true;
   }
 
@@ -125,6 +122,8 @@ public class Section_Vehicles : SettingsSection
   public override void VehicleSelected()
   {
     currentVehicleFacing = VehicleMod.selectedDef.drawProperties.displayRotation;
+    buffer?.Dispose();
+    buffer = null;
     textureDirty = true;
   }
 
@@ -171,12 +170,12 @@ public class Section_Vehicles : SettingsSection
         Rect vehicleRect = new(Vector2.zero, iconRect.size);
         if (textureDirty)
         {
-          VehicleGui.Blit(buffer.GetWrite(), vehicleRect,
-            BlitRequest.For(VehicleMod.selectedDef) with
-            {
-              rot = directionFacing.TryGetValue(VehicleMod.selectedDef, currentVehicleFacing)
-            }
-          );
+          BlitRequest request = BlitRequest.For(VehicleMod.selectedDef) with
+          {
+            rot = directionFacing.TryGetValue(VehicleMod.selectedDef, currentVehicleFacing)
+          };
+          buffer ??= VehicleGui.CreateRenderTextureBuffer(vehicleRect, request);
+          VehicleGui.Blit(buffer.GetWrite(), vehicleRect, request);
           textureDirty = false;
         }
         GUI.DrawTexture(vehicleRect, buffer.Read);
@@ -293,7 +292,7 @@ public class Section_Vehicles : SettingsSection
       if (VehicleShowcaseButton(showcaseIconRect, VehicleTex.Recolor,
         "VF_RecolorDefaultMaskTooltip"))
       {
-        Dialog_ColorPicker.OpenColorPicker(VehicleMod.selectedDef, SetDefaultColor);
+        Dialog_VehiclePainter.OpenColorPicker(VehicleMod.selectedDef, SetDefaultColor);
       }
       showcaseIconRect.y += SmallIconSize;
     }

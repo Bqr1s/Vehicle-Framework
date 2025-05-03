@@ -8,29 +8,29 @@ namespace Vehicles.Rendering;
 [UsedImplicitly(ImplicitUseTargetFlags.Members)]
 public struct BlitRequest
 {
-  public VehicleDef vehicleDef;
   public Rot8 rot;
   public PatternData patternData;
-  public float scale = 1;
 
   public List<IBlitTarget> blitTargets = [];
 
-  public BlitRequest(VehicleDef vehicleDef)
+  public BlitRequest(Rot8 rot, PatternData patternData)
   {
-    this.vehicleDef = vehicleDef;
-    rot = vehicleDef.drawProperties.displayRotation;
-    patternData =
-      VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(vehicleDef.defName,
-        fallback: vehicleDef.graphicData);
+    this.rot = rot;
+    this.patternData = patternData;
+
     if (!VehicleMod.settings.main.useCustomShaders)
-    {
       patternData.patternDef = PatternDefOf.Default;
-    }
   }
 
-  public BlitRequest(VehiclePawn vehicle) : this(vehicle.VehicleDef)
+  public BlitRequest(VehicleDef vehicleDef) : this(vehicleDef.drawProperties.displayRotation,
+    VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(vehicleDef.defName,
+      fallback: vehicleDef.graphicData))
   {
-    patternData = vehicle.patternData;
+  }
+
+  public BlitRequest(VehiclePawn vehicle) : this(vehicle.VehicleDef.drawProperties.displayRotation,
+    vehicle.patternData)
+  {
   }
 
   public static BlitRequest For(VehiclePawn vehicle)

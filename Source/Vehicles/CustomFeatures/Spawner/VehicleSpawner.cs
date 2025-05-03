@@ -192,21 +192,21 @@ namespace Vehicles
 				Rand.PushState();
 				foreach (VehicleTurret cannon in vehicle.CompVehicleTurrets.turrets)
 				{
-					if (cannon.turretDef.ammunition != null)
+					if (cannon.def.ammunition != null)
 					{
-						int variation = Rand.RangeInclusive(1, cannon.turretDef.ammunition.AllowedDefCount);
+						int variation = Rand.RangeInclusive(1, cannon.def.ammunition.AllowedDefCount);
 						for(int i = 0; i < variation; i++)
 						{
-							ThingDef ammoType = cannon.turretDef.ammunition.AllowedThingDefs.ElementAt(i);
+							ThingDef ammoType = cannon.def.ammunition.AllowedThingDefs.ElementAt(i);
 							
 							int startingWeight = Rand.RangeInclusive(10, 25);
 							int exponentialDecay = Rand.RangeInclusive(10, 50);
 							int minReloads = Rand.RangeInclusive(2, 5);
 
 							//{weight}e^(-{magCapacity}/{expDecay}) + {bottomLimit}
-							float reloadsAvailable = (float)(startingWeight * Math.Pow(Math.E, -cannon.turretDef.magazineCapacity / exponentialDecay) + minReloads);
+							float reloadsAvailable = (float)(startingWeight * Math.Pow(Math.E, -cannon.def.magazineCapacity / exponentialDecay) + minReloads);
 							Thing ammo = ThingMaker.MakeThing(ammoType);
-							ammo.stackCount = Mathf.RoundToInt(cannon.turretDef.magazineCapacity * reloadsAvailable);
+							ammo.stackCount = Mathf.RoundToInt(cannon.def.magazineCapacity * reloadsAvailable);
 							//vehicle.inventory.innerContainer.TryAdd(ammo, true);
 							vehicle.AddOrTransfer(ammo);
 						}

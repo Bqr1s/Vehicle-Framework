@@ -271,6 +271,12 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
     return graphicOverlay;
   }
 
+  (int width, int height) IBlitTarget.TextureSize(in BlitRequest request)
+  {
+    Texture texture = Graphic.MatAt(request.rot)?.mainTexture;
+    return texture != null ? (texture.width, texture.height) : (0, 0);
+  }
+
   IEnumerable<RenderData> IBlitTarget.GetRenderData(Rect rect, BlitRequest request)
   {
     Rect overlayRect = VehicleGraphics.OverlayRect(rect, vehicleDef, this, request.rot);
@@ -278,10 +284,10 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
 
     Material material = canMask ? Graphic.MatAt(request.rot) : null;
 
-    Texture2D texture = graphic.MatAt(request.rot).mainTexture as Texture2D;
+    Texture2D texture = Graphic.MatAt(request.rot).mainTexture as Texture2D;
     if (canMask)
     {
-      if (graphic is Graphic_Rgb graphicRgb)
+      if (Graphic is Graphic_Rgb graphicRgb)
       {
         RGBMaterialPool.SetProperties(this, request.patternData, graphicRgb.TexAt,
           graphicRgb.MaskAt);
@@ -289,8 +295,8 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
       else
       {
         RGBMaterialPool.SetProperties(this, request.patternData,
-          forRot => graphic.MatAt(forRot).mainTexture as Texture2D,
-          forRot => graphic.MatAt(forRot).GetMaskTexture());
+          forRot => Graphic.MatAt(forRot).mainTexture as Texture2D,
+          forRot => Graphic.MatAt(forRot).GetMaskTexture());
       }
     }
     // TODO - vehicleDef.PropertyBlock here would be incorrect for VehiclePawn instance rendering. Will

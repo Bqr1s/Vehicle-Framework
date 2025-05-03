@@ -82,7 +82,7 @@ namespace Vehicles
             turretData.shots--;
             turretData.ticksTillShot = turret.TicksPerShot;
             if (turret.OnCooldown || turretData.shots == 0 ||
-              (turret.turretDef.ammunition != null && turret.shellCount <= 0))
+              (turret.def.ammunition != null && turret.shellCount <= 0))
             {
               turret.SetTarget(LocalTargetInfo.Invalid);
               turrets.RemoveAll(t => t.turret == turret);
@@ -101,58 +101,58 @@ namespace Vehicles
 
     protected virtual void FireTurret(VehicleTurret turret)
     {
-      float horizontalOffset = turret.turretDef.projectileShifting.NotNullAndAny() ?
-        turret.turretDef.projectileShifting[turret.CurrentTurretFiring] :
+      float horizontalOffset = turret.def.projectileShifting.NotNullAndAny() ?
+        turret.def.projectileShifting[turret.CurrentTurretFiring] :
         0;
       Vector3 launchPos = TurretLocation(turret) +
-        new Vector3(horizontalOffset, 1f, turret.turretDef.projectileOffset);
+        new Vector3(horizontalOffset, 1f, turret.def.projectileOffset);
 
       Vector3 targetPos = Target(turret);
       float range = Vector3.Distance(TurretLocation(turret), targetPos);
       IntVec3 target = targetPos.ToIntVec3() + GenRadial.RadialPattern[
         Rand.Range(0,
           GenRadial.NumCellsInRadius(turret.CurrentFireMode.spreadRadius *
-            (range / turret.turretDef.maxRange)))];
-      if (turret.CurrentTurretFiring >= turret.turretDef.projectileShifting.Count)
+            (range / turret.def.maxRange)))];
+      if (turret.CurrentTurretFiring >= turret.def.projectileShifting.Count)
       {
         turret.CurrentTurretFiring = 0;
       }
 
       ThingDef projectile;
-      if (turret.turretDef.ammunition != null && !turret.turretDef.genericAmmo)
+      if (turret.def.ammunition != null && !turret.def.genericAmmo)
       {
         projectile = turret.loadedAmmo?.projectileWhenLoaded;
       }
       else
       {
-        projectile = turret.turretDef.projectile;
+        projectile = turret.def.projectile;
       }
       try
       {
         float speedTicksPerTile = projectile.projectile.SpeedTilesPerTick;
-        if (turret.turretDef.projectileSpeed > 0)
+        if (turret.def.projectileSpeed > 0)
         {
-          speedTicksPerTile = turret.turretDef.projectileSpeed;
+          speedTicksPerTile = turret.def.projectileSpeed;
         }
         ProjectileSkyfaller projectile2 = ProjectileSkyfallerMaker.WrapProjectile(
           SkyfallerDefOf.ProjectileSkyfaller,
           projectile, this, launchPos, target.ToVector3Shifted(),
           speedTicksPerTile); //REDO - RANDOMIZE TARGETED CELLS
         GenSpawn.Spawn(projectile2, target.ClampInsideMap(Map), Map);
-        if (turret.turretDef.ammunition != null)
+        if (turret.def.ammunition != null)
         {
           turret.ConsumeShellChambered();
         }
-        if (turret.turretDef.shotSound != null)
+        if (turret.def.shotSound != null)
         {
-          turret.turretDef.shotSound.PlayOneShot(new TargetInfo(Position, Map, false));
+          turret.def.shotSound.PlayOneShot(new TargetInfo(Position, Map, false));
         }
         turret.PostTurretFire();
       }
       catch (Exception ex)
       {
         Log.Error(
-          $"Exception when firing Cannon: {turret.turretDef.LabelCap} on Pawn: {vehicle.LabelCap}. Exception: {ex}");
+          $"Exception when firing Cannon: {turret.def.LabelCap} on Pawn: {vehicle.LabelCap}. Exception: {ex}");
       }
     }
 

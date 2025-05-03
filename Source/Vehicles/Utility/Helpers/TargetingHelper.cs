@@ -21,7 +21,7 @@ namespace Vehicles
       TargetScanFlags? additionalFlags = null)
     {
       targetInfo = LocalTargetInfo.Invalid;
-      TargetScanFlags targetScanFlags = turret.turretDef.targetScanFlags;
+      TargetScanFlags targetScanFlags = turret.def.targetScanFlags;
       if (additionalFlags != null)
       {
         targetScanFlags |= additionalFlags.Value;
@@ -348,7 +348,7 @@ namespace Vehicles
       {
         return false;
       }
-      TargetScanFlags scanFlags = turret.turretDef.targetScanFlags;
+      TargetScanFlags scanFlags = turret.def.targetScanFlags;
       if (target.HasThing && (scanFlags.HasFlag(TargetScanFlags.NeedLOSToAll) ||
         (scanFlags.HasFlag(TargetScanFlags.NeedLOSToPawns) && target.Thing is Pawn) ||
         (scanFlags.HasFlag(TargetScanFlags.NeedLOSToNonPawns) && target.Thing is not Pawn)))
@@ -369,7 +369,7 @@ namespace Vehicles
     private static bool LOSValidator(VehicleTurret turret, Map map, LocalTargetInfo target,
       IntVec3 cell)
     {
-      TargetScanFlags scanFlags = turret.turretDef.targetScanFlags;
+      TargetScanFlags scanFlags = turret.def.targetScanFlags;
       if (scanFlags.HasFlag(TargetScanFlags.LOSBlockableByGas) && !LOSThroughGas(map, cell))
       {
         return false;
@@ -385,7 +385,7 @@ namespace Vehicles
     {
       Assert.IsTrue(target.HasThing,
         "non-Thing target passed to TargetValidator. Will always be false if any scan flags are set.");
-      TargetScanFlags scanFlags = turret.turretDef.targetScanFlags;
+      TargetScanFlags scanFlags = turret.def.targetScanFlags;
       if (scanFlags.HasFlag(TargetScanFlags.NeedThreat) &&
         !LOSHasThreat(turret.vehicle, target.Thing))
       {

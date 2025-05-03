@@ -35,7 +35,7 @@ internal sealed class UnitTest_MaterialPool : UnitTest_MapTest
           // log results in MaterialPoolWatcher and track material lifetime.
           turret.ResolveCannonGraphics(vehicle.patternData, forceRegen: true);
           if (!turret.NoGraphic &&
-            turret.turretDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
+            turret.def.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
             targets++;
             materialCount += turret.MaterialCount;

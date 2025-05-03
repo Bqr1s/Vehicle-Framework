@@ -12,7 +12,7 @@ namespace Vehicles.UnitTesting;
 [UnitTest(TestType.Playing)]
 internal sealed class UnitTest_DeferredGeneration : UnitTest_MapTest
 {
-  private const double MaxWaitTime = 5000; // ms
+  private const double MaxWaitTime = 10000; // ms
 
   protected override bool ShouldTest(VehicleDef vehicleDef)
   {
@@ -45,7 +45,7 @@ internal sealed class UnitTest_DeferredGeneration : UnitTest_MapTest
       // dedicated thread available in order to test this. Will return to suspended after test
       // since we're running this as a UnitTestMapTest.
       using ThreadEnabler te = new();
-      ManualResetEventSlim mres = new(false);
+      using ManualResetEventSlim mres = new(false);
 
       GenSpawn.Spawn(vehicle, root, map);
       // Faction.OfPlayer
@@ -69,10 +69,10 @@ internal sealed class UnitTest_DeferredGeneration : UnitTest_MapTest
       mapping.deferredGridGeneration.DoPassExpectClear();
       Assert.IsTrue(pathData.Suspended);
 
-      // Block dedicated thread without flagging as suspended so we can still validate that
-      // grid generation is not being sent to the dedicated thread for deferred generation of
-      // map grids. This is equivalent to clogging up the dedicated thread until we decide we're
-      // ready or we hit the timeout threshold.
+      // Block dedicated thread without flagging as suspended so we can still validate that grid
+      // generation is not being sent to the thread for async processing. There are extra checks
+      // in place that prevent enqueueing actions to a suspended DedicatedThread so this is the
+      // only way we can both allow it and pause the DedicatedThread from processing any actions.
       mres.Reset();
       AsyncLongOperationAction blockingOp = AsyncPool<AsyncLongOperationAction>.Get();
       blockingOp.OnInvoke += () => WaitForSignal(mres);

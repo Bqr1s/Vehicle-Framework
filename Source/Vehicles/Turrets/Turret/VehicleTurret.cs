@@ -41,7 +41,8 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   public VehicleTurret reference;
 
   [TweakField]
-  public VehicleTurretDef turretDef;
+  [LoadAlias("turretDef")]
+  public VehicleTurretDef def;
 
   public TargetLock targeting = TargetLock.Pawn | TargetLock.Thing;
 
@@ -155,17 +156,17 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     vehicleDef = vehicle.VehicleDef;
 
     uniqueID = Find.UniqueIDsManager.GetNextThingID();
-    turretDef = reference.turretDef;
+    def = reference.def;
 
     gizmoLabel = reference.gizmoLabel;
 
     key = reference.key;
 
     targetPersists =
-      reference.turretDef.turretType != TurretType.Static && reference.targetPersists;
-    autoTargeting = reference.turretDef.turretType != TurretType.Static && reference.autoTargeting;
+      reference.def.turretType != TurretType.Static && reference.targetPersists;
+    autoTargeting = reference.def.turretType != TurretType.Static && reference.autoTargeting;
     manualTargeting =
-      reference.turretDef.turretType != TurretType.Static && reference.manualTargeting;
+      reference.def.turretType != TurretType.Static && reference.manualTargeting;
 
     currentFireMode = 0;
     currentFireIcon = OverheatIcons.FirstOrDefault();
@@ -177,9 +178,9 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     InitRecoilTrackers();
   }
 
-  string ITweakFields.Label => nameof(VehicleTurret); ////turretDef.LabelCap;
+  string ITweakFields.Label => nameof(VehicleTurret); ////def.LabelCap;
 
-  string ITweakFields.Category => turretDef.LabelCap;
+  string ITweakFields.Category => def.LabelCap;
 
   public bool GizmoHighlighted { get; set; }
 
@@ -193,7 +194,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
 
   public PawnStatusOnTarget CachedPawnTargetStatus { get; set; }
 
-  public bool IsTargetable => turretDef?.turretType == TurretType.Rotatable;
+  public bool IsTargetable => def?.turretType == TurretType.Rotatable;
 
   public bool RotationAligned => rotation == rotationTargeted;
 
@@ -206,18 +207,18 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
 
   protected virtual bool TurretTargetValid => targetInfo.Cell.IsValid && !TurretDisabled;
 
-  public bool NoGraphic => turretDef.graphicData is null;
+  public bool NoGraphic => def.graphicData is null;
 
   public bool CanAutoTarget => autoTargeting || VehicleMod.settings.debug.debugShootAnyTurret;
 
-  public int WarmupTicks => Mathf.CeilToInt(turretDef.warmUpTimer * 60f);
+  public int WarmupTicks => Mathf.CeilToInt(def.warmUpTimer * 60f);
 
   public bool OnCooldown => triggeredCooldown;
 
   public bool CanOverheat => VehicleMod.settings.main.overheatMechanics &&
-    turretDef.cooldown != null && turretDef.cooldown.heatPerShot > 0;
+    def.cooldown != null && def.cooldown.heatPerShot > 0;
 
-  public bool HasAmmo => turretDef.ammunition is null || shellCount > 0;
+  public bool HasAmmo => def.ammunition is null || shellCount > 0;
 
   public bool ReadyToFire => groupKey.NullOrEmpty() ?
     (burstTicks <= 0 && ReloadTicks <= 0 && !TurretDisabled) :
@@ -266,11 +267,11 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   {
     get
     {
-      float maxTicks = turretDef.reloadTimer * 60f;
-      if (turretDef.reloadTimerMultiplierPerCrewCount != null)
+      float maxTicks = def.reloadTimer * 60f;
+      if (def.reloadTimerMultiplierPerCrewCount != null)
       {
         List<Pawn> gunners = vehicle.AllCannonCrew;
-        maxTicks *= turretDef.reloadTimerMultiplierPerCrewCount.Evaluate(gunners.Count);
+        maxTicks *= def.reloadTimerMultiplierPerCrewCount.Evaluate(gunners.Count);
       }
 
       return Mathf.CeilToInt(maxTicks);
@@ -286,7 +287,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
         return loadedAmmo.projectileWhenLoaded;
       }
 
-      return turretDef.projectile;
+      return def.projectile;
     }
   }
 
@@ -348,7 +349,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           return CurrentFireMode.shotsPerBurst.TrueMax * 3;
         }
 
-        return Mathf.CeilToInt(MaxHeatCapacity / turretDef.cooldown.heatPerShot);
+        return Mathf.CeilToInt(MaxHeatCapacity / def.cooldown.heatPerShot);
       }
 
       return CurrentFireMode.shotsPerBurst.RandomInRange;
@@ -451,9 +452,9 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     {
       if (gizmoIcon is null)
       {
-        if (!string.IsNullOrEmpty(turretDef.gizmoIconTexPath))
+        if (!string.IsNullOrEmpty(def.gizmoIconTexPath))
         {
-          gizmoIcon = ContentFinder<Texture2D>.Get(turretDef.gizmoIconTexPath);
+          gizmoIcon = ContentFinder<Texture2D>.Get(def.gizmoIconTexPath);
         }
         else if (NoGraphic)
         {
@@ -476,9 +477,9 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   {
     get
     {
-      if (turretDef.magazineCapacity > 0)
+      if (def.magazineCapacity > 0)
       {
-        if (turretDef.ammunition != null)
+        if (def.ammunition != null)
         {
           yield return SubGizmo_RemoveAmmo(this);
         }
@@ -546,19 +547,19 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   {
     get
     {
-      if (currentFireMode < 0 || currentFireMode >= turretDef.fireModes.Count)
+      if (currentFireMode < 0 || currentFireMode >= def.fireModes.Count)
       {
         SmashLog.ErrorOnce(
-          $"Unable to retrieve fire mode at index {currentFireMode}. Outside of bounds for <field>fireModes</field> defined in <field>turretDef</field>. Defaulting to first fireMode.",
+          $"Unable to retrieve fire mode at index {currentFireMode}. Outside of bounds for <field>fireModes</field> defined in <field>def</field>. Defaulting to first fireMode.",
           GetHashCode() ^ currentFireMode);
-        return turretDef.fireModes.FirstOrDefault();
+        return def.fireModes.FirstOrDefault();
       }
 
-      return turretDef.fireModes[currentFireMode];
+      return def.fireModes[currentFireMode];
     }
     set
     {
-      currentFireMode = turretDef.fireModes.IndexOf(value);
+      currentFireMode = def.fireModes.IndexOf(value);
       ResetPrefireTimer();
     }
   }
@@ -586,23 +587,23 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   {
     get
     {
-      if (turretDef.maxRange < 0)
+      if (def.maxRange < 0)
       {
         return DefaultMaxRange;
       }
 
-      return turretDef.maxRange;
+      return def.maxRange;
     }
   }
 
   public float MinRange
   {
-    get { return turretDef.minRange; }
+    get { return def.minRange; }
   }
 
   public int MaterialCount => 1;
 
-  public string Name => $"{turretDef}_{key}_{vehicle?.ThingID ?? "Def"}";
+  public string Name => $"{def}_{key}_{vehicle?.ThingID ?? "Def"}";
 
   public PatternDef PatternDef
   {
@@ -620,7 +621,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           PatternDefOf.Default;
       }
 
-      if (turretDef.matchParentColor)
+      if (def.matchParentColor)
       {
         return vehicle?.PatternDef ?? PatternDefOf.Default;
       }
@@ -649,9 +650,9 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     deployment = reference.deployment;
 
     drawLayer = reference.drawLayer;
-    if (reference.turretDef.restrictionType != null)
+    if (reference.def.restrictionType != null)
     {
-      SetTurretRestriction(reference.turretDef.restrictionType);
+      SetTurretRestriction(reference.def.restrictionType);
     }
 
     ResetAngle();
@@ -825,7 +826,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
 
     if (!recoilTrackers.NullOrEmpty())
     {
-      for (int i = 0; i < turretDef.graphics.Count; i++)
+      for (int i = 0; i < def.graphics.Count; i++)
       {
         recoilTicked |= recoilTrackers[i]?.RecoilTick() ?? false;
       }
@@ -860,10 +861,10 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
 
       if (ticksSinceLastShot >= TicksTillBeginCooldown)
       {
-        float dissipationRate = turretDef.cooldown.dissipationRate;
+        float dissipationRate = def.cooldown.dissipationRate;
         if (triggeredCooldown)
         {
-          dissipationRate *= turretDef.cooldown.dissipationCapMultiplier;
+          dissipationRate *= def.cooldown.dissipationCapMultiplier;
         }
 
         currentHeatRate -= dissipationRate;
@@ -940,7 +941,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
         return false;
       }
 
-      if (Math.Abs(rotation - TurretRotationTargeted) < turretDef.rotationSpeed + 0.1f)
+      if (Math.Abs(rotation - TurretRotationTargeted) < def.rotationSpeed + 0.1f)
       {
         rotation = TurretRotationTargeted;
       }
@@ -970,10 +971,10 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           }
         }
 
-        rotation += turretDef.rotationSpeed * rotationDir;
+        rotation += def.rotationSpeed * rotationDir;
         foreach (VehicleTurret turret in childTurrets)
         {
-          turret.rotation += turretDef.rotationSpeed * rotationDir;
+          turret.rotation += def.rotationSpeed * rotationDir;
         }
       }
 
@@ -1024,7 +1025,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           }
         }
 
-        if (turretDef.autoSnapTargeting)
+        if (def.autoSnapTargeting)
         {
           rotation = TurretRotationTargeted;
         }
@@ -1095,10 +1096,10 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     if (CurrentFireMode.spreadRadius > 0)
     {
       int cellsInRadius;
-      if (turretDef.maxRange > 0)
+      if (def.maxRange > 0)
       {
         cellsInRadius =
-          GenRadial.NumCellsInRadius(CurrentFireMode.spreadRadius * (range / turretDef.maxRange));
+          GenRadial.NumCellsInRadius(CurrentFireMode.spreadRadius * (range / def.maxRange));
       }
       else
       {
@@ -1108,25 +1109,25 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
       cell += GenRadial.RadialPattern[Rand.Range(0, cellsInRadius)];
     }
 
-    if (CurrentTurretFiring >= turretDef.projectileShifting.Count)
+    if (CurrentTurretFiring >= def.projectileShifting.Count)
     {
       CurrentTurretFiring = 0;
     }
 
-    float horizontalOffset = turretDef.projectileShifting.NotNullAndAny() ?
-      turretDef.projectileShifting[CurrentTurretFiring] :
+    float horizontalOffset = def.projectileShifting.NotNullAndAny() ?
+      def.projectileShifting[CurrentTurretFiring] :
       0;
     Vector3 launchCell = TurretLocation +
-      new Vector3(horizontalOffset, 1f, turretDef.projectileOffset).RotatedBy(TurretRotation);
+      new Vector3(horizontalOffset, 1f, def.projectileOffset).RotatedBy(TurretRotation);
 
-    ThingDef projectileDef = ProjectileDef; // turretDef.projectile;
-    //if (turretDef.ammunition != null && !turretDef.genericAmmo)
+    ThingDef projectileDef = ProjectileDef; // def.projectile;
+    //if (def.ammunition != null && !def.genericAmmo)
     //{
     //	projectile = loadedAmmo?.projectileWhenLoaded ?? projectile; //nc to loaded ammo for CE handling
     //}
     try
     {
-      if (turretDef.ammunition != null)
+      if (def.ammunition != null)
       {
         ConsumeShellChambered();
       }
@@ -1135,15 +1136,15 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
       {
         Projectile projectileInstance = (Projectile)GenSpawn.Spawn(projectileDef, vehicle.Position,
           vehicle.Map, WipeMode.Vanish);
-        if (turretDef.projectileSpeed > 0)
+        if (def.projectileSpeed > 0)
         {
           projectileInstance.TryAddComp(new CompTurretProjectileProperties(projectileInstance)
           {
-            speed = turretDef.projectileSpeed > 0 ?
-              turretDef.projectileSpeed :
+            speed = def.projectileSpeed > 0 ?
+              def.projectileSpeed :
               projectileInstance.def.projectile.speed,
-            hitflag = turretDef.hitFlags,
-            hitflags = turretDef.attachProjectileFlag
+            hitflag = def.hitFlags,
+            hitflags = def.attachProjectileFlag
           });
         }
 
@@ -1152,8 +1153,8 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
       }
       else
       {
-        float speed = turretDef.projectileSpeed > 0 ?
-          turretDef.projectileSpeed :
+        float speed = def.projectileSpeed > 0 ?
+          def.projectileSpeed :
           projectileDef.projectile.speed;
         float swayAndSpread = Mathf.Atan2(CurrentFireMode.spreadRadius, MaxRange) * Mathf.Rad2Deg;
         float sway = swayAndSpread * 0.84f;
@@ -1161,7 +1162,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
         float recoil = horizontalOffset / MaxRange;
         float shotHeight = 1f;
         CETurretDataDefModExtension turretData =
-          turretDef.GetModExtension<CETurretDataDefModExtension>();
+          def.GetModExtension<CETurretDataDefModExtension>();
         if (turretData != null)
         {
           if (turretData.speed > 0)
@@ -1219,7 +1220,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
         }
       }
 
-      turretDef.shotSound?.PlayOneShot(new TargetInfo(vehicle.Position, vehicle.Map));
+      def.shotSound?.PlayOneShot(new TargetInfo(vehicle.Position, vehicle.Map));
       vehicle.DrawTracker.recoilTracker.Notify_TurretRecoil(this,
         Ext_Math.RotateAngle(TurretRotation, 180));
 
@@ -1243,7 +1244,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     catch (Exception ex)
     {
       Log.Error(
-        $"Exception when firing VehicleTurret: {turretDef.defName} on vehicle: {vehicle}.\nException: {ex}");
+        $"Exception when firing VehicleTurret: {def.defName} on vehicle: {vehicle}.\nException: {ex}");
     }
   }
 
@@ -1252,15 +1253,15 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     ticksSinceLastShot = 0;
     if (CanOverheat)
     {
-      currentHeatRate += turretDef.cooldown.heatPerShot;
+      currentHeatRate += def.cooldown.heatPerShot;
     }
   }
 
   public virtual void InitTurretMotes(Vector3 loc)
   {
-    if (!turretDef.motes.NullOrEmpty())
+    if (!def.motes.NullOrEmpty())
     {
-      foreach (AnimationProperties moteProps in turretDef.motes)
+      foreach (AnimationProperties moteProps in def.motes)
       {
         Vector3 moteLoc = loc;
         if (loc.ShouldSpawnMotesAt(vehicle.Map))
@@ -1316,17 +1317,17 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
 
   private void InitRecoilTrackers()
   {
-    if (turretDef.recoil != null)
+    if (def.recoil != null)
     {
-      recoilTracker = new Turret_RecoilTracker(turretDef.recoil);
+      recoilTracker = new Turret_RecoilTracker(def.recoil);
     }
 
-    if (!turretDef.graphics.NullOrEmpty())
+    if (!def.graphics.NullOrEmpty())
     {
-      recoilTrackers = new Turret_RecoilTracker[turretDef.graphics.Count];
-      for (int i = 0; i < turretDef.graphics.Count; i++)
+      recoilTrackers = new Turret_RecoilTracker[def.graphics.Count];
+      for (int i = 0; i < def.graphics.Count; i++)
       {
-        if (turretDef.graphics[i].recoil is { } recoilProperties)
+        if (def.graphics[i].recoil is { } recoilProperties)
         {
           recoilTrackers[i] = new Turret_RecoilTracker(recoilProperties);
         }
@@ -1403,7 +1404,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   public void AlignToAngleRestricted(float angle)
   {
     float additionalAngle = attachedTo?.TurretRotation ?? 0;
-    if (turretDef.autoSnapTargeting)
+    if (def.autoSnapTargeting)
     {
       TurretRotation = angle - additionalAngle;
       TurretRotationTargeted = rotation;
@@ -1416,18 +1417,18 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
 
   public virtual void ReloadCannon(ThingDef ammo = null, bool ignoreTimer = false)
   {
-    if ((ammo == savedAmmoType || ammo is null) && shellCount == turretDef.magazineCapacity)
+    if ((ammo == savedAmmoType || ammo is null) && shellCount == def.magazineCapacity)
     {
       return;
     }
 
-    if (turretDef.ammunition is null)
+    if (def.ammunition is null)
     {
-      shellCount = turretDef.magazineCapacity;
+      shellCount = def.magazineCapacity;
       return;
     }
 
-    if (loadedAmmo is null || (ammo != null && shellCount < turretDef.magazineCapacity) ||
+    if (loadedAmmo is null || (ammo != null && shellCount < def.magazineCapacity) ||
       shellCount <= 0 || ammo != null)
     {
       if (ReloadInternal(ammo))
@@ -1448,20 +1449,20 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   public virtual bool AutoReloadCannon()
   {
     ThingDef ammoType = vehicle.inventory.innerContainer.FirstOrDefault(t =>
-        turretDef.ammunition.Allows(t) || turretDef.ammunition.Allows(t.def.projectileWhenLoaded))
+        def.ammunition.Allows(t) || def.ammunition.Allows(t.def.projectileWhenLoaded))
     ?.def;
     if (ammoType != null)
     {
       return ReloadInternal(ammoType);
     }
 
-    Debug.Warning($"Failed to auto-reload {turretDef.label}");
+    Debug.Warning($"Failed to auto-reload {def.label}");
     return false;
   }
 
   public void SetMagazineCount(int count)
   {
-    shellCount = Mathf.Clamp(count, 0, turretDef.magazineCapacity);
+    shellCount = Mathf.Clamp(count, 0, def.magazineCapacity);
   }
 
   protected bool ReloadInternal(ThingDef ammo)
@@ -1490,8 +1491,8 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           return false;
         }
 
-        int countToRefill = turretDef.magazineCapacity - shellCount;
-        int countToTake = Mathf.CeilToInt(countToRefill * turretDef.chargePerAmmoCount);
+        int countToRefill = def.magazineCapacity - shellCount;
+        int countToTake = Mathf.CeilToInt(countToRefill * def.chargePerAmmoCount);
         int countRefilled = 0;
 
         thingsToTakeReloading.Clear();
@@ -1502,7 +1503,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
             if (thing.def == storedAmmo.def)
             {
               int availableCount = thing.stackCount -
-                thing.stackCount % Mathf.CeilToInt(turretDef.chargePerAmmoCount);
+                thing.stackCount % Mathf.CeilToInt(def.chargePerAmmoCount);
               int takingFromThing = Mathf.Min(countToTake, availableCount);
               thingsToTakeReloading.Add((thing, takingFromThing));
               countToTake -= takingFromThing;
@@ -1511,7 +1512,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           }
 
           //Quick check to make sure to not even bother removing items from inventory if there is not enough to reload 1 shot minimum
-          if (thingsToTakeReloading.Sum(pair => pair.Item2) < turretDef.chargePerAmmoCount)
+          if (thingsToTakeReloading.Sum(pair => pair.Item2) < def.chargePerAmmoCount)
           {
             return false;
           }
@@ -1519,7 +1520,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           //Take items from inventory without going over the amount required
           for (int i = thingsToTakeReloading.Count - 1; i >= 0; i--)
           {
-            if (thingsToTakeReloading.Sum(pair => pair.Item2) < turretDef.chargePerAmmoCount)
+            if (thingsToTakeReloading.Sum(pair => pair.Item2) < def.chargePerAmmoCount)
             {
               break;
             }
@@ -1532,19 +1533,19 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
         }
         thingsToTakeReloading.Clear();
 
-        if (countRefilled % turretDef.chargePerAmmoCount != 0)
+        if (countRefilled % def.chargePerAmmoCount != 0)
         {
           Log.Warning(
-            $"Taking more than necessary to reload {this}. This is not supposed to occur. CountRefilled={countRefilled} CountNeeded={countToRefill * turretDef.chargePerAmmoCount}");
+            $"Taking more than necessary to reload {this}. This is not supposed to occur. CountRefilled={countRefilled} CountNeeded={countToRefill * def.chargePerAmmoCount}");
         }
 
         loadedAmmo = storedAmmo.def;
-        shellCount = Mathf.CeilToInt(countRefilled / turretDef.chargePerAmmoCount)
-         .Clamp(0, turretDef.magazineCapacity);
+        shellCount = Mathf.CeilToInt(countRefilled / def.chargePerAmmoCount)
+         .Clamp(0, def.magazineCapacity);
         EventRegistry[VehicleTurretEventDefOf.Reload].ExecuteEvents();
-        if (turretDef.reloadSound != null)
+        if (def.reloadSound != null)
         {
-          turretDef.reloadSound.PlayOneShot(new TargetInfo(vehicle.Position, vehicle.Map, false));
+          def.reloadSound.PlayOneShot(new TargetInfo(vehicle.Position, vehicle.Map, false));
         }
       }
     }
@@ -1574,7 +1575,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     if (loadedAmmo != null && shellCount > 0)
     {
       Thing thing = ThingMaker.MakeThing(loadedAmmo);
-      thing.stackCount = Mathf.CeilToInt(shellCount * turretDef.chargePerAmmoCount);
+      thing.stackCount = Mathf.CeilToInt(shellCount * def.chargePerAmmoCount);
       //vehicle.inventory.innerContainer.TryAdd(thing);
       vehicle.AddOrTransfer(thing);
       loadedAmmo = null;
@@ -1587,7 +1588,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
   {
     SoundDefOf.Click.PlayOneShotOnCamera(vehicle.Map);
     currentFireMode++;
-    if (currentFireMode >= turretDef.fireModes.Count)
+    if (currentFireMode >= def.fireModes.Count)
     {
       currentFireMode = 0;
     }
@@ -1718,25 +1719,25 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
 
   public override string ToString()
   {
-    return $"{turretDef}_{GetUniqueLoadID()}";
+    return $"{def}_{GetUniqueLoadID()}";
   }
 
-  public bool ContainsAmmoDefOrShell(ThingDef def)
+  public bool ContainsAmmoDefOrShell(ThingDef ammoDef)
   {
     ThingDef projectile = null;
-    if (def.projectileWhenLoaded != null)
+    if (ammoDef.projectileWhenLoaded != null)
     {
-      projectile = def.projectileWhenLoaded;
+      projectile = ammoDef.projectileWhenLoaded;
     }
 
-    return turretDef.ammunition.Allows(def) || turretDef.ammunition.Allows(projectile);
+    return def.ammunition.Allows(ammoDef) || def.ammunition.Allows(projectile);
   }
 
   public virtual IEnumerable<string> ConfigErrors(VehicleDef vehicleDef)
   {
-    if (turretDef is null)
+    if (def is null)
     {
-      yield return $"<field>turretDef</field> is a required field for <type>VehicleTurret</type>."
+      yield return $"<field>def</field> is a required field for <type>VehicleTurret</type>."
        .ConvertRichText();
     }
 
@@ -1787,7 +1788,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
     Scribe_Values.Look(ref key, nameof(key));
     Scribe_Values.Look(ref upgradeKey, nameof(upgradeKey), forceSave: true);
 
-    Scribe_Defs.Look(ref turretDef, nameof(turretDef));
+    Scribe_Defs.Look(ref def, nameof(def));
 
     Scribe_Values.Look(ref targetPersists, nameof(targetPersists));
     Scribe_Values.Look(ref autoTargeting, nameof(autoTargeting));
@@ -1847,14 +1848,14 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
           ammoCountRect.x += ammoCountRect.width - Text.CalcSize(ammoCount).x;
           Widgets.Label(ammoCountRect, ammoCount);
         }
-        else if (turret.turretDef.genericAmmo && turret.turretDef.ammunition.AllowedDefCount > 0)
+        else if (turret.def.genericAmmo && turret.def.ammunition.AllowedDefCount > 0)
         {
           Widgets.DrawTextureFitted(rect,
-            turret.turretDef.ammunition.AllowedThingDefs.FirstOrDefault().uiIcon, 1);
+            turret.def.ammunition.AllowedThingDefs.FirstOrDefault().uiIcon, 1);
 
           Rect ammoCountRect = new Rect(rect);
           string ammoCount = turret.vehicle.inventory.innerContainer
-           .Where(td => td.def == turret.turretDef.ammunition.AllowedThingDefs.FirstOrDefault())
+           .Where(td => td.def == turret.def.ammunition.AllowedThingDefs.FirstOrDefault())
            .Select(t => t.stackCount).Sum().ToStringSafe();
           ammoCountRect.y += ammoCountRect.height / 2;
           ammoCountRect.x += ammoCountRect.width - Text.CalcSize(ammoCount).x;
@@ -1879,20 +1880,20 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
       canClick: delegate() { return true; },
       onClick: delegate()
       {
-        if (turret.turretDef.ammunition is null)
+        if (turret.def.ammunition is null)
         {
           turret.ReloadCannon();
         }
-        else if (turret.turretDef.genericAmmo)
+        else if (turret.def.genericAmmo)
         {
-          if (!turret.vehicle.inventory.innerContainer.Contains(turret.turretDef.ammunition
+          if (!turret.vehicle.inventory.innerContainer.Contains(turret.def.ammunition
            .AllowedThingDefs.FirstOrDefault()))
           {
             Messages.Message("VF_NoAmmoAvailable".Translate(), MessageTypeDefOf.RejectInput);
           }
           else
           {
-            turret.ReloadCannon(turret.turretDef.ammunition.AllowedThingDefs.FirstOrDefault());
+            turret.ReloadCannon(turret.def.ammunition.AllowedThingDefs.FirstOrDefault());
           }
         }
         else
@@ -1929,7 +1930,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable,
       {
         Widgets.DrawTextureFitted(rect, turret.CurrentFireMode.Icon, 1);
       },
-      canClick: () => turret.turretDef.fireModes.Count > 1,
+      canClick: () => turret.def.fireModes.Count > 1,
       onClick: turret.CycleFireMode,
       tooltip: turret.CurrentFireMode.label
     );

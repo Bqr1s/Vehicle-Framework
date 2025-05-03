@@ -57,7 +57,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     {
       foreach (VehicleTurret turret in turrets)
       {
-        yield return (turret.loadedAmmo, turret.shellCount * turret.turretDef.chargePerAmmoCount);
+        yield return (turret.loadedAmmo, turret.shellCount * turret.def.chargePerAmmoCount);
       }
     }
   }
@@ -129,9 +129,9 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
   {
     if (!turretQuotas.TryGetValue(turret, out int count))
     {
-      count = Mathf.CeilToInt(turret.turretDef.autoRefuelProportion *
-        turret.turretDef.magazineCapacity *
-        turret.turretDef.chargePerAmmoCount);
+      count = Mathf.CeilToInt(turret.def.autoRefuelProportion *
+        turret.def.magazineCapacity *
+        turret.def.chargePerAmmoCount);
     }
 
     return count;
@@ -148,7 +148,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
       foreach (VehicleTurret turret in turrets)
       {
         ThingDef reloadDef = turret.loadedAmmo;
-        reloadDef ??= turret.turretDef.ammunition?.AllowedThingDefs.FirstOrDefault();
+        reloadDef ??= turret.def.ammunition?.AllowedThingDefs.FirstOrDefault();
         if (reloadDef != null)
         {
           int desiredCount = GetQuotaLevel(turret);
@@ -321,8 +321,8 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     if (turrets.Count > 0)
     {
       int turretNumber = 0;
-      var rotatables = turrets.Where(x => x.turretDef.turretType == TurretType.Rotatable);
-      var statics = turrets.Where(x => x.turretDef.turretType == TurretType.Static);
+      var rotatables = turrets.Where(x => x.def.turretType == TurretType.Rotatable);
+      var statics = turrets.Where(x => x.def.turretType == TurretType.Static);
       if (rotatables.NotNullAndAny())
       {
         foreach (VehicleTurret turret in rotatables)
@@ -330,19 +330,19 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
           if (turret.manualTargeting)
           {
             Command_TargeterCooldownAction turretTargeterGizmo =
-              new Command_TargeterCooldownAction
+              new()
               {
                 vehicle = Vehicle,
                 turret = turret,
                 defaultLabel = !string.IsNullOrEmpty(turret.gizmoLabel) ?
                   turret.gizmoLabel :
-                  $"{turret.turretDef.LabelCap} {turretNumber}",
+                  $"{turret.def.LabelCap} {turretNumber}",
                 icon = turret.GizmoIcon,
-                iconDrawScale = turret.turretDef.gizmoIconScale
+                iconDrawScale = turret.def.gizmoIconScale
               };
-            if (!string.IsNullOrEmpty(turret.turretDef.gizmoDescription))
+            if (!string.IsNullOrEmpty(turret.def.gizmoDescription))
             {
-              turretTargeterGizmo.defaultDesc = turret.turretDef.gizmoDescription;
+              turretTargeterGizmo.defaultDesc = turret.def.gizmoDescription;
             }
 
             turretTargeterGizmo.targetingParams = new TargetingParameters
@@ -414,16 +414,16 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
               turret = turret,
               defaultLabel = !string.IsNullOrEmpty(turret.gizmoLabel) ?
                 turret.gizmoLabel :
-                $"{turret.turretDef.LabelCap} {turretNumber}",
+                $"{turret.def.LabelCap} {turretNumber}",
               icon = turret.GizmoIcon,
-              iconDrawScale = turret.turretDef.gizmoIconScale,
-              canReload = turrets.All(t => t.turretDef.ammunition != null)
+              iconDrawScale = turret.def.gizmoIconScale,
+              canReload = turrets.All(t => t.def.ammunition != null)
             };
             turretNumber++;
             newCommand = true;
-            if (!string.IsNullOrEmpty(turret.turretDef.gizmoDescription))
+            if (!string.IsNullOrEmpty(turret.def.gizmoDescription))
             {
-              turretCommand.defaultDesc = turret.turretDef.gizmoDescription;
+              turretCommand.defaultDesc = turret.def.gizmoDescription;
             }
           }
 
@@ -464,17 +464,16 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
 
             if (DebugSettings.ShowDevGizmos)
             {
-              yield return new Command_Action()
+              yield return new Command_Action
               {
                 defaultLabel = $"Full Refill: {turret.gizmoLabel}",
                 action = delegate()
                 {
-                  if (turret.turretDef.ammunition is null)
+                  if (turret.def.ammunition is null)
                   {
-                    turret.ReloadCannon(null);
+                    turret.ReloadCannon();
                   }
-                  else if (turret.turretDef.ammunition?.AllowedThingDefs.FirstOrDefault() is
-                    ThingDef thingDef)
+                  else if (turret.def.ammunition?.AllowedThingDefs.FirstOrDefault() is { } thingDef)
                   {
                     Thing ammo = ThingMaker.MakeThing(thingDef);
                     ammo.stackCount = thingDef.stackLimit;
@@ -615,11 +614,11 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
 
   private void DevModeReloadTurret(VehicleTurret turret)
   {
-    if (turret.turretDef.ammunition is null)
+    if (turret.def.ammunition is null)
     {
       turret.ReloadCannon(null);
     }
-    else if (turret.turretDef.ammunition.AllowedThingDefs.FirstOrDefault() is ThingDef thingDef)
+    else if (turret.def.ammunition.AllowedThingDefs.FirstOrDefault() is ThingDef thingDef)
     {
       Thing ammo = ThingMaker.MakeThing(thingDef);
 
@@ -650,7 +649,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
       for (int i = tickers.Count - 1; i >= 0; i--)
       {
         VehicleTurret turret = tickers[i];
-        if (Vehicle.stances.stunner.Stunned && turret.turretDef.empDisables)
+        if (Vehicle.stances.stunner.Stunned && turret.def.empDisables)
         {
           continue;
         }
@@ -672,7 +671,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
   {
     foreach (VehicleTurret cannon in turrets)
     {
-      if (cannon.shellCount < Mathf.CeilToInt(cannon.turretDef.magazineCapacity / 4f) &&
+      if (cannon.shellCount < Mathf.CeilToInt(cannon.def.magazineCapacity / 4f) &&
         (!cannon.TargetLocked || cannon.shellCount <= 0))
       {
         cannon.AutoReloadCannon();
@@ -785,7 +784,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
         catch (Exception ex)
         {
           SmashLog.Error(
-            $"Exception thrown while attempting to generate <text>{turret.turretDef.label}</text> " +
+            $"Exception thrown while attempting to generate <text>{turret.def.label}</text> " +
             $"for <text>{Vehicle.Label}</text>. Exception=\"{ex}\"");
         }
       }

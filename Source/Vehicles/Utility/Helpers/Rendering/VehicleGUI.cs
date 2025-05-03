@@ -13,12 +13,9 @@ namespace Vehicles.Rendering;
 [StaticConstructorOnStartup]
 public static class VehicleGui
 {
-  private const int ImageSizeTiny = 128;
-  private const int ImageSizeSmall = 256;
-  private const int ImageSizeMedium = 512;
-  private const int ImageSizeLarge = 1024;
+  private const float OversampleFactor = 3f;
 
-  private const float IdlerTimeExpiry = 5; // seconds
+  private const float IdlerTimeExpiry = 10; // seconds
 
   private static readonly List<VehicleTurret> allTurrets = [];
   private static readonly List<GraphicOverlay> allOverlays = [];
@@ -30,16 +27,35 @@ public static class VehicleGui
     gizmoTextures = new RenderTextureIdler[DefDatabase<VehicleDef>.DefCount];
   }
 
-  public static RenderTexture GetTexture(ImageSize size)
+  private static (int width, int height) GetOptimalTextureSize(Rect rect, in BlitRequest request,
+    float oversampleFactor)
   {
-    return size switch
+    (int width, int height) max = (0, 0);
+    foreach (IBlitTarget blitTarget in request.blitTargets)
     {
-      ImageSize.Tiny   => CreateRenderTexture(ImageSizeTiny),
-      ImageSize.Small  => CreateRenderTexture(ImageSizeSmall),
-      ImageSize.Medium => CreateRenderTexture(ImageSizeMedium),
-      ImageSize.Large  => CreateRenderTexture(ImageSizeLarge),
-      _                => throw new NotImplementedException(nameof(ImageSize))
-    };
+      (int width, int height) texSize = blitTarget.TextureSize(in request);
+      if (texSize.width * texSize.height > max.width * max.height)
+        max = texSize;
+    }
+    int sampledWidth = Mathf.Min(Mathf.RoundToInt(rect.width * oversampleFactor), max.width);
+    int sampledHeight = Mathf.Min(Mathf.RoundToInt(rect.width * oversampleFactor), max.width);
+    return (sampledWidth, sampledHeight);
+  }
+
+  public static RenderTexture CreateRenderTexture(Rect rect, in BlitRequest request,
+    float oversampleFactor = OversampleFactor)
+  {
+    (int width, int height) = GetOptimalTextureSize(rect, in request, oversampleFactor);
+    return RenderTextureUtil.CreateRenderTexture(width, height);
+  }
+
+  public static RenderTextureBuffer CreateRenderTextureBuffer(Rect rect, in BlitRequest request,
+    float oversampleFactor = OversampleFactor)
+  {
+    (int width, int height) = GetOptimalTextureSize(rect, in request, oversampleFactor);
+    RenderTexture rtA = RenderTextureUtil.CreateRenderTexture(width, height);
+    RenderTexture rtB = RenderTextureUtil.CreateRenderTexture(width, height);
+    return new RenderTextureBuffer(rtA, rtB);
   }
 
   private static void AddRenderData(ref readonly RenderData renderData)
@@ -50,13 +66,6 @@ public static class VehicleGui
       TextureDrawer.Add(renderData);
     else
       throw new InvalidOperationException();
-  }
-
-  private static RenderTexture CreateRenderTexture(int size)
-  {
-    RenderTexture rt = new(size, size, 0, RenderTextureFormat.ARGBFloat.OrNextSupportedFormat());
-    rt.Create();
-    return rt;
   }
 
   private static BlitData GetBlitData(Rect rect, VehicleDef vehicleDef,
@@ -104,7 +113,8 @@ public static class VehicleGui
     return new BlitData(adjustedRect, mainTex, material, rotDrawn, pattern);
   }
 
-  public static void Blit(RenderTexture renderTexture, Rect rect, in BlitRequest request)
+  public static void Blit(RenderTexture renderTexture, Rect rect, in BlitRequest request,
+    float iconScale = 1)
   {
     RenderTextureDrawer.Open(renderTexture);
     try
@@ -116,7 +126,7 @@ public static class VehicleGui
           RenderTextureDrawer.Add(renderData);
         }
       }
-      RenderTextureDrawer.Draw(rect);
+      RenderTextureDrawer.Draw(rect, scale: iconScale);
     }
     finally
     {
@@ -222,7 +232,7 @@ public static class VehicleGui
           Graphic_Turret graphic = turretDrawData.graphic;
           bool canMask = graphic.Shader.SupportsMaskTex() || graphic.Shader.SupportsRGBMaskTex();
           Material material = canMask ? graphic.MatAtFull(Rot8.North) : null;
-          if (canMask && turret.turretDef.matchParentColor)
+          if (canMask && turret.def.matchParentColor)
           {
             RGBMaterialPool.SetProperties(turretDrawData, patternData, graphic.TexAt,
               graphic.MaskAt);
@@ -250,7 +260,7 @@ public static class VehicleGui
     bool canMask = turret.Graphic.Shader.SupportsMaskTex() ||
       turret.Graphic.Shader.SupportsRGBMaskTex();
     Material material = canMask ? turret.Material : null;
-    if (canMask && turret.turretDef.matchParentColor)
+    if (canMask && turret.def.matchParentColor)
     {
       RGBMaterialPool.SetProperties(turret, patternData, graphic.TexAt, graphic.MaskAt);
     }
@@ -332,10 +342,10 @@ public static class VehicleGui
     RenderTextureIdler rtIdler = gizmoTextures[vehicleDef.DefIndex];
     if (rtIdler == null || rtIdler.Disposed)
     {
-      rtIdler = new RenderTextureIdler(CreateRenderTexture(ImageSizeMedium), IdlerTimeExpiry);
+      BlitRequest request = BlitRequest.For(vehicleDef) with { patternData = defaultPatternData };
+      rtIdler = new RenderTextureIdler(CreateRenderTexture(buttonRect, request), IdlerTimeExpiry);
       gizmoTextures[vehicleDef.DefIndex] = rtIdler;
-      Blit(rtIdler.GetWrite(), buttonRect,
-        BlitRequest.For(vehicleDef) with { patternData = defaultPatternData });
+      Blit(rtIdler.GetWrite(), buttonRect, request);
     }
     GUI.DrawTexture(buttonRect, rtIdler.Read);
     GUI.color = Color.white;
@@ -444,13 +454,5 @@ public static class VehicleGui
     public readonly Material material = material;
     public readonly Rot8 rot = rot;
     public readonly PatternData patternData = patternData;
-  }
-
-  public enum ImageSize
-  {
-    Tiny,
-    Small,
-    Medium,
-    Large
   }
 }

@@ -544,7 +544,7 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
         for (int i = 0; i < turrets.Count; i++)
         {
           VehicleTurret turret = turrets[i];
-          foreach (VehicleStatDrawEntry statDrawEntry in turret.turretDef.SpecialDisplayStats(
+          foreach (VehicleStatDrawEntry statDrawEntry in turret.def.SpecialDisplayStats(
             VehicleStatCategoryDefOf.VehicleTurrets.displayOrder + i))
           {
             yield return statDrawEntry;
@@ -638,11 +638,19 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     return null;
   }
 
+  (int width, int height) IBlitTarget.TextureSize(in BlitRequest request)
+  {
+    Graphic_Vehicle graphicVehicle = graphicData.Graphic as Graphic_Vehicle;
+    Assert.IsNotNull(graphicVehicle);
+    Texture2D mainTex = graphicVehicle.TexAt(request.rot);
+    return mainTex != null ? (mainTex.width, mainTex.height) : (0, 0);
+  }
+
   IEnumerable<RenderData> IBlitTarget.GetRenderData(Rect rect, BlitRequest request)
   {
-    Vector2 rectSize = request.vehicleDef.ScaleDrawRatio(rect.size);
+    Vector2 rectSize = ScaleDrawRatio(rect.size);
     bool elongated = request.rot.IsHorizontal || request.rot.IsDiagonal;
-    Vector2 displayOffset = request.vehicleDef.drawProperties.DisplayOffsetForRot(request.rot);
+    Vector2 displayOffset = drawProperties.DisplayOffsetForRot(request.rot);
     float scaledWidth = rectSize.x;
     float scaledHeight = rectSize.y;
     if (elongated)
@@ -655,7 +663,7 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
 
     Rect adjustedRect = new(rect.x + offsetX, rect.y + offsetY, scaledWidth, scaledHeight);
 
-    Graphic_Vehicle graphicVehicle = request.vehicleDef.graphicData.Graphic as Graphic_Vehicle;
+    Graphic_Vehicle graphicVehicle = graphicData.Graphic as Graphic_Vehicle;
     Assert.IsNotNull(graphicVehicle);
 
     Texture2D mainTex = graphicVehicle.TexAt(request.rot);
@@ -664,8 +672,8 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     Material material = null;
     if (graphicVehicle.Shader.SupportsRGBMaskTex())
     {
-      material = RGBMaterialPool.Get(request.vehicleDef, request.rot);
-      RGBMaterialPool.SetProperties(request.vehicleDef, request.patternData, graphicVehicle.TexAt,
+      material = RGBMaterialPool.Get(this, request.rot);
+      RGBMaterialPool.SetProperties(this, request.patternData, graphicVehicle.TexAt,
         graphicVehicle.MaskAt);
     }
     yield return new RenderData(adjustedRect, mainTex, material, PropertyBlock, 0, 0);

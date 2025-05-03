@@ -92,7 +92,7 @@ public partial class VehicleTurret
     switch (phase)
     {
       case DrawPhase.EnsureInitialized:
-        if (!turretDef.graphics.NullOrEmpty())
+        if (!def.graphics.NullOrEmpty())
           subGraphicResults = [];
         break;
       case DrawPhase.ParallelPreDraw:
@@ -202,14 +202,14 @@ public partial class VehicleTurret
   {
     // Scale to VehicleDef drawSize, vehicle will scale based on max dimension
     Vector2 size =
-      vehicleDef.ScaleDrawRatio(turretDef.graphicData, rot, rect.size, iconScale: iconScale);
+      vehicleDef.ScaleDrawRatio(def.graphicData, rot, rect.size, iconScale: iconScale);
     float scalar = rect.width /
       Mathf.Max(vehicleDef.graphicData.drawSize.x, vehicleDef.graphicData.drawSize.y);
 
     Vector2 offset = renderProperties.OffsetFor(rot) * scalar;
     offset.y *= -1;
 
-    Vector3 graphicOffset = turretDef.graphicData.DrawOffsetForRot(rot);
+    Vector3 graphicOffset = def.graphicData.DrawOffsetForRot(rot);
     Vector2 baseOffset = new Vector2(graphicOffset.x, graphicOffset.z) * scalar;
 
     Vector2 position = rect.center + baseOffset + offset;
@@ -226,15 +226,20 @@ public partial class VehicleTurret
     return new Rect(position - size / 2, size);
   }
 
+  (int width, int height) IBlitTarget.TextureSize(in BlitRequest request)
+  {
+    return Texture != null ? (Texture.width, Texture.height) : (0, 0);
+  }
+
   IEnumerable<RenderData> IBlitTarget.GetRenderData(Rect rect, BlitRequest request)
   {
     if (!NoGraphic)
     {
       Rect turretRect =
-        VehicleGraphics.TurretRect(rect, vehicleDef, this, request.rot, iconScale: request.scale);
+        VehicleGraphics.TurretRect(rect, vehicleDef, this, request.rot);
       bool canMask = Graphic.Shader.SupportsMaskTex() || Graphic.Shader.SupportsRGBMaskTex();
       Material material = canMask ? Material : null;
-      if (canMask && turretDef.matchParentColor)
+      if (canMask && def.matchParentColor)
       {
         RGBMaterialPool.SetProperties(this, request.patternData, Graphic.TexAt, Graphic.MaskAt);
       }
@@ -250,7 +255,7 @@ public partial class VehicleTurret
         Graphic_Turret graphic = turretDrawData.graphic;
         bool canMask = graphic.Shader.SupportsMaskTex() || graphic.Shader.SupportsRGBMaskTex();
         Material material = canMask ? graphic.MatAtFull(Rot8.North) : null;
-        if (canMask && turretDef.matchParentColor)
+        if (canMask && def.matchParentColor)
         {
           RGBMaterialPool.SetProperties(turretDrawData, request.patternData, graphic.TexAt,
             graphic.MaskAt);
@@ -294,7 +299,7 @@ public partial class VehicleTurret
         VehicleGraphics.DrawAngleLines(TurretLocation, angleRestricted, MinRange, MaxRange,
           restrictedTheta, attachedTo?.TurretRotation ?? vehicle.FullRotation.AsAngle);
       }
-      else if (turretDef.turretType == TurretType.Static)
+      else if (def.turretType == TurretType.Static)
       {
         if (!groupKey.NullOrEmpty())
         {
@@ -304,7 +309,7 @@ public partial class VehicleTurret
               turret.TurretLocation.PointFromAngle(turret.MaxRange, turret.TurretRotation);
             float range = Vector3.Distance(turret.TurretLocation, target);
             GenDraw.DrawRadiusRing(target.ToIntVec3(),
-              turret.CurrentFireMode.spreadRadius * (range / turret.turretDef.maxRange));
+              turret.CurrentFireMode.spreadRadius * (range / turret.def.maxRange));
           }
         }
         else
@@ -312,7 +317,7 @@ public partial class VehicleTurret
           Vector3 target = TurretLocation.PointFromAngle(MaxRange, TurretRotation);
           float range = Vector3.Distance(TurretLocation, target);
           GenDraw.DrawRadiusRing(target.ToIntVec3(),
-            CurrentFireMode.spreadRadius * (range / turretDef.maxRange));
+            CurrentFireMode.spreadRadius * (range / def.maxRange));
         }
       }
       else
@@ -391,9 +396,9 @@ public partial class VehicleTurret
 
     if (cachedGraphicData is null || forceRegen)
     {
-      cachedGraphic = GenerateGraphicData(this, this, turretDef.graphicData, patternData,
+      cachedGraphic = GenerateGraphicData(this, this, def.graphicData, patternData,
         ref cachedGraphicData);
-      if (!turretDef.graphics.NullOrEmpty())
+      if (!def.graphics.NullOrEmpty())
       {
         SetLayerGraphics(patternData);
       }
@@ -410,15 +415,15 @@ public partial class VehicleTurret
     if (turretGraphics.NullOrEmpty())
     {
       turretGraphics ??= [];
-      foreach (VehicleTurretRenderData renderData in turretDef.graphics)
+      foreach (VehicleTurretRenderData renderData in def.graphics)
       {
         turretGraphics.Add(new TurretDrawData(this, renderData));
       }
     }
 
-    for (int i = 0; i < turretDef.graphics.Count; i++)
+    for (int i = 0; i < def.graphics.Count; i++)
     {
-      VehicleTurretRenderData renderData = turretDef.graphics[i];
+      VehicleTurretRenderData renderData = def.graphics[i];
       TurretDrawData drawData = TurretGraphics[i];
       drawData.Set(renderData.graphicData, patternData);
     }
@@ -434,7 +439,7 @@ public partial class VehicleTurret
     if ((cachedGraphicData.shaderType.Shader.SupportsMaskTex() ||
       cachedGraphicData.shaderType.Shader.SupportsRGBMaskTex()))
     {
-      if (turret.turretDef.matchParentColor)
+      if (turret.def.matchParentColor)
       {
         cachedGraphicData.CopyDrawData(patternData);
       }
@@ -479,7 +484,7 @@ public partial class VehicleTurret
 
     public PatternDef PatternDef => turret.PatternDef;
 
-    public string Name => $"{turret.turretDef}_{turret.key}_{turret.vehicle?.ThingID ?? "Def"}";
+    public string Name => $"{turret.def}_{turret.key}_{turret.vehicle?.ThingID ?? "Def"}";
 
     // TurretDrawData is already created on the main thread
     public MaterialPropertyBlock PropertyBlock { get; } = new();

@@ -157,9 +157,9 @@ public static class VehicleHarmony
       }
     }
 
-    foreach (VehicleTurretDef turretDef in DefDatabase<VehicleTurretDef>.AllDefsListForReading)
+    foreach (VehicleTurretDef def in DefDatabase<VehicleTurretDef>.AllDefsListForReading)
     {
-      turretDef.PostDefDatabase();
+      def.PostDefDatabase();
     }
   }
 

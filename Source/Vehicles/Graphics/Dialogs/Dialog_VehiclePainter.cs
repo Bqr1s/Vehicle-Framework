@@ -5,7 +5,6 @@ using RimWorld;
 using SmashTools;
 using SmashTools.Rendering;
 using UnityEngine;
-using UnityEngine.Assertions;
 using Vehicles.Rendering;
 using Verse;
 using Verse.Sound;
@@ -13,7 +12,7 @@ using Verse.Sound;
 namespace Vehicles;
 
 [StaticConstructorOnStartup]
-public class Dialog_ColorPicker : Window
+public class Dialog_VehiclePainter : Window
 {
   private const float ButtonWidth = 90f;
   private const float ButtonHeight = 30f;
@@ -22,11 +21,18 @@ public class Dialog_ColorPicker : Window
 
   private const float SwitchSize = 60f;
 
+  private const float FrameSpacing = 2;
+  private const float FramePadding = 2;
+
   private const int GridDimensionColumns = 2;
   private const int GridDimensionRows = 2;
   private const int SampleCount = GridDimensionColumns * GridDimensionRows;
 
-  private static readonly Color grey = new(0.2f, 0.2f, 0.2f);
+  // Widgets::WindowBGFillColor const
+  private static readonly Color windowBGBorderColor = new ColorInt(97, 108, 122).ToColor;
+
+  // Widgets::MenuSectionBGBorderColor
+  private static readonly Color menuSectionBGBorderColor = new ColorInt(135, 135, 135).ToColor;
 
   private int pageNumber;
   private int pageCount;
@@ -73,12 +79,12 @@ public class Dialog_ColorPicker : Window
   public delegate void SaveColor(Color r, Color g, Color b, PatternDef pattern,
     Vector2 displacement, float tiles);
 
-  private Dialog_ColorPicker(VehicleDef vehicleDef)
+  private Dialog_VehiclePainter(VehicleDef vehicleDef)
   {
     VehicleDef = vehicleDef;
   }
 
-  private Dialog_ColorPicker(VehiclePawn vehicle) : this(vehicle.VehicleDef)
+  private Dialog_VehiclePainter(VehiclePawn vehicle) : this(vehicle.VehicleDef)
   {
     Vehicle = vehicle;
   }
@@ -131,7 +137,7 @@ public class Dialog_ColorPicker : Window
   /// <param name="onSave"></param>
   public static void OpenColorPicker(VehiclePawn vehicle, SaveColor onSave)
   {
-    Dialog_ColorPicker colorPickerDialog = new(vehicle)
+    Dialog_VehiclePainter colorPickerDialog = new(vehicle)
     {
       OnSave = onSave,
       PatternData = new PatternData(vehicle)
@@ -144,7 +150,7 @@ public class Dialog_ColorPicker : Window
   /// </summary>
   public static void OpenColorPicker(VehicleDef vehicleDef, SaveColor onSave)
   {
-    Dialog_ColorPicker colorPickerDialog = new(vehicleDef)
+    Dialog_VehiclePainter colorPickerDialog = new(vehicleDef)
     {
       OnSave = onSave,
       PatternData =
@@ -155,7 +161,7 @@ public class Dialog_ColorPicker : Window
     Open(colorPickerDialog);
   }
 
-  private static void Open(Dialog_ColorPicker colorPickerDialog)
+  private static void Open(Dialog_VehiclePainter colorPickerDialog)
   {
     colorPickerDialog.Init();
     Find.WindowStack.Add(colorPickerDialog);
@@ -174,18 +180,6 @@ public class Dialog_ColorPicker : Window
     forcePause = true;
     absorbInputAroundWindow = true;
 
-    previewBuffer = new RenderTextureBuffer(
-      VehicleGui.GetTexture(VehicleGui.ImageSize.Large),
-      VehicleGui.GetTexture(VehicleGui.ImageSize.Large)
-    );
-    for (int i = 0; i < SampleCount; i++)
-    {
-      sampleBuffers.Add(new RenderTextureBuffer(
-        VehicleGui.GetTexture(VehicleGui.ImageSize.Medium),
-        VehicleGui.GetTexture(VehicleGui.ImageSize.Medium)
-      ));
-    }
-    Assert.AreEqual(sampleBuffers.Count, SampleCount);
     // Setting initial rotation will also dirty the render textures
     DisplayRotation = VehicleDef.drawProperties.displayRotation;
     RecacheAvailablePatterns();
@@ -228,8 +222,11 @@ public class Dialog_ColorPicker : Window
   {
     base.PostClose();
 
+    // For some reason, OnGUI can still end up executing for 1 more frame after PostClose is called,
+    // which results in null textures being accessed. We can just skip this last frame.
     IsClosing = true;
-    previewBuffer.Dispose();
+    CustomCursor.Deactivate();
+    previewBuffer?.Dispose();
     foreach (RenderTextureBuffer buffer in sampleBuffers)
     {
       buffer.Dispose();
@@ -306,19 +303,15 @@ public class Dialog_ColorPicker : Window
     // Begin Group
     Widgets.BeginGroup(displayRect);
     Rect vehicleRect = displayRect.AtZero();
-    Widgets.DrawBoxSolidWithOutline(vehicleRect, Color.grey, Color.red);
+    Widgets.DrawBoxSolidWithOutline(vehicleRect, Widgets.WindowBGFillColor, windowBGBorderColor);
+    vehicleRect = vehicleRect.ContractedBy(FramePadding);
     if (previewDirty)
     {
-      if (Vehicle != null)
-      {
-        VehicleGui.Blit(previewBuffer.GetWrite(), vehicleRect,
-          BlitRequest.For(Vehicle) with { patternData = patternData, rot = DisplayRotation });
-      }
-      else
-      {
-        VehicleGui.Blit(previewBuffer.GetWrite(), vehicleRect,
-          BlitRequest.For(VehicleDef) with { patternData = patternData, rot = DisplayRotation });
-      }
+      BlitRequest request = Vehicle != null ?
+        BlitRequest.For(Vehicle) with { patternData = patternData, rot = DisplayRotation } :
+        BlitRequest.For(VehicleDef) with { patternData = patternData, rot = DisplayRotation };
+      previewBuffer ??= VehicleGui.CreateRenderTextureBuffer(vehicleRect, request);
+      VehicleGui.Blit(previewBuffer.GetWrite(), vehicleRect, request);
       previewDirty = false;
     }
     // NOTE - We draw after any dirtying occurs so if the buffer performed a swap, we'll be drawing
@@ -416,7 +409,9 @@ public class Dialog_ColorPicker : Window
 
   private void DrawPaintSelection(Rect paintRect)
   {
-    Widgets.DrawBoxSolid(paintRect, grey);
+    const float PaginationBarHeight = ButtonHeight * 0.75f;
+
+    Widgets.DrawMenuSection(paintRect);
 
     string patternsLabel = "VF_Patterns".Translate();
     string skinsLabel = "VF_Skins".Translate();
@@ -437,23 +432,24 @@ public class Dialog_ColorPicker : Window
       showPatterns ? VehicleTex.SwitchLeft : VehicleTex.SwitchRight))
     {
       showPatterns = !showPatterns;
+      RecacheAvailablePatterns();
+      SetRenderTexturesDirty();
       SoundDefOf.Click.PlayOneShotOnCamera();
     }
 
     switchRect.x = toggleRect.xMax;
     UIElements.DrawLabel(switchRect, skinsLabel, Color.clear, skinLabelColor, GameFont.Small);
 
-    Rect outRect = paintRect;
+    Rect outRect = paintRect with
+    {
+      yMin = switchRect.yMax, yMax = paintRect.yMax - PaginationBarHeight
+    };
     outRect = outRect.ContractedBy(10f);
-    float gridSize = outRect.width / GridDimensionColumns;
+    float gridSize = Mathf.Min(outRect.width, outRect.height) / GridDimensionColumns;
 
-    int startingIndex = (pageNumber - 1) * (GridDimensionColumns * GridDimensionRows);
-    int maxIndex =
-      (pageNumber * GridDimensionColumns * GridDimensionRows).Clamp(0, AvailablePatterns.Count);
-    int iteration = 0;
     Rect displayRect = new(0, 0, gridSize, gridSize);
     Rect paginationRect = new(paintRect.x + 5, paintRect.y + paintRect.height - ButtonHeight,
-      paintRect.width - 10, ButtonHeight * 0.75f);
+      paintRect.width - 10, PaginationBarHeight);
     if (pageCount > 1)
     {
       if (UIHelper.DrawPagination(paginationRect, ref pageNumber, pageCount))
@@ -462,6 +458,10 @@ public class Dialog_ColorPicker : Window
       }
     }
 
+    int startingIndex = (pageNumber - 1) * (GridDimensionColumns * GridDimensionRows);
+    int maxIndex =
+      (pageNumber * GridDimensionColumns * GridDimensionRows).Clamp(0, AvailablePatterns.Count);
+    int iteration = 0;
     for (int i = startingIndex; i < maxIndex; i++, iteration++)
     {
       PatternDef pattern = AvailablePatterns[i];
@@ -475,21 +475,20 @@ public class Dialog_ColorPicker : Window
       Widgets.BeginGroup(displayRect);
       Rect vehicleRect = displayRect.AtZero();
       int sampleIdx = i - startingIndex;
+      //Widgets.DrawMenuSection(vehicleRect.ContractedBy(FrameSpacing));
+      vehicleRect = vehicleRect.ContractedBy(FramePadding);
       if (samplesDirty[sampleIdx])
       {
-        if (Vehicle != null)
-        {
-          VehicleGui.Blit(sampleBuffers[sampleIdx].GetWrite(), vehicleRect,
-            BlitRequest.For(Vehicle) with { patternData = patternData, rot = DisplayRotation });
-        }
-        else
-        {
-          VehicleGui.Blit(sampleBuffers[sampleIdx].GetWrite(), vehicleRect,
-            BlitRequest.For(VehicleDef) with
-            {
-              patternData = patternData, rot = DisplayRotation
-            });
-        }
+        BlitRequest blitRequest = Vehicle != null ?
+          BlitRequest.For(Vehicle) with { patternData = patternData, rot = DisplayRotation } :
+          BlitRequest.For(VehicleDef) with
+          {
+            patternData = patternData,
+            rot = DisplayRotation
+          };
+        if (sampleBuffers.OutOfBounds(sampleIdx))
+          sampleBuffers.Add(VehicleGui.CreateRenderTextureBuffer(vehicleRect, blitRequest));
+        VehicleGui.Blit(sampleBuffers[sampleIdx].GetWrite(), vehicleRect, blitRequest);
         samplesDirty[sampleIdx] = false;
       }
       GUI.DrawTexture(vehicleRect, sampleBuffers[sampleIdx].Read);
@@ -517,7 +516,7 @@ public class Dialog_ColorPicker : Window
     colorRect.y = SwitchSize / 2 + 5f;
     colorRect.height = colorContainerRect.height - SwitchSize;
 
-    Widgets.DrawBoxSolid(colorContainerRect, grey);
+    Widgets.DrawMenuSection(colorContainerRect);
 
     string c1Text = "VF_ColorOne".Translate().ToString();
     string c2Text = "VF_ColorTwo".Translate().ToString();
@@ -628,7 +627,7 @@ public class Dialog_ColorPicker : Window
   private void DrawColorPalette(Rect rect)
   {
     List<(Color, Color, Color)> palettes = VehicleMod.settings.colorStorage.colorPalette;
-    Widgets.DrawBoxSolid(rect, grey);
+    Widgets.DrawMenuSection(rect);
 
     rect = rect.ContractedBy(5);
 
