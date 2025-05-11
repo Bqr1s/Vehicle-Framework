@@ -7,6 +7,7 @@ using LudeonTK;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using SmashTools.Debugging;
 using UnityEngine;
 using Verse;
 
@@ -90,7 +91,7 @@ namespace Vehicles
       if (!Recalculating && allPathCostsRecalculatedDayOfYear != DayOfYearAt0Long)
       {
 #if DEV_TOOLS
-        if (!VehicleHarmony.RunningUnitTests)
+        if (!TestWatcher.RunningUnitTests)
           RunTaskRecalculateAllPathCosts();
         else
           RecalculateAllPerceivedPathCosts();

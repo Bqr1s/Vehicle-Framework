@@ -242,7 +242,7 @@ namespace Vehicles
 					return false;
 				}
 				
-				vehicleAssigned.Add(nextToAssign, (vehicle, vehicle.NextAvailableHandler(HandlingTypeFlags.Movement)));
+				vehicleAssigned.Add(nextToAssign, (vehicle, vehicle.NextAvailableHandler(HandlingType.Movement)));
 
 				iterations++;
 			}

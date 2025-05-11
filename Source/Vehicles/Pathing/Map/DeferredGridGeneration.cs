@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using LudeonTK;
 using RimWorld;
@@ -16,6 +17,8 @@ public class DeferredGridGeneration
   private readonly VehicleMapping mapping;
 
   private readonly GridCounter pathGridCounter = new();
+
+  private bool PassDisabled { get; set; }
 
   public DeferredGridGeneration(VehicleMapping mapping)
   {
@@ -115,7 +118,7 @@ public class DeferredGridGeneration
   /// Runs DoIncrementalPass multiple times to reach minimum days unused for removal on all unused
   /// vehicles.
   /// </summary>
-  public void DoPass()
+  internal void DoPass()
   {
     for (int i = 0; i < DaysUnusedForRemoval; i++)
     {
@@ -123,7 +126,7 @@ public class DeferredGridGeneration
     }
   }
 
-  public void DoPassExpectClear()
+  internal void DoPassExpectClear()
   {
     DoPass();
     Assert.IsTrue(
@@ -134,8 +137,11 @@ public class DeferredGridGeneration
         def => mapping[def].Suspended));
   }
 
-  public void DoIncrementalPass()
+  internal void DoIncrementalPass()
   {
+    if (PassDisabled)
+      return;
+
     Assert.IsTrue(pathGridCounter.Count == 0);
     foreach (Pawn pawn in mapping.map.mapPawns.AllPawns)
     {
@@ -304,6 +310,22 @@ public class DeferredGridGeneration
     public void OnPassComplete()
     {
       activelyUsed.Clear();
+    }
+  }
+
+  public readonly struct PassDisabler : IDisposable
+  {
+    private readonly DeferredGridGeneration gridGeneration;
+
+    public PassDisabler(DeferredGridGeneration gridGeneration)
+    {
+      this.gridGeneration = gridGeneration;
+      this.gridGeneration.PassDisabled = true;
+    }
+
+    void IDisposable.Dispose()
+    {
+      gridGeneration.PassDisabled = false;
     }
   }
 

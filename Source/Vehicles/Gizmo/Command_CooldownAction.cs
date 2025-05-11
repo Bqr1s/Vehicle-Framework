@@ -64,7 +64,7 @@ public class Command_CooldownAction : Command_Turret
 
     Rect gizmoRect = new(rect.x, rect.y, rect.height, rect.height);
     float gizmoWidth = DrawGizmoButton(gizmoRect, cooldownMaterial, out bool mouseOver,
-      out bool ammoLoaded, out bool fireTurret, out bool haltTurret);
+      out _, out bool fireTurret, out bool haltTurret);
 
     Text.Font = GameFont.Small;
 
@@ -175,11 +175,15 @@ public class Command_CooldownAction : Command_Turret
       Rect gizmoRect = rect.AtZero();
       // top right
       Rect subIconRect = new(gizmoRect.xMax - SubIconSize, gizmoRect.y, SubIconSize, SubIconSize);
-      if ((turret.loadedAmmo is null || turret.shellCount <= 0) &&
-        turret.def.ammunition != null)
+      if ((turret.loadedAmmo is null || turret.shellCount <= 0) && turret.def.ammunition != null)
       {
-        disabledReason += "VF_NoAmmoLoadedTurret".Translate();
+        Disable("VF_NoAmmoLoadedTurret".Translate());
         ammoLoaded = false;
+      }
+      else if (turret.ProjectileDef is { projectile.flyOverhead: true } &&
+        vehicle.Position.Roofed(vehicle.Map))
+      {
+        Disable($"{"CannotFire".Translate()}: {"Roofed".Translate().CapitalizeFirst()}");
       }
       else if (!turret.OnCooldown && Mouse.IsOver(gizmoRect) &&
         (!Mouse.IsOver(subIconRect) || !turret.targetInfo.IsValid))
@@ -206,13 +210,17 @@ public class Command_CooldownAction : Command_Turret
         if (!turret.def.gizmoIconTexPath.NullOrEmpty())
         {
           Widgets.BeginGroup(turretRect);
-          Rect iconRect = turretRect.AtZero().ExpandedBy(turretRect.width * (iconDrawScale - 1));
+          Rect iconRect = turretRect.AtZero()
+           .ExpandedBy(turretRect.width * (turret.def.gizmoIconScale * iconDrawScale - 1));
           UIElements.DrawTextureWithMaterialOnGUI(iconRect, turret.GizmoIcon, null, 0);
           Widgets.EndGroup();
         }
         else
         {
-          if (textureDirty)
+          if (rtIdler is { Disposed: true })
+            rtIdler = null;
+
+          if (textureDirty || rtIdler == null)
           {
             BlitRequest request = new(vehicle)
               { rot = Rot8.North };
@@ -220,7 +228,7 @@ public class Command_CooldownAction : Command_Turret
             rtIdler ??= new RenderTextureIdler(VehicleGui.CreateRenderTexture(turretRect, request),
               IdlerExpiryTime);
             VehicleGui.Blit(rtIdler.GetWrite(), turretRect, request,
-              iconScale: turret.def.gizmoIconScale);
+              iconScale: turret.def.gizmoIconScale * iconDrawScale, forceCentering: false);
             textureDirty = false;
           }
           GUI.DrawTexture(turretRect, rtIdler.Read);

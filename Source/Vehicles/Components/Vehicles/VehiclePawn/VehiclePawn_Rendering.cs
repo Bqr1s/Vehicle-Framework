@@ -229,7 +229,7 @@ public partial class VehiclePawn
     get
     {
       return patternData.patternDef ?? VehicleMod.settings.vehicles.defaultGraphics
-         .TryGetValue(VehicleDef.defName, VehicleGraphic.DataRGB)?.patternDef ??
+         .TryGetValue(VehicleDef.defName, VehicleGraphic.DataRgb)?.patternDef ??
         PatternDefOf.Default;
     }
     set { patternData.patternDef = value; }
@@ -330,7 +330,7 @@ public partial class VehiclePawn
             result.z += 0.5f;
           }
 
-          break;
+        break;
         case 1:
         case 3:
           if (size.x % 2 == 0)
@@ -343,7 +343,7 @@ public partial class VehiclePawn
             result.z -= 0.5f;
           }
 
-          break;
+        break;
       }
     }
 
@@ -703,7 +703,7 @@ public partial class VehiclePawn
             VehicleRoleHandler handler = pawn.IsColonistPlayerControlled ?
               NextAvailableHandler() :
               handlers.FirstOrDefault(handler => handler.AreSlotsAvailableAndReservable &&
-                handler.role.HandlingTypes == HandlingTypeFlags.None);
+                handler.role.HandlingTypes == HandlingType.None);
             PromptToBoardVehicle(pawn, handler);
             return;
           }
@@ -1075,21 +1075,21 @@ public partial class VehiclePawn
           return false;
         }
 
-        break;
+      break;
       case VehicleType.Sea:
         if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardSeaVehicle, selPawn))
         {
           return false;
         }
 
-        break;
+      break;
       case VehicleType.Land:
         if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardLandVehicle, selPawn))
         {
           return false;
         }
 
-        break;
+      break;
       case VehicleType.Universal:
         if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardUniversalVehicle,
           selPawn))
@@ -1097,7 +1097,7 @@ public partial class VehiclePawn
           return false;
         }
 
-        break;
+      break;
     }
 
     return true;
@@ -1259,7 +1259,7 @@ public partial class VehiclePawn
             VehicleRoleHandler handler = p.IsColonistPlayerControlled ?
               NextAvailableHandler() :
               handlers.FirstOrDefault(handler => handler.AreSlotsAvailableAndReservable &&
-                handler.role.HandlingTypes == HandlingTypeFlags.None);
+                handler.role.HandlingTypes == HandlingType.None);
             PromptToBoardVehicle(p, handler);
           }
         });

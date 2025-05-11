@@ -1,143 +1,141 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Linq;
 using Verse;
 
-namespace Vehicles
+namespace Vehicles;
+
+[StaticConstructorOnStartup]
+public static class Targeters
 {
-	[StaticConstructorOnStartup]
-	public static class Targeters
-	{
-		private static readonly List<BaseTargeter> targeters = new List<BaseTargeter>();
-		private static readonly List<BaseWorldTargeter> worldTargeters = new List<BaseWorldTargeter>();
+  private static readonly List<BaseTargeter> targeters = [];
+  private static readonly List<BaseWorldTargeter> worldTargeters = [];
 
-		public static BaseTargeter CurrentTargeter { get; private set; }
-		public static BaseWorldTargeter CurrentWorldTargeter { get; private set; }
+  private static BaseTargeter CurrentTargeter { get; set; }
 
-		static Targeters()
-		{
-			foreach (Type type in typeof(BaseTargeter).InstantiableDescendantsAndSelf())
-			{
-				BaseTargeter targeter = (BaseTargeter)Activator.CreateInstance(type, null);
-				targeters.Add(targeter);
-				targeter.PostInit();
-			}
-			foreach (Type type in typeof(BaseWorldTargeter).InstantiableDescendantsAndSelf())
-			{
-				BaseWorldTargeter targeter = (BaseWorldTargeter)Activator.CreateInstance(type, null);
-				worldTargeters.Add(targeter);
-				targeter.PostInit();
-			}
-		}
+  private static BaseWorldTargeter CurrentWorldTargeter { get; set; }
 
-		public static void PushTargeter(BaseTargeter targeter)
-		{
-			if (CurrentTargeter == targeter) return;
+  static Targeters()
+  {
+    foreach (Type type in typeof(BaseTargeter).InstantiableDescendantsAndSelf())
+    {
+      BaseTargeter targeter = (BaseTargeter)Activator.CreateInstance(type, null);
+      targeters.Add(targeter);
+      targeter.PostInit();
+    }
+    foreach (Type type in typeof(BaseWorldTargeter).InstantiableDescendantsAndSelf())
+    {
+      BaseWorldTargeter targeter = (BaseWorldTargeter)Activator.CreateInstance(type, null);
+      worldTargeters.Add(targeter);
+      targeter.PostInit();
+    }
+  }
 
-			CurrentTargeter?.StopTargeting();
-			CurrentTargeter = targeter;
-		}
+  internal static void PushTargeter(BaseTargeter targeter)
+  {
+    if (CurrentTargeter == targeter) return;
 
-		public static void PushTargeter(BaseWorldTargeter targeter)
-		{
-			if (CurrentWorldTargeter == targeter) return;
+    CurrentTargeter?.StopTargeting();
+    CurrentTargeter = targeter;
+  }
 
-			CurrentWorldTargeter?.StopTargeting();
-			CurrentWorldTargeter = targeter;
-		}
+  internal static void PushTargeter(BaseWorldTargeter targeter)
+  {
+    if (CurrentWorldTargeter == targeter) return;
 
-		public static void StopTargeter(BaseTargeter targeter)
-		{
-			if (CurrentTargeter != targeter) return;
+    CurrentWorldTargeter?.StopTargeting();
+    CurrentWorldTargeter = targeter;
+  }
 
-			CurrentTargeter.StopTargeting();
-			CurrentTargeter = null;
-		}
+  private static void StopTargeter(BaseTargeter targeter)
+  {
+    if (CurrentTargeter != targeter) return;
 
-		public static void StopTargeter(BaseWorldTargeter targeter)
-		{
-			if (CurrentWorldTargeter != targeter) return;
+    CurrentTargeter.StopTargeting();
+    CurrentTargeter = null;
+  }
 
-			CurrentWorldTargeter.StopTargeting();
-			CurrentWorldTargeter = null;
-		}
+  private static void StopTargeter(BaseWorldTargeter targeter)
+  {
+    if (CurrentWorldTargeter != targeter) return;
 
-		/* ------ Map Targeters ------ */
-		internal static void OnGUITargeter()
-		{
-			if (CurrentTargeter == null) return;
+    CurrentWorldTargeter.StopTargeting();
+    CurrentWorldTargeter = null;
+  }
 
-			if (!CurrentTargeter.IsTargeting)
-			{
-				StopTargeter(CurrentTargeter);
-				return;
-			}
-			CurrentTargeter.TargeterOnGUI();
-		}
+  /* ------ Map Targeters ------ */
+  internal static void OnGUITargeter()
+  {
+    if (CurrentTargeter == null) return;
 
-		internal static void UpdateTargeter()
-		{
-			if (CurrentTargeter == null) return;
+    if (!CurrentTargeter.IsTargeting)
+    {
+      StopTargeter(CurrentTargeter);
+      return;
+    }
+    CurrentTargeter.TargeterOnGUI();
+  }
 
-			if (!CurrentTargeter.IsTargeting)
-			{
-				StopTargeter(CurrentTargeter);
-				return;
-			}
-			CurrentTargeter.TargeterUpdate();
-		}
+  internal static void UpdateTargeter()
+  {
+    if (CurrentTargeter == null) return;
 
-		internal static void ProcessTargeterInputEvent()
-		{
-			if (CurrentTargeter == null) return;
+    if (!CurrentTargeter.IsTargeting)
+    {
+      StopTargeter(CurrentTargeter);
+      return;
+    }
+    CurrentTargeter.TargeterUpdate();
+  }
 
-			if (!CurrentTargeter.IsTargeting)
-			{
-				StopTargeter(CurrentTargeter);
-				return;
-			}
-			CurrentTargeter.ProcessInputEvents();
-		}
-		/* --------------------------- */
+  internal static void ProcessTargeterInputEvent()
+  {
+    if (CurrentTargeter == null) return;
 
-		/* ----- World Targeters ----- */
-		
-		internal static void OnGUIWorldTargeter()
-		{
-			if (CurrentWorldTargeter == null) return;
+    if (!CurrentTargeter.IsTargeting)
+    {
+      StopTargeter(CurrentTargeter);
+      return;
+    }
+    CurrentTargeter.ProcessInputEvents();
+  }
+  /* --------------------------- */
 
-			if (!CurrentWorldTargeter.IsTargeting)
-			{
-				StopTargeter(CurrentWorldTargeter);
-				return;
-			}
-			CurrentWorldTargeter.TargeterOnGUI();
-		}
+  /* ----- World Targeters ----- */
 
-		internal static void UpdateWorldTargeter()
-		{
-			if (CurrentWorldTargeter == null) return;
+  internal static void OnGUIWorldTargeter()
+  {
+    if (CurrentWorldTargeter == null) return;
 
-			if (!CurrentWorldTargeter.IsTargeting)
-			{
-				StopTargeter(CurrentWorldTargeter);
-				return;
-			}
-			CurrentWorldTargeter.TargeterUpdate();
-		}
+    if (!CurrentWorldTargeter.IsTargeting)
+    {
+      StopTargeter(CurrentWorldTargeter);
+      return;
+    }
+    CurrentWorldTargeter.TargeterOnGUI();
+  }
 
-		internal static void ProcessWorldTargeterInputEvent()
-		{
-			if (CurrentWorldTargeter == null) return;
+  internal static void UpdateWorldTargeter()
+  {
+    if (CurrentWorldTargeter == null) return;
 
-			if (!CurrentWorldTargeter.IsTargeting)
-			{
-				StopTargeter(CurrentWorldTargeter);
-				return;
-			}
-			CurrentWorldTargeter.ProcessInputEvents();
-		}
-		/* --------------------------- */
-	}
+    if (!CurrentWorldTargeter.IsTargeting)
+    {
+      StopTargeter(CurrentWorldTargeter);
+      return;
+    }
+    CurrentWorldTargeter.TargeterUpdate();
+  }
+
+  internal static void ProcessWorldTargeterInputEvent()
+  {
+    if (CurrentWorldTargeter == null) return;
+
+    if (!CurrentWorldTargeter.IsTargeting)
+    {
+      StopTargeter(CurrentWorldTargeter);
+      return;
+    }
+    CurrentWorldTargeter.ProcessInputEvents();
+  }
+  /* --------------------------- */
 }

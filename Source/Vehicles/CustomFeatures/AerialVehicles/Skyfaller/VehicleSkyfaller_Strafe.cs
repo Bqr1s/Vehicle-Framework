@@ -111,7 +111,7 @@ namespace Vehicles
       float range = Vector3.Distance(TurretLocation(turret), targetPos);
       IntVec3 target = targetPos.ToIntVec3() + GenRadial.RadialPattern[
         Rand.Range(0,
-          GenRadial.NumCellsInRadius(turret.CurrentFireMode.spreadRadius *
+          GenRadial.NumCellsInRadius(turret.CurrentFireMode.forcedMissRadius *
             (range / turret.def.maxRange)))];
       if (turret.CurrentTurretFiring >= turret.def.projectileShifting.Count)
       {
@@ -141,7 +141,7 @@ namespace Vehicles
         GenSpawn.Spawn(projectile2, target.ClampInsideMap(Map), Map);
         if (turret.def.ammunition != null)
         {
-          turret.ConsumeShellChambered();
+          turret.ConsumeChamberedShot();
         }
         if (turret.def.shotSound != null)
         {

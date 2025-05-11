@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
@@ -34,8 +33,6 @@ public static class VehicleHarmony
 
   internal static string BuildDatePath =>
     Path.Combine(VehicleMMD.RootDir.FullName, "BuildDate.txt");
-
-  public static bool RunningUnitTests { get; internal set; }
 
   public static List<VehicleDef> AllMoveableVehicleDefs { get; internal set; }
 

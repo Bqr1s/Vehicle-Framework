@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using RimWorld;
+using SmashTools;
 using UnityEngine;
 using Verse;
 using Verse.AI;
-using RimWorld;
-using SmashTools;
 
 namespace Vehicles
 {
@@ -15,64 +14,51 @@ namespace Vehicles
 
     private static readonly int PawnNotifyCellCount = GenRadial.NumCellsInRadius(4.5f);
 
-    private static readonly FloatRange[] FleeAngleRanges = new FloatRange[]
-    {
-      new FloatRange(360 - FleeAngleIncrement, FleeAngleIncrement),
-      new FloatRange(Rot8.NorthEast.AsAngle - FleeAngleIncrement,
+    private static readonly FloatRange[] FleeAngleRanges =
+    [
+      new(360 - FleeAngleIncrement, FleeAngleIncrement),
+      new(Rot8.NorthEast.AsAngle - FleeAngleIncrement,
         Rot8.NorthEast.AsAngle + FleeAngleIncrement),
-      new FloatRange(Rot8.East.AsAngle - FleeAngleIncrement,
+      new(Rot8.East.AsAngle - FleeAngleIncrement,
         Rot8.East.AsAngle + FleeAngleIncrement),
-      new FloatRange(Rot8.SouthEast.AsAngle - FleeAngleIncrement,
+      new(Rot8.SouthEast.AsAngle - FleeAngleIncrement,
         Rot8.SouthEast.AsAngle + FleeAngleIncrement),
-      new FloatRange(Rot8.South.AsAngle - FleeAngleIncrement,
+      new(Rot8.South.AsAngle - FleeAngleIncrement,
         Rot8.South.AsAngle + FleeAngleIncrement),
-      new FloatRange(Rot8.SouthWest.AsAngle - FleeAngleIncrement,
+      new(Rot8.SouthWest.AsAngle - FleeAngleIncrement,
         Rot8.SouthWest.AsAngle + FleeAngleIncrement),
-      new FloatRange(Rot8.West.AsAngle - FleeAngleIncrement,
+      new(Rot8.West.AsAngle - FleeAngleIncrement,
         Rot8.West.AsAngle + FleeAngleIncrement),
-      new FloatRange(Rot8.NorthWest.AsAngle - FleeAngleIncrement,
+      new(Rot8.NorthWest.AsAngle - FleeAngleIncrement,
         Rot8.NorthWest.AsAngle + FleeAngleIncrement),
-    };
+    ];
 
-    public static void NotifyNearbyPawnsOfDangerousPosition(Map map, IntVec3 cell)
+    public static void NotifyNearbyPawnsOfDangerousPosition(Map map, VehiclePawn vehicle,
+      IntVec3 cell)
     {
       for (int i = 0; i < PawnNotifyCellCount; i++)
       {
         IntVec3 c = cell + GenRadial.RadialPattern[i];
         if (c.InBounds(map))
         {
-          List<Thing> thingList = c.GetThingList(map);
-          for (int j = 0; j < thingList.Count; j++)
+          foreach (Thing thing in c.GetThingList(map))
           {
-            if (thingList[j] is Pawn pawn && !(pawn is VehiclePawn) &&
-              pawn.RaceProps.intelligence >= Intelligence.ToolUser && !pawn.Dead && !pawn.Downed)
+            if (thing is Pawn pawn && GenSight.LineOfSight(cell, pawn.Position, map, true))
             {
-              if (GenSight.LineOfSight(cell, pawn.Position, map, true, null, 0, 0))
-              {
-                pawn.Notify_DangerousPosition(cell);
-              }
+              Notify_DangerousPosition(pawn, vehicle, cell);
             }
           }
         }
       }
     }
 
-    private static void Notify_DangerousPosition(this Pawn pawn, IntVec3 cell)
+    private static void Notify_DangerousPosition(Pawn pawn, VehiclePawn vehicle, IntVec3 cell)
     {
-      if (!pawn.Spawned)
-      {
+      if (!ShouldFleeDangerZone(pawn, vehicle, out float fleeDist))
         return;
-      }
-      if (pawn.RaceProps.intelligence < Intelligence.ToolUser)
-      {
-        return;
-      }
-      if (PawnUtility.PlayerForcedJobNowOrSoon(pawn))
-      {
-        return;
-      }
-
-      if (!RCellFinder.TryFindDirectFleeDestination(cell, 9f, pawn, out IntVec3 fleeCell))
+      // Additional multiplier to more forcefully nudge them out of the way for AerialVehicle related damagers.
+      if (!RCellFinder.TryFindDirectFleeDestination(cell, fleeDist * 1.9f, pawn,
+        out IntVec3 fleeCell))
       {
         return;
       }
@@ -99,35 +85,54 @@ namespace Vehicles
 
     public static void Notify_DangerousVehiclePath(this Pawn pawn, VehiclePawn vehicle)
     {
-      if (pawn is VehiclePawn)
-      {
+      if (!ShouldFleeDangerZone(pawn, vehicle, out float fleeDist))
         return;
-      }
-      if (!vehicle.Spawned || !pawn.Spawned)
-      {
-        return;
-      }
-      if (pawn.Downed || pawn.Dead || pawn.InMentalState)
-      {
-        return;
-      }
-      if (FriendlyFireChance(vehicle, pawn) == 0)
-      {
-        return;
-      }
-      if (PawnUtility.PlayerForcedJobNowOrSoon(pawn))
-      {
-        return;
-      }
+
       Rot8 oppositeVehicle = vehicle.FullRotation.Opposite;
       Rot8 oppositeCW = oppositeVehicle.Rotated(RotationDirection.Clockwise);
       Rot8 oppositeCCW = oppositeVehicle.Rotated(RotationDirection.Counterclockwise);
-      if (!TryFindDirectFleeDestination(vehicle.Position, vehicle.VehicleDef.Size.x * 5, pawn,
-        out IntVec3 cell, oppositeVehicle, oppositeCW, oppositeCCW))
-      {
+      if (!TryFindDirectFleeDestination(vehicle.Position, fleeDist, pawn, out IntVec3 cell,
+        oppositeVehicle, oppositeCW, oppositeCCW))
         return;
-      }
+
       ForcePawnFlee(pawn, cell);
+    }
+
+    private static bool ShouldFleeDangerZone(Pawn pawn, VehiclePawn vehicle, out float distance)
+    {
+      const float DefaultDistance = 5;
+
+      distance = DefaultDistance;
+
+      if (pawn is VehiclePawn)
+        return false;
+      if (!vehicle.Spawned || !pawn.Spawned)
+        return false;
+      if (pawn.Downed || pawn.Dead || pawn.InMentalState)
+        return false;
+      if (FriendlyFireChance(vehicle, pawn) == 0)
+        return false;
+      if (PawnUtility.PlayerForcedJobNowOrSoon(pawn))
+        return false;
+
+      // Disallowed races
+      if (pawn.RaceProps.intelligence < Intelligence.ToolUser)
+        return false;
+      if (pawn.RaceProps.IsMechanoid || pawn.RaceProps.Insect || pawn.IsMutant)
+        return false;
+
+      distance *= vehicle.VehicleDef.Size.x;
+      PawnFleeSettingsDefModExtension pawnFleeSettings =
+        pawn.kindDef.GetModExtension<PawnFleeSettingsDefModExtension>();
+      // If a modded race is to skip fleeing entirely, here would be the hook for it.
+      if (pawnFleeSettings is not null)
+      {
+        if (!pawnFleeSettings.shouldFlee)
+          return false;
+        if (pawnFleeSettings.fleeDistance > 0)
+          distance = pawnFleeSettings.fleeDistance;
+      }
+      return true;
     }
 
     private static void ForcePawnFlee(Pawn pawn, IntVec3 cell)
@@ -144,16 +149,15 @@ namespace Vehicles
     private static bool TryFindDirectFleeDestination(IntVec3 root, float dist, Pawn pawn,
       out IntVec3 result, params Rot8[] excludeDirections)
     {
-      List<Rot8> directions = new List<Rot8>()
-      {
+      List<Rot8> directions =
+      [
         Rot8.North, Rot8.NorthEast, Rot8.East, Rot8.SouthEast, Rot8.South, Rot8.SouthWest,
         Rot8.West, Rot8.NorthWest
-      };
+      ];
       if (!excludeDirections.NullOrEmpty())
       {
-        for (int i = 0; i < excludeDirections.Length; i++)
+        foreach (Rot8 rot in excludeDirections)
         {
-          Rot8 rot = excludeDirections[i];
           directions.Remove(rot);
         }
       }
@@ -217,7 +221,7 @@ namespace Vehicles
       }
       if (VehicleMod.settings.debug.debugDrawFleePoint && result.InBounds(pawn.Map))
       {
-        pawn.Map.debugDrawer.FlashCell(result, 0);
+        pawn.Map.debugDrawer.FlashCell(result);
         pawn.Map.debugDrawer.FlashLine(pawn.Position, result, color: SimpleColor.Red);
       }
       return false;

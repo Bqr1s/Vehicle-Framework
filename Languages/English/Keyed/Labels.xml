@@ -64,7 +64,7 @@
   <VF_RenameVehicleTooltip>Assign or clear name.</VF_RenameVehicleTooltip>
   <VF_RecolorTooltip>Change colors or pattern.</VF_RecolorTooltip>
   <VF_DoubleClickShuttleTarget>Click to Confirm Destination</VF_DoubleClickShuttleTarget>
-  <VF_SwapColors>Cycle colors between each other.\nColorOne -&gt; ColorTwo -&gt; ColorThree</VF_SwapColors>
+  <VF_SwapColors>Cycle colors between each other.\n\nColorOne &gt; ColorTwo &gt; ColorThree</VF_SwapColors>
   <VF_StartFishing>Fish</VF_StartFishing>
   <VF_StartFishingDesc>Gather fish. Depth of water affects fishing chances.</VF_StartFishingDesc>
   <VF_ExplosiveComponent>Explosive</VF_ExplosiveComponent>
@@ -87,10 +87,14 @@
   <VF_PatternZoomTooltip>Scale the pattern up or down.</VF_PatternZoomTooltip>
   <VF_PatternDisplacementX>Displacement X</VF_PatternDisplacementX>
   <VF_PatternDisplacementY>Displacement Y</VF_PatternDisplacementY>
+  <VF_PatternDisplacementXTooltip>Moves texture along the horizontal axis.</VF_PatternDisplacementXTooltip>
+  <VF_PatternDisplacementYTooltip>Moves texture along the vertical axis.</VF_PatternDisplacementYTooltip>
   
-  <VF_Electric>Electric</VF_Electric>
-  <VF_ElectricFlick>Charge Battery</VF_ElectricFlick>
-  <VF_ElectricFlickDesc>Connect to PowerNet below vehicle.</VF_ElectricFlickDesc>
+  <VF_Electricity>Electricity</VF_Electricity>
+  <VF_ElectricFlick>Toggle connecting to the power grid.</VF_ElectricFlick>
+  <VF_ElectricFlickDesc>When on top of a power conduit, this vehicle can connect to the power grid to recharge its battery. If enabled, it will continually drain energy until full.
+
+Currently connected to the power grid: {0}</VF_ElectricFlickDesc>
   <VF_OutOfFuel>Cannot move. {0} needs more fuel.</VF_OutOfFuel>
   
   <VF_Assign>Assign</VF_Assign>

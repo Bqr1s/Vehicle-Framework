@@ -229,10 +229,10 @@ public class Section_Debug : SettingsSection
           ref debugDrawFleePoint,
           "VF_DevMode_DebugDrawFleePointsTooltip".Translate());
 #if !RELEASE // Disabled in VehicleMapping.MapComponentUpdate for Release builds
-        listingStandard.EnumSliderLabeled("VF_DevMode_DebugDrawCoverGrid".Translate(),
+        listingStandard.EnumSliderLabeled("VF_DevMode_DebugDrawGrid".Translate(),
           ref debugDrawFlashGrid,
-          "VF_DevMode_DebugDrawCoverGridTooltip".Translate(), string.Empty,
-          valueNameGetter: (FlashGridType type) => type.ToString());
+          "VF_DevMode_DebugDrawGridTooltip".Translate(), string.Empty,
+          valueNameGetter: flashGridType => flashGridType.ToString());
 #endif
 
         listingStandard.Header("VF_DevMode_Pathing".Translate(), ListingExtension.BannerColor,

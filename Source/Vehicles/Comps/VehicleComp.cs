@@ -3,6 +3,7 @@ using System.Text;
 using JetBrains.Annotations;
 using RimWorld;
 using SmashTools;
+using UnityEngine;
 using Verse;
 using Verse.AI;
 
@@ -32,6 +33,11 @@ public class VehicleComp : ThingComp
 
   public virtual void CompCaravanInspectString(StringBuilder stringBuilder)
   {
+  }
+
+  public virtual float CompStatCard(Rect rect)
+  {
+    return 0;
   }
 
   public virtual void PostLoad()

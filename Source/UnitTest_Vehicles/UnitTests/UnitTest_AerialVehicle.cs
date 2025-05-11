@@ -91,7 +91,8 @@ internal sealed class UnitTest_AerialVehicle : UnitTest_VehicleTest
         }
       }
       Expect.ReferencesAreEqual(vehicle.ParentHolder, aerialVehicle, "Vehicle ParentHolder");
-      Expect.All(vehicle.AllPawnsAboard, pawn => ThingInVehicle(vehicle, pawn),
+      Expect.All(vehicle.AllPawnsAboard,
+        pawn => pawn.ParentHolder is VehicleRoleHandler handler && handler.vehicle == vehicle,
         "Passenger ParentHolder");
       Expect.All(vehicle.inventory.innerContainer, pawn => ThingInVehicle(vehicle, pawn),
         "Inventory pawn ParentHolder");

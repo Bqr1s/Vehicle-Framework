@@ -24,10 +24,6 @@ namespace Vehicles
     public void PatchMethods()
     {
       VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(Dialog_FormCaravan), "TryReformCaravan"),
-        prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
-          nameof(ConfirmLeaveVehiclesOnReform)));
-      VehicleHarmony.Patch(
         original: AccessTools.Method(typeof(MassUtility), nameof(MassUtility.Capacity)),
         prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
           nameof(CapacityOfVehicle)));
@@ -266,52 +262,6 @@ namespace Vehicles
           nameof(CaravanArrivalAction_Trade.CanTradeWith)),
         postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
           nameof(NoTradingUndocked)));
-    }
-
-    /// <summary>
-    /// Show DialogMenu for confirmation on leaving vehicles behind when forming caravan
-    /// </summary>
-    public static bool ConfirmLeaveVehiclesOnReform(Dialog_FormCaravan __instance,
-      ref List<TransferableOneWay> ___transferables, Map ___map, PlanetTile ___destinationTile,
-      ref bool __result)
-    {
-      if (___map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer).HasVehicle())
-      {
-        List<Pawn> pawns = TransferableUtility.GetPawnsFromTransferables(___transferables);
-        List<Pawn> correctedPawns = pawns.Where(p => p is not VehiclePawn).ToList();
-        string vehicles = "";
-        foreach (Pawn pawn in pawns.Where(p => p is VehiclePawn))
-        {
-          vehicles += pawn.LabelShort;
-        }
-
-        Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-          "VF_LeaveVehicleBehindCaravan".Translate(vehicles), delegate
-          {
-            if (!(bool)AccessTools.Method(typeof(Dialog_FormCaravan), "CheckForErrors")
-             .Invoke(__instance, [correctedPawns]))
-            {
-              return;
-            }
-            AccessTools
-             .Method(typeof(Dialog_FormCaravan), "AddItemsFromTransferablesToRandomInventories")
-             .Invoke(__instance, [correctedPawns]);
-            VehicleCaravan caravan = CaravanHelper.ExitMapAndCreateVehicleCaravan(correctedPawns,
-              Faction.OfPlayer, __instance.CurrentTile, __instance.CurrentTile, ___destinationTile,
-              false);
-            ___map.Parent.CheckRemoveMapNow();
-            TaggedString taggedString = "MessageReformedCaravan".Translate();
-            if (caravan.vehiclePather.Moving && caravan.vehiclePather.ArrivalAction != null)
-            {
-              taggedString += " " + "MessageFormedCaravan_Orders".Translate() + ": " +
-                caravan.vehiclePather.ArrivalAction.Label + ".";
-            }
-            Messages.Message(taggedString, caravan, MessageTypeDefOf.TaskCompletion, false);
-          }));
-        __result = true;
-        return false;
-      }
-      return true;
     }
 
     /// <summary>
@@ -1160,7 +1110,7 @@ namespace Vehicles
         thing.PreTraded(TradeAction.PlayerBuys, playerNegotiator, ___settlement);
         if (thing is Pawn pawn && pawn.RaceProps.Humanlike)
         {
-          VehicleRoleHandler handler = aerial.vehicle.NextAvailableHandler(HandlingTypeFlags.None);
+          VehicleRoleHandler handler = aerial.vehicle.NextAvailableHandler(HandlingType.None);
           if (handler == null)
           {
             Log.Error(

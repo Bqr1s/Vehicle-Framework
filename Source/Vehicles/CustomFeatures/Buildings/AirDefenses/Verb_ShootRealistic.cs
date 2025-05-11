@@ -108,15 +108,13 @@ namespace Vehicles
       float angle = launchPos.AngleToPoint(currentTarget.CenterVector3);
       Projectile projectile2 =
         (Projectile)GenSpawn.Spawn(projectile, shootLine.Source, caster.Map, WipeMode.Vanish);
-      if (caster.def.GetModExtension<ProjectilePropertiesDefModExtension>() is
-        ProjectilePropertiesDefModExtension projectileProps)
+      if (caster.def.GetModExtension<ProjectilePropertiesDefModExtension>() is { } projectileProps)
       {
         projectile2.AllComps.Insert(0, new CompTurretProjectileProperties(CasterTWC)
         {
           speed = projectileProps.speed > 0 ?
             projectileProps.speed :
             projectile2.def.projectile.speed,
-          hitflag = projectileProps.projectileHitFlag,
           hitflags = projectileProps.hitFlagDef
         });
       }

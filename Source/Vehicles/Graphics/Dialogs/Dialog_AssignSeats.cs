@@ -173,7 +173,7 @@ namespace Vehicles
                   {
                     if (!firstHandler.CanOperateRole(pawn))
                     {
-                      if (firstHandler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
+                      if (firstHandler.role.HandlingTypes.HasFlag(HandlingType.Movement))
                       {
                         Messages.Message("VF_IncapableStatusForRole".Translate(pawn.LabelShortCap),
                           MessageTypeDefOf.RejectInput);
@@ -244,11 +244,11 @@ namespace Vehicles
           {
             if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
             {
-              if (handler.role.HandlingTypes > HandlingTypeFlags.None &&
+              if (handler.role.HandlingTypes > HandlingType.None &&
                 !draggedPawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) ||
                 draggedPawn.Downed || draggedPawn.Dead)
               {
-                if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
+                if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement))
                 {
                   Messages.Message("VF_IncapableStatusForRole".Translate(draggedPawn.LabelShortCap),
                     MessageTypeDefOf.RejectInput);

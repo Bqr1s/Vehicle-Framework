@@ -31,19 +31,19 @@ public static class VehicleGhostUtility
         case 4:
           baseRot = Rot8.North;
           baseAngle = 45;
-          break;
+        break;
         case 5:
           baseRot = Rot8.South;
           baseAngle = -45;
-          break;
+        break;
         case 6:
           baseRot = Rot8.South;
           baseAngle = 45;
-          break;
+        break;
         case 7:
           baseRot = Rot8.North;
           baseAngle = -45;
-          break;
+        break;
       }
     }
     graphic.DrawFromDef(loc, baseRot, vehicleDef, baseAngle);
@@ -75,7 +75,7 @@ public static class VehicleGhostUtility
     num = Gen.HashCombineStruct(num, ghostColor);
     if (!cachedGhostGraphics.TryGetValue(num, out Graphic graphic))
     {
-      turret.ResolveCannonGraphics(vehicleDef, true);
+      turret.ResolveGraphics(vehicleDef, true);
       graphic = turret.Graphic;
 
       GraphicData graphicData = new GraphicData();
@@ -141,7 +141,7 @@ public static class VehicleGhostUtility
           continue;
         }
 
-        turret.ResolveCannonGraphics(vehicleDef);
+        turret.ResolveGraphics(vehicleDef);
 
         try
         {

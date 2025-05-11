@@ -33,7 +33,7 @@ internal sealed class UnitTest_MaterialPool : UnitTest_MapTest
         {
           // Turret graphic is created in ctor, we need to force regenerate to
           // log results in MaterialPoolWatcher and track material lifetime.
-          turret.ResolveCannonGraphics(vehicle.patternData, forceRegen: true);
+          turret.ResolveGraphics(vehicle.patternData, forceRegen: true);
           if (!turret.NoGraphic &&
             turret.def.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {

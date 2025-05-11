@@ -737,7 +737,8 @@ public class VehiclePathFollower : IExposable
 
   private void WarnPawnsImpendingCollision()
   {
-    if (curPath == null) return;
+    if (curPath == null)
+      return;
 
     collisionCells.Clear();
     IntVec3 previous = IntVec3.Invalid;

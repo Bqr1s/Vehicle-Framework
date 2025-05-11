@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using RimWorld;
 using SmashTools;
 using SmashTools.Animations;
@@ -7,8 +8,6 @@ using UnityEngine;
 using Vehicles.Rendering;
 using Verse;
 using Transform = SmashTools.Rendering.Transform;
-using PreRenderResults = Vehicles.Graphic_Rgb.PreRenderResults;
-using System.Collections.Generic;
 
 namespace Vehicles;
 
@@ -127,17 +126,17 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
     {
       case DrawPhase.EnsureInitialized:
         _ = Graphic; // Force Graphic to cache before any predraw occurs
-        break;
+      break;
       case DrawPhase.ParallelPreDraw:
         results = ParallelGetPreRenderResults(in transformData);
-        break;
+      break;
       case DrawPhase.Draw:
         // Out of phase drawing must immediately generate pre-render results for valid data.
         if (!results.valid)
           results = ParallelGetPreRenderResults(in transformData);
         Draw(in transformData);
         results = default;
-        break;
+      break;
       default:
         throw new NotImplementedException();
     }
@@ -159,7 +158,7 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
     {
       float extraRotation = transform.rotation + data.rotation;
       PreRenderResults render =
-        graphicRgb.ParallelGetPreRenderResults(in transformData, extraRotation);
+        graphicRgb.ParallelGetPreRenderResults(in transformData, vehicle, extraRotation);
       render.position += transform.position;
       return render;
     }

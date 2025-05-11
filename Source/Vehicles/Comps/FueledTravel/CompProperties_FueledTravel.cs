@@ -28,7 +28,7 @@ public class CompProperties_FueledTravel : VehicleCompProperties
   [DisableSettingConditional(MemberType = typeof(CompProperties_FueledTravel),
     Property = nameof(ElectricPowered), DisableIfEqualTo = false,
     DisableReason = "VF_NotElectricPowered")]
-  public float chargeRate;
+  public float chargeRate = 1;
 
   [PostToSettings(Label = "VF_FuelConsumptionRate", Tooltip = "VF_FuelConsumptionRateTooltip",
     Translate = true, UISettingsType = UISettingsType.FloatBox)]
@@ -41,12 +41,12 @@ public class CompProperties_FueledTravel : VehicleCompProperties
   [PostToSettings(Label = "VF_FuelConsumptionRateWorldMultiplier",
     Tooltip = "VF_FuelConsumptionRateWorldMultiplierTooltip", Translate = true,
     UISettingsType = UISettingsType.SliderFloat)]
-  [SliderValues(Increment = 0.1f, MinValue = 0, MaxValue = 2)]
+  [SliderValues(MinValue = 0, MaxValue = 2, RoundDecimalPlaces = 1)]
   public float fuelConsumptionWorldMultiplier = 1;
 
   [PostToSettings(Label = "VF_AutoRefuelPercent", Tooltip = "VF_AutoRefuelPercentTooltip",
     Translate = true, UISettingsType = UISettingsType.SliderFloat)]
-  [SliderValues(Increment = 0.05f, MinValue = 0, MaxValue = 1, RoundDecimalPlaces = 2)]
+  [SliderValues(MinValue = 0, MaxValue = 1, RoundDecimalPlaces = 2)]
   public float autoRefuelPercent = 1;
 
   [PostToSettings(Label = "VF_TargetFuelConfigurable", Tooltip = "VF_TargetFuelConfigurableTooltip",
@@ -85,7 +85,7 @@ public class CompProperties_FueledTravel : VehicleCompProperties
     {
       if (!gizmoLabel.NullOrEmpty())
         return gizmoLabel;
-      return electricPowered ? "VF_Electric".Translate() : "Fuel".Translate();
+      return electricPowered ? "VF_Electricity".Translate() : "Fuel".Translate();
     }
   }
 

@@ -5,12 +5,12 @@ using Verse;
 namespace Vehicles.UnitTesting;
 
 [UnitTest(TestType.MainMenu)]
-internal sealed class UnitTest_MaterialPoolDefs
+internal sealed class UnitTest_MaterialPoolDefs : UnitTest_VehicleDefTest
 {
   [Test]
   private void VehicleDefs()
   {
-    foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
+    foreach (VehicleDef vehicleDef in vehicleDefs)
     {
       using Test.Group group = new(vehicleDef.defName);
 
@@ -109,7 +109,7 @@ internal sealed class UnitTest_MaterialPoolDefs
   private void Total()
   {
     int count = 0;
-    foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
+    foreach (VehicleDef vehicleDef in vehicleDefs)
     {
       using Test.Group group = new(vehicleDef.defName);
       // Base Vehicle

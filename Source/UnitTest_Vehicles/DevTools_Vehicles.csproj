@@ -35,6 +35,16 @@
     <LangVersion>preview</LangVersion>
     <NoWarn>CS0649</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Benchmark|AnyCPU'">
+    <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+    <DefineConstants>TRACE;RELEASE;UNITY_ASSERTIONS;DEV_TOOLS;</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>CS0649</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <LangVersion>preview</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony, Version=2.3.3.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\Vehicles\packages\Lib.Harmony.2.3.3\lib\net48\0Harmony.dll</HintPath>
@@ -100,8 +110,10 @@
     <Compile Include="UnitTests\UnitTest_StashedVehicle.cs" />
     <Compile Include="UnitTests\UnitTest_TerrainGrid.cs" />
     <Compile Include="UnitTests\UnitTest_ThingGrid.cs" />
+    <Compile Include="UnitTests\UnitTest_VehicleDefTest.cs" />
     <Compile Include="UnitTests\UnitTest_VehicleHandler.cs" />
     <Compile Include="UnitTests\UnitTest_VehicleTest.cs" />
+    <Compile Include="UnitTests\UnitTest_VehicleTurretDef.cs" />
     <Compile Include="UnitTests\UnitTest_WorldReachability.cs" />
   </ItemGroup>
   <ItemGroup>

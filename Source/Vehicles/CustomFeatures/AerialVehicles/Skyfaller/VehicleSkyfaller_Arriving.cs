@@ -66,7 +66,7 @@ namespace Vehicles
         }
         foreach (IntVec3 cell in vehicle.PawnOccupiedCells(Position, LandingRotation))
         {
-          VehicleDamager.NotifyNearbyPawnsOfDangerousPosition(Map, cell);
+          VehicleDamager.NotifyNearbyPawnsOfDangerousPosition(Map, vehicle, cell);
         }
       }
     }

@@ -48,7 +48,7 @@ namespace Vehicles
             Rand.Chance(VehicleDamager.FriendlyFireChance(this, pawn)))
           {
             (float pawnDamage, float vehicleDamage) = CalculateImpactDamage(pawn, this, moveSpeed);
-            Pawn culprit = GetPriorityHandlers(HandlingTypeFlags.Movement)
+            Pawn culprit = GetPriorityHandlers(HandlingType.Movement)
             ?.FirstOrDefault(handler => handler.thingOwner.Any)?.thingOwner.InnerListForReading
              .FirstOrDefault();
             IntVec3 position = pawn.Position;

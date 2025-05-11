@@ -59,7 +59,7 @@ public class Section_Upgrade : SettingsSection
   public override void OnGUI(Rect rect)
   {
     DrawVehicleUpgrades(rect);
-    VehicleMod.DrawVehicleList(rect,
+    SectionDrawer.DrawVehicleList(rect,
       isValid =>
         isValid ? string.Empty : "VF_NonUpgradeableSettingsTooltip".Translate().ToString(),
       vehicleDef => !VehicleMod.settingsDisabledFor.Contains(vehicleDef.defName) &&

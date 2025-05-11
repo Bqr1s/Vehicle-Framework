@@ -290,7 +290,7 @@ namespace Vehicles
       public bool remove = false;
 
       //Operating
-      public HandlingTypeFlags? handlingTypes;
+      public HandlingType? handlingTypes;
       public int? slots;
       public int? slotsToOperate;
       public float? comfort;

@@ -22,6 +22,13 @@ public partial class VehiclePawn
 
   public List<Pawn> AllPawnsAboard { get; private set; } = [];
 
+  public Dictionary<HandlingType, List<Pawn>> PawnsByHandlingType { get; private set; } = new()
+  {
+    [HandlingType.None] = [],
+    [HandlingType.Movement] = [],
+    [HandlingType.Turret] = [],
+  };
+
   /* -------------------------------------- */
 
   public IOrderedEnumerable<VehicleRoleHandler> HandlersOrdered
@@ -29,8 +36,8 @@ public partial class VehiclePawn
     get
     {
       return handlers
-       .OrderBy(handler => handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
-       .ThenBy(handler => handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Turret));
+       .OrderBy(handler => handler.role.HandlingTypes.HasFlag(HandlingType.Movement))
+       .ThenBy(handler => handler.role.HandlingTypes.HasFlag(HandlingType.Turret));
     }
   }
 
@@ -39,33 +46,20 @@ public partial class VehiclePawn
     get
     {
       int pawnCount = 0;
-      foreach (VehicleRole role in VehicleDef.properties.roles)
+      foreach (VehicleRoleHandler handler in handlers)
       {
-        if (role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
+        if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement))
         {
-          pawnCount += role.SlotsToOperate;
+          pawnCount += handler.role.SlotsToOperate;
         }
       }
-
       return pawnCount;
     }
   }
 
   public int PawnCountToOperateLeft
   {
-    get
-    {
-      int pawnsMounted = 0;
-      foreach (VehicleRoleHandler handler in handlers)
-      {
-        if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
-        {
-          pawnsMounted += handler.thingOwner.Count;
-        }
-      }
-
-      return PawnCountToOperate - pawnsMounted;
-    }
+    get { return PawnCountToOperate - PawnsByHandlingType[HandlingType.Movement].Count; }
   }
 
   public bool CanMoveWithOperators
@@ -73,79 +67,21 @@ public partial class VehiclePawn
     get
     {
       if (MovementPermissions == VehiclePermissions.NoDriverNeeded)
-      {
         return true;
-      }
 
       foreach (VehicleRoleHandler handler in handlers)
       {
-        if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement) &&
+        if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement) &&
           !handler.RoleFulfilled)
         {
           return false;
         }
       }
-
       return true;
     }
   }
 
-  public List<Pawn> AllCrewAboard
-  {
-    get
-    {
-      List<Pawn> crewOnShip = new List<Pawn>();
-      if (!(handlers is null))
-      {
-        foreach (VehicleRoleHandler handler in handlers)
-        {
-          if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement))
-          {
-            crewOnShip.AddRange(handler.thingOwner);
-          }
-        }
-      }
-
-      return crewOnShip;
-    }
-  }
-
-  public List<Pawn> AllCannonCrew
-  {
-    get
-    {
-      List<Pawn> weaponCrewOnShip = new List<Pawn>();
-      foreach (VehicleRoleHandler handler in handlers)
-      {
-        if (handler.role.HandlingTypes.HasFlag(HandlingTypeFlags.Turret))
-        {
-          weaponCrewOnShip.AddRange(handler.thingOwner);
-        }
-      }
-
-      return weaponCrewOnShip;
-    }
-  }
-
-  public List<Pawn> Passengers
-  {
-    get
-    {
-      List<Pawn> passengers = new List<Pawn>();
-      if (!handlers.NullOrEmpty())
-      {
-        foreach (VehicleRoleHandler handler in handlers)
-        {
-          if (handler.role.HandlingTypes == HandlingTypeFlags.None)
-          {
-            passengers.AddRange(handler.thingOwner);
-          }
-        }
-      }
-
-      return passengers;
-    }
-  }
+  public List<Pawn> Passengers => PawnsByHandlingType[HandlingType.None];
 
   public List<Pawn> AllCapablePawns
   {
@@ -197,6 +133,7 @@ public partial class VehiclePawn
 
   public void RecachePawnCount()
   {
+    PawnsByHandlingType.ClearValueLists();
     OccupiedHandlers.Clear();
     AllPawnsAboard.Clear();
     foreach (VehicleRoleHandler handler in handlers)
@@ -207,8 +144,28 @@ public partial class VehiclePawn
         foreach (Pawn pawn in handler.thingOwner)
         {
           AllPawnsAboard.Add(pawn);
+
+          if (handler.role.HandlingTypes == HandlingType.None)
+          {
+            PawnsByHandlingType[HandlingType.None].Add(pawn);
+          }
+          else
+          {
+            TryAddToCache(pawn, handler.role.HandlingTypes, HandlingType.Movement,
+              PawnsByHandlingType);
+            TryAddToCache(pawn, handler.role.HandlingTypes, HandlingType.Turret,
+              PawnsByHandlingType);
+          }
         }
       }
+    }
+    return;
+
+    static void TryAddToCache(Pawn pawn, HandlingType value, HandlingType mask,
+      Dictionary<HandlingType, List<Pawn>> cache)
+    {
+      if (value.HasFlag(mask))
+        cache[mask].Add(pawn);
     }
   }
 
@@ -257,25 +214,25 @@ public partial class VehiclePawn
     return null;
   }
 
-  public List<VehicleRoleHandler> GetAllHandlersMatch(HandlingTypeFlags? handlingTypeFlag,
+  public List<VehicleRoleHandler> GetAllHandlersMatch(HandlingType? handlingTypeFlag,
     string turretKey = "")
   {
     if (handlingTypeFlag is null)
     {
-      return handlers.Where(handler => handler.role.HandlingTypes == HandlingTypeFlags.None)
+      return handlers.Where(handler => handler.role.HandlingTypes == HandlingType.None)
        .ToList();
     }
 
     return handlers.FindAll(x =>
       x.role.HandlingTypes.HasFlag(handlingTypeFlag) &&
-      (handlingTypeFlag != HandlingTypeFlags.Turret || (!x.role.TurretIds.NullOrEmpty() &&
+      (handlingTypeFlag != HandlingType.Turret || (!x.role.TurretIds.NullOrEmpty() &&
         x.role.TurretIds.Contains(turretKey))));
   }
 
-  public List<VehicleRoleHandler> GetPriorityHandlers(HandlingTypeFlags? handlingTypeFlag = null)
+  public List<VehicleRoleHandler> GetPriorityHandlers(HandlingType? handlingTypeFlag = null)
   {
     return handlers.Where(h =>
-      h.role.HandlingTypes > HandlingTypeFlags.None && (handlingTypeFlag is null ||
+      h.role.HandlingTypes > HandlingType.None && (handlingTypeFlag is null ||
         h.role.HandlingTypes.HasFlag(handlingTypeFlag.Value))).ToList();
   }
 
@@ -284,12 +241,12 @@ public partial class VehiclePawn
     return handlers.FirstOrDefault(x => x.thingOwner.Contains(pawn));
   }
 
-  public VehicleRoleHandler NextAvailableHandler(HandlingTypeFlags? handlingTypeFlag = null,
+  public VehicleRoleHandler NextAvailableHandler(HandlingType? handlingTypeFlag = null,
     bool priorityHandlers = false)
   {
     foreach (VehicleRoleHandler handler in HandlersOrdered)
     {
-      if (priorityHandlers && handler.role.HandlingTypes == HandlingTypeFlags.None) continue;
+      if (priorityHandlers && handler.role.HandlingTypes == HandlingType.None) continue;
       if (handlingTypeFlag != null &&
         !handler.role.HandlingTypes.HasFlag(handlingTypeFlag)) continue;
 

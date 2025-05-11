@@ -6,9 +6,9 @@ using SmashTools.Rendering;
 using UnityEngine;
 using Verse;
 
-namespace Vehicles;
+namespace Vehicles.Rendering;
 
-[UsedImplicitly(ImplicitUseTargetFlags.Members)]
+[PublicAPI]
 public class VehicleDrawTracker
 {
   private readonly VehiclePawn vehicle;

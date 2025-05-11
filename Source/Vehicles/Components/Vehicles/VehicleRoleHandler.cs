@@ -60,7 +60,7 @@ namespace Vehicles
 
     bool IThingHolderPawnOverlayer.ShowBody => role.PawnRenderer.showBody;
 
-    public bool RequiredForMovement => role.HandlingTypes.HasFlag(HandlingTypeFlags.Movement);
+    public bool RequiredForMovement => role.HandlingTypes.HasFlag(HandlingType.Movement);
 
     public bool RoleFulfilled
     {
@@ -152,7 +152,7 @@ namespace Vehicles
 
     public bool CanOperateRole(Pawn pawn)
     {
-      if (role.HandlingTypes > HandlingTypeFlags.None)
+      if (role.HandlingTypes > HandlingType.None)
       {
         bool manipulation = pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation);
         bool downed = pawn.Downed;

@@ -308,7 +308,8 @@ public static class CaravanHelper
       if (p is VehiclePawn vehicle)
       {
         seats += vehicle.SeatsAvailable;
-        prereq += vehicle.PawnCountToOperate - vehicle.AllCrewAboard.Count;
+        prereq += vehicle.PawnCountToOperate -
+          vehicle.PawnsByHandlingType[HandlingType.Movement].Count;
       }
       else if (p.IsColonistPlayerControlled && !p.Downed && !p.Dead)
       {

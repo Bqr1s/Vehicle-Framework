@@ -11,6 +11,7 @@ using Verse.Sound;
 
 namespace Vehicles;
 
+// TODO - Use material property block and avoid writing over vehicle / def material
 [StaticConstructorOnStartup]
 public class Dialog_VehiclePainter : Window
 {
@@ -21,18 +22,12 @@ public class Dialog_VehiclePainter : Window
 
   private const float SwitchSize = 60f;
 
-  private const float FrameSpacing = 2;
-  private const float FramePadding = 2;
+  private const float SamplePadding = 2;
+  private const float FramePadding = 1;
 
   private const int GridDimensionColumns = 2;
   private const int GridDimensionRows = 2;
   private const int SampleCount = GridDimensionColumns * GridDimensionRows;
-
-  // Widgets::WindowBGFillColor const
-  private static readonly Color windowBGBorderColor = new ColorInt(97, 108, 122).ToColor;
-
-  // Widgets::MenuSectionBGBorderColor
-  private static readonly Color menuSectionBGBorderColor = new ColorInt(135, 135, 135).ToColor;
 
   private int pageNumber;
   private int pageCount;
@@ -53,16 +48,14 @@ public class Dialog_VehiclePainter : Window
   private float hue;
   private float saturation;
   private float value;
+  private string hex;
 
-  private ColorInt currentColorOne;
-  private ColorInt currentColorTwo;
-  private ColorInt currentColorThree;
+  private Color currentColorOne;
+  private Color currentColorTwo;
+  private Color currentColorThree;
 
-  private string colorOneHex;
-  private string colorTwoHex;
-  private string colorThreeHex;
 
-  private int colorSelected = 1;
+  private ColorIndex colorSelected = ColorIndex.One;
   private float additionalTiling = 1;
   private float displacementX;
   private float displacementY;
@@ -117,6 +110,20 @@ public class Dialog_VehiclePainter : Window
     {
       displayRotation = value;
       SetRenderTexturesDirty();
+    }
+  }
+
+  private Color CurrentColor
+  {
+    get
+    {
+      return colorSelected switch
+      {
+        ColorIndex.One   => currentColorOne,
+        ColorIndex.Two   => currentColorTwo,
+        ColorIndex.Three => currentColorThree,
+        _                => throw new NotImplementedException(nameof(ColorIndex))
+      };
     }
   }
 
@@ -185,6 +192,75 @@ public class Dialog_VehiclePainter : Window
     RecacheAvailablePatterns();
   }
 
+  private void UpdateHSV(Color color)
+  {
+    Color.RGBToHSV(color, out hue, out saturation, out value);
+    hex = ColorToHex(color);
+  }
+
+  private void SetColor(Color color)
+  {
+    SetColor(color, colorSelected);
+  }
+
+  /// <summary>
+  /// Set current selected color and update hsv, hex, and render texture cached values.
+  /// </summary>
+  /// <param name="color">Color to assign.</param>
+  /// <param name="index">Color index.</param>
+  private void SetColor(Color color, ColorIndex index)
+  {
+    bool colorChange;
+    switch (index)
+    {
+      case ColorIndex.One:
+        colorChange = currentColorOne != color;
+        currentColorOne = color;
+      break;
+      case ColorIndex.Two:
+        colorChange = currentColorTwo != color;
+        currentColorTwo = color;
+      break;
+      case ColorIndex.Three:
+        colorChange = currentColorThree != color;
+        currentColorThree = color;
+      break;
+      default:
+        throw new NotImplementedException(nameof(ColorIndex));
+    }
+
+    // HSV and hex fields represent the current selected mask index, but we still want to update
+    // any time the color is set here so we need this hardcoded check on the current color. We may
+    // also be toggling between colors so this needs updating regardless of whether the color set
+    // differs from the assigned color index, as the HSV values still need to be reassigned.
+    UpdateHSV(CurrentColor);
+
+    if (colorChange)
+    {
+      SetRenderTexturesDirty();
+    }
+  }
+
+  private void SetColors(Color color1, Color color2, Color color3)
+  {
+    SetColor(color1, ColorIndex.One);
+    SetColor(color2, ColorIndex.Two);
+    SetColor(color3, ColorIndex.Three);
+  }
+
+  private void SetColor(string hex)
+  {
+    if (HexToColor(hex, out Color color))
+    {
+      SetColor(color);
+    }
+  }
+
+  private void SetColor(float h, float s, float v)
+  {
+    SetColor(Color.HSVToRGB(h, s, v));
+  }
+
   private void SetRenderTexturesDirty()
   {
     previewDirty = true;
@@ -237,9 +313,7 @@ public class Dialog_VehiclePainter : Window
   public override void PostOpen()
   {
     base.PostOpen();
-    colorOneHex = ColorToHex(currentColorOne.ToColor);
-    colorTwoHex = ColorToHex(currentColorTwo.ToColor);
-    colorThreeHex = ColorToHex(currentColorThree.ToColor);
+    hex = ColorToHex(CurrentColor);
   }
 
   public override void DoWindowContents(Rect inRect)
@@ -296,14 +370,15 @@ public class Dialog_VehiclePainter : Window
 
     HandleDisplacementDrag(displayRect);
 
-    PatternData patternData = new(currentColorOne.ToColor, currentColorTwo.ToColor,
-      currentColorThree.ToColor, selectedPattern, new Vector2(displacementX, displacementY),
+    PatternData patternData = new(currentColorOne, currentColorTwo,
+      currentColorThree, selectedPattern, new Vector2(displacementX, displacementY),
       additionalTiling);
 
     // Begin Group
     Widgets.BeginGroup(displayRect);
     Rect vehicleRect = displayRect.AtZero();
-    Widgets.DrawBoxSolidWithOutline(vehicleRect, Widgets.WindowBGFillColor, windowBGBorderColor);
+    Widgets.DrawBoxSolidWithOutline(vehicleRect, Widgets.WindowBGFillColor,
+      UIElements.windowBGBorderColor);
     vehicleRect = vehicleRect.ContractedBy(FramePadding);
     if (previewDirty)
     {
@@ -383,12 +458,22 @@ public class Dialog_VehiclePainter : Window
       }
       if (draggingDisplacement && Event.current.isMouse)
       {
+        float prevDisplacementX = displacementX;
+        float prevDisplacementY = displacementY;
+
         displacementX =
           (Mathf.InverseLerp(0f, rect.width, Event.current.mousePosition.x - rect.x) * 2 - 1 -
             initialDragDifferenceX).Clamp(-1.5f, 1.5f);
         displacementY =
           (Mathf.InverseLerp(rect.height, 0f, Event.current.mousePosition.y - rect.y) * 2 - 1 -
             initialDragDifferenceY).Clamp(-1.5f, 1.5f);
+
+        if (!Mathf.Approximately(displacementX, prevDisplacementX) ||
+          !Mathf.Approximately(displacementY, prevDisplacementY))
+        {
+          SoundDefOf.DragSlider.PlayOneShotOnCamera();
+          SetRenderTexturesDirty();
+        }
       }
       if (Input.GetMouseButtonUp(0) && AssetBundleDatabase.MouseHandOpen)
       {
@@ -409,7 +494,7 @@ public class Dialog_VehiclePainter : Window
 
   private void DrawPaintSelection(Rect paintRect)
   {
-    const float PaginationBarHeight = ButtonHeight * 0.75f;
+    const float PaginationBarHeight = 20;
 
     Widgets.DrawMenuSection(paintRect);
 
@@ -458,6 +543,7 @@ public class Dialog_VehiclePainter : Window
       }
     }
 
+    Rect showcaseRect = outRect.ToSquare();
     int startingIndex = (pageNumber - 1) * (GridDimensionColumns * GridDimensionRows);
     int maxIndex =
       (pageNumber * GridDimensionColumns * GridDimensionRows).Clamp(0, AvailablePatterns.Count);
@@ -465,17 +551,17 @@ public class Dialog_VehiclePainter : Window
     for (int i = startingIndex; i < maxIndex; i++, iteration++)
     {
       PatternDef pattern = AvailablePatterns[i];
-      displayRect.x = outRect.x + iteration % GridDimensionColumns * gridSize;
-      displayRect.y = outRect.y + Mathf.FloorToInt(iteration / (float)GridDimensionRows) * gridSize;
-      PatternData patternData = new(currentColorOne.ToColor, currentColorTwo.ToColor,
-        currentColorThree.ToColor, pattern, new Vector2(displacementX, displacementY),
+      displayRect.x = showcaseRect.x + iteration % GridDimensionColumns * gridSize;
+      displayRect.y = showcaseRect.y +
+        Mathf.FloorToInt(iteration / (float)GridDimensionRows) * gridSize;
+      PatternData patternData = new(currentColorOne, currentColorTwo,
+        currentColorThree, pattern, new Vector2(displacementX, displacementY),
         additionalTiling);
 
       // Begin Group
-      Widgets.BeginGroup(displayRect);
+      Widgets.BeginGroup(displayRect.ContractedBy(SamplePadding / 2f));
       Rect vehicleRect = displayRect.AtZero();
       int sampleIdx = i - startingIndex;
-      //Widgets.DrawMenuSection(vehicleRect.ContractedBy(FrameSpacing));
       vehicleRect = vehicleRect.ContractedBy(FramePadding);
       if (samplesDirty[sampleIdx])
       {
@@ -545,24 +631,24 @@ public class Dialog_VehiclePainter : Window
     Rect reverseRect = new(colorContainerRect.x + 11f, 20, SwitchSize / 2.75f, SwitchSize / 2.75f);
     if (Widgets.ButtonImage(reverseRect, VehicleTex.ReverseIcon))
     {
-      SetColors(currentColorTwo.ToColor, currentColorThree.ToColor, currentColorOne.ToColor);
+      SetColors(currentColorTwo, currentColorThree, currentColorOne);
       SoundDefOf.Click.PlayOneShotOnCamera();
     }
     TooltipHandler.TipRegion(reverseRect, "VF_SwapColors".Translate());
 
-    Color c1Color = colorSelected == 1 ? Color.white : Color.gray;
-    Color c2Color = colorSelected == 2 ? Color.white : Color.gray;
-    Color c3Color = colorSelected == 3 ? Color.white : Color.gray;
+    Color c1Color = colorSelected == ColorIndex.One ? Color.white : Color.gray;
+    Color c2Color = colorSelected == ColorIndex.Two ? Color.white : Color.gray;
+    Color c3Color = colorSelected == ColorIndex.Three ? Color.white : Color.gray;
 
-    if (Mouse.IsOver(c1Rect) && colorSelected != 1)
+    if (Mouse.IsOver(c1Rect) && colorSelected != ColorIndex.One)
     {
       c1Color = GenUI.MouseoverColor;
     }
-    else if (Mouse.IsOver(c2Rect) && colorSelected != 2)
+    else if (Mouse.IsOver(c2Rect) && colorSelected != ColorIndex.Two)
     {
       c2Color = GenUI.MouseoverColor;
     }
-    else if (Mouse.IsOver(c3Rect) && colorSelected != 3)
+    else if (Mouse.IsOver(c3Rect) && colorSelected != ColorIndex.Three)
     {
       c3Color = GenUI.MouseoverColor;
     }
@@ -576,35 +662,34 @@ public class Dialog_VehiclePainter : Window
     UIElements.DrawLabel(c3Rect, c3Text, Color.clear, c3Color, GameFont.Small,
       TextAnchor.MiddleRight);
 
-    if (colorSelected != 1 && Widgets.ButtonInvisible(c1Rect))
+    if (colorSelected != ColorIndex.One && Widgets.ButtonInvisible(c1Rect))
     {
-      colorSelected = 1;
-      SetColor(currentColorOne.ToColor);
+      colorSelected = ColorIndex.One;
+      SetColor(currentColorOne);
       SoundDefOf.Click.PlayOneShotOnCamera();
     }
-    if (colorSelected != 2 && Widgets.ButtonInvisible(c2Rect))
+    if (colorSelected != ColorIndex.Two && Widgets.ButtonInvisible(c2Rect))
     {
-      colorSelected = 2;
-      SetColor(currentColorTwo.ToColor);
+      colorSelected = ColorIndex.Two;
+      SetColor(currentColorTwo);
       SoundDefOf.Click.PlayOneShotOnCamera();
     }
-    if (colorSelected != 3 && Widgets.ButtonInvisible(c3Rect))
+    if (colorSelected != ColorIndex.Three && Widgets.ButtonInvisible(c3Rect))
     {
-      colorSelected = 3;
-      SetColor(currentColorThree.ToColor);
+      colorSelected = ColorIndex.Three;
+      SetColor(currentColorThree);
       SoundDefOf.Click.PlayOneShotOnCamera();
     }
 
     Rect inputRect = new(colorRect.x, colorRect.y + colorRect.height + 5f,
       colorRect.width / 2, 20f);
-    ApplyActionSwitch(delegate(ref ColorInt c, ref string hex)
+
+    string hexChange = UIElements.HexField("VF_ColorPickerHex".Translate(), inputRect, hex);
+    if (hex != hexChange)
     {
-      hex = UIElements.HexField("VF_ColorPickerHex".Translate(), inputRect, hex);
-      if (HexToColor(hex, out Color color) && Mathf.Approximately(color.a, 1))
-      {
-        c = new ColorInt(color);
-      }
-    });
+      hex = hexChange;
+      SetColor(hex);
+    }
 
     string saveText = "VF_SaveColorPalette".Translate();
     inputRect.width = Text.CalcSize(saveText).x + 20f;
@@ -613,8 +698,8 @@ public class Dialog_VehiclePainter : Window
     {
       if (CurrentSelectedPalette is >= 0 and < ColorStorage.PaletteCount)
       {
-        VehicleMod.settings.colorStorage.AddPalette(currentColorOne.ToColor,
-          currentColorTwo.ToColor, currentColorThree.ToColor, CurrentSelectedPalette);
+        VehicleMod.settings.colorStorage.AddPalette(currentColorOne,
+          currentColorTwo, currentColorThree, CurrentSelectedPalette);
         SoundDefOf.Click.PlayOneShotOnCamera();
       }
       else
@@ -675,7 +760,7 @@ public class Dialog_VehiclePainter : Window
   {
     if (Widgets.ButtonText(buttonRect, "VF_ApplyButton".Translate()))
     {
-      OnSave(currentColorOne.ToColor, currentColorTwo.ToColor, currentColorThree.ToColor,
+      OnSave(currentColorOne, currentColorTwo, currentColorThree,
         selectedPattern, new Vector2(displacementX, displacementY), additionalTiling);
       Close();
     }
@@ -705,74 +790,10 @@ public class Dialog_VehiclePainter : Window
     }
   }
 
-  // I don't know what I did it this way, it saves on code I guess? But my god does it seem
-  // like a poor implementation.. but it works so leave it be.
-  private ColorInt ApplyActionSwitch(Utilities.ActionRef<ColorInt, string> action)
+  private enum ColorIndex
   {
-    switch (colorSelected)
-    {
-      case 1:
-        action(ref currentColorOne, ref colorOneHex);
-        return currentColorOne;
-      case 2:
-        action(ref currentColorTwo, ref colorTwoHex);
-        return currentColorTwo;
-      case 3:
-        action(ref currentColorThree, ref colorThreeHex);
-        return currentColorThree;
-      default:
-        throw new ArgumentOutOfRangeException(nameof(colorSelected));
-    }
-  }
-
-  private void SetColors(Color col1, Color col2, Color col3)
-  {
-    currentColorOne = new ColorInt(col1);
-    currentColorTwo = new ColorInt(col2);
-    currentColorThree = new ColorInt(col3);
-    colorOneHex = ColorToHex(currentColorOne.ToColor);
-    colorTwoHex = ColorToHex(currentColorTwo.ToColor);
-    colorThreeHex = ColorToHex(currentColorThree.ToColor);
-    ApplyActionSwitch(delegate(ref ColorInt c, ref string hex)
-    {
-      Color.RGBToHSV(c.ToColor, out hue, out saturation, out value);
-      hex = ColorToHex(c.ToColor);
-    });
-    SetRenderTexturesDirty();
-  }
-
-  private void SetColor(Color col)
-  {
-    // Yea.. very poor design but this is OLD code and not worth the effort to rework
-    // since it already functions quite well.
-    ColorInt curColor = ApplyActionSwitch(delegate(ref ColorInt c, ref string hex)
-    {
-      c = new ColorInt(col);
-      hex = ColorToHex(c.ToColor);
-    });
-    Color.RGBToHSV(curColor.ToColor, out hue, out saturation, out value);
-    SetRenderTexturesDirty();
-  }
-
-  private bool SetColor(string hex)
-  {
-    if (HexToColor(hex, out Color color))
-    {
-      currentColorOne = new ColorInt(color);
-      Color.RGBToHSV(currentColorOne.ToColor, out hue, out saturation, out value);
-      SetRenderTexturesDirty();
-      return true;
-    }
-    return false;
-  }
-
-  private void SetColor(float h, float s, float v)
-  {
-    _ = ApplyActionSwitch(delegate(ref ColorInt c, ref string hex)
-    {
-      c = new ColorInt(Color.HSVToRGB(h, s, v));
-      hex = ColorToHex(c.ToColor);
-    });
-    SetRenderTexturesDirty();
+    One,
+    Two,
+    Three
   }
 }

@@ -35,6 +35,16 @@
     <LangVersion>preview</LangVersion>
     <NoWarn>CS0649</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Benchmark|AnyCPU'">
+    <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+    <DefineConstants>TRACE;RELEASE;UNITY_ASSERTIONS;DEV_TOOLS;</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>CS0649</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <LangVersion>preview</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony, Version=2.3.3.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\Vehicles\packages\Lib.Harmony.2.3.3\lib\net48\0Harmony.dll</HintPath>
@@ -66,18 +76,23 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Benchmarking\Benchmark_CellRectUtils.cs" />
+    <Compile Include="Benchmarking\Benchmark_GetComp.cs" />
     <Compile Include="Benchmarking\Benchmark_GenTypes.cs" />
+    <Compile Include="Benchmarking\Benchmark_HashSet.cs" />
     <Compile Include="Benchmarking\Benchmark_PriorityQueue.cs" />
     <Compile Include="Benchmarking\Benchmark_Recursion.cs" />
     <Compile Include="Benchmarking\Benchmark_TypeByName.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StartupConfig.cs" />
     <Compile Include="UnitTests\TestGroup.cs" />
     <Compile Include="UnitTests\UnitTest_AnimDynamicMethod.cs" />
     <Compile Include="UnitTests\UnitTest_AsyncPool.cs" />
     <Compile Include="UnitTests\UnitTest_CellRectUtils.cs" />
     <Compile Include="UnitTests\UnitTest_ComponentCache.cs" />
+    <Compile Include="UnitTests\UnitTest_UnityThread.cs" />
     <Compile Include="UnitTests\UnitTest_DedicatedThread.cs" />
     <Compile Include="UnitTests\UnitTest_ObjectPool.cs" />
+    <Compile Include="UnitTests\UnitTest_RenderTexture.cs" />
     <Compile Include="UnitTests\UnitTest_UnityObjectPool.cs" />
   </ItemGroup>
   <ItemGroup>

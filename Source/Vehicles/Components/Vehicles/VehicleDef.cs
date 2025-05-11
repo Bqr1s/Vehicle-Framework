@@ -14,8 +14,7 @@ using static Vehicles.VehicleUpgrade;
 
 namespace Vehicles;
 
-[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
-[VehicleSettingsClass]
+[PublicAPI, VehicleSettingsClass]
 public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget, ITweakFields,
                           IBlitTarget
 {
@@ -351,6 +350,17 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
       yield return error;
     }
 
+    if (!statBases.NullOrEmpty())
+    {
+      foreach (StatModifier statModifier in statBases)
+      {
+        if (statModifier.stat == StatDefOf.Mass)
+          Log.Error("Vehicles must define Mass in vehicleStats and not statBases.");
+        if (statModifier.stat == StatDefOf.MoveSpeed)
+          Log.Error("Vehicles must define MoveSpeed in vehicleStats and not statBases.");
+      }
+    }
+
     if (graphicData is null)
     {
       yield return
@@ -441,7 +451,6 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
         }
       }
     }
-
     return null;
   }
 
