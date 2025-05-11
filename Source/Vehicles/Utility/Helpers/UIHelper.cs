@@ -40,7 +40,7 @@ public static class UIHelper
       playerPawnsReadOnly);
     vehiclesTransfer = new TransferableVehicleWidget(null, null, null, thingCountTip, true,
       ignorePawnInventoryMass, false, availableMassGetter, 0f,
-      ignoreSpawnedCorpsesGearAndInventoryMass, tile, true, false, false);
+      ignoreSpawnedCorpsesGearAndInventoryMass, tile, true);
     AddVehicleAndPawnSections(pawnsTransfer, vehiclesTransfer, transferables);
     itemsTransfer = new TransferableOneWayWidget(
       transferables.Where(t => t.ThingDef.category != ThingCategory.Pawn), null, null,
@@ -54,7 +54,7 @@ public static class UIHelper
   /// <param name="pawnWidget"></param>
   /// <param name="vehicleWidget"></param>
   /// <param name="transferables"></param>
-  public static void AddVehicleAndPawnSections(TransferableOneWayWidget pawnWidget,
+  private static void AddVehicleAndPawnSections(TransferableOneWayWidget pawnWidget,
     TransferableVehicleWidget vehicleWidget, List<TransferableOneWay> transferables)
   {
     IEnumerable<TransferableOneWay> source =
@@ -71,10 +71,6 @@ public static class UIHelper
         CaravanUtility.ShouldAutoCapture(pawn, Faction.OfPlayer)));
     pawnWidget.AddSection("AnimalsSection".Translate(),
       source.Where(t => t.AnyThing is Pawn pawn && pawn.RaceProps.Animal));
-    vehicleWidget.AvailablePawns = source.Where(x => x.AnyThing is Pawn pawn &&
-      !(pawn is VehiclePawn) &&
-      (pawn.IsColonistPlayerControlled || (pawn.IsColonist && pawn.MentalStateDef == null &&
-        (pawn.HostFaction == null || pawn.IsSlave) && pawn.IsInVehicle()))).ToList();
   }
 
   /// <seealso cref="DoCountAdjustInterfaceInternal"/>
@@ -268,7 +264,7 @@ public static class UIHelper
       pageNumber = (--pageNumber).Clamp(1, pageCount);
       SoundDefOf.PageChange.PlayOneShotOnCamera();
     }
-    if (Widgets.ButtonImage(rightButtonRect, VehicleTex.RightArrow))
+    if (Widgets.ButtonImage(rightButtonRect, VehicleTex.Arrow))
     {
       pageChanged = true;
       pageNumber = (++pageNumber).Clamp(1, pageCount);

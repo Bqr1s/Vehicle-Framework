@@ -1,10 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Animations;
 using UnityEngine;
+using Vehicles.Rendering;
 using Verse;
 
 namespace Vehicles
@@ -20,26 +20,24 @@ namespace Vehicles
 
     public Pawn FindPawnWithBestStat(StatDef stat, Predicate<Pawn> pawnValidator = null)
     {
-      Pawn pawn = null;
-      float num = -1f;
-      List<Pawn> pawnsListForReading = AllPawnsAboard;
-      for (int i = 0; i < pawnsListForReading.Count; i++)
+      Pawn bestPawn = null;
+      float curValue = -1f;
+      foreach (Pawn pawn in AllPawnsAboard)
       {
-        Pawn pawn2 = pawnsListForReading[i];
-        if (!pawn2.Dead && !pawn2.Downed && !pawn2.InMentalState &&
-          CaravanUtility.IsOwner(pawn2, Faction) && !stat.Worker.IsDisabledFor(pawn2) &&
-          (pawnValidator is null || pawnValidator(pawn2)))
+        if (!pawn.Dead && !pawn.Downed && !pawn.InMentalState &&
+          CaravanUtility.IsOwner(pawn, Faction) && !stat.Worker.IsDisabledFor(pawn) &&
+          (pawnValidator is null || pawnValidator(pawn)))
         {
-          float statValue = pawn2.GetStatValue(stat, true);
-          if (pawn == null || statValue > num)
+          float statValue = pawn.GetStatValue(stat);
+          if (bestPawn == null || statValue > curValue)
           {
-            pawn = pawn2;
-            num = statValue;
+            bestPawn = pawn;
+            curValue = statValue;
           }
         }
       }
 
-      return pawn;
+      return bestPawn;
     }
 
     public int AverageSkillOfCapablePawns(SkillDef skill)

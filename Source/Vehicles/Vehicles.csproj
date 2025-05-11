@@ -63,6 +63,17 @@
     <ErrorReport>prompt</ErrorReport>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Benchmark|AnyCPU'">
+    <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+    <DefineConstants>TRACE;RELEASE;UNITY_ASSERTIONS;DEV_TOOLS;</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>CS0649</NoWarn>
+    <DebugType>portable</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
+    <LangVersion>preview</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
@@ -73,14 +84,22 @@
       <HintPath>..\..\1.6\Assemblies\SmashTools.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="System" />
+    <Reference Include="System">
+      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\System.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System.Runtime">
+      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\System.Runtime.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="System.Runtime.InteropServices.RuntimeInformation">
+    <Reference Include="System.Xml">
+      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\System.Xml.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq">
+      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\System.Xml.Linq.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
@@ -135,6 +154,7 @@
     <Compile Include="AI\WorkGiver\WorkGiver_CarryToVehicle.cs" />
     <Compile Include="AI\WorkGiver\WorkGiver_HelpGatheringItemsForVehicleCaravan.cs" />
     <Compile Include="AI\WorkGiver\WorkGiver_RefuelVehicleTurret.cs" />
+    <Compile Include="Components\Rendering\PreRenderResults.cs" />
     <Compile Include="Components\Rendering\Tracks\VehicleTrack_Wake.cs" />
     <Compile Include="Components\Rendering\Tracks\VehicleTrack.cs" />
     <Compile Include="Components\Rendering\VehicleDrawBatcher.cs" />
@@ -177,6 +197,7 @@
     <Compile Include="CustomFeatures\AerialVehicles\Launching\Misc\FleckOneShot.cs" />
     <Compile Include="CustomFeatures\AerialVehicles\Launching\Misc\Range.cs" />
     <Compile Include="CustomFeatures\Areas\Area_RoadAvoidal.cs" />
+    <Compile Include="CustomFeatures\Misc\Motes\MoteBlitTarget.cs" />
     <Compile Include="CustomFeatures\Misc\Rendering\DynamicShadowData.cs" />
     <Compile Include="CustomFeatures\AerialVehicles\Launching\Properties\DirectionalProtocolProperties.cs" />
     <Compile Include="CustomFeatures\AerialVehicles\Launching\Properties\PropellerProtocolProperties.cs" />
@@ -248,11 +269,15 @@
     <Compile Include="Harmony\Patches\DefGenerators\GeneratorVehicleSkyfallerIncoming.cs" />
     <Compile Include="Harmony\Patches\DefGenerators\IVehicleDefGenerator.cs" />
     <Compile Include="Harmony\Patches\DefGenerators\GeneratorVehicleBuildDef.cs" />
+    <Compile Include="Harmony\Patches\Patch_FormCaravanDialog.cs" />
     <Compile Include="Harmony\Patches\Patch_NpcAi.cs" />
     <Compile Include="Misc\Attributes\VehicleSettingsClassAttribute.cs" />
+    <Compile Include="Misc\DefModExtension\PawnFleeSettingsDefModExtension.cs" />
+    <Compile Include="Misc\ModSettings\SettingsSection\SectionDrawer.cs" />
     <Compile Include="Pathing\Map\VehiclePath.cs" />
     <Compile Include="Pathing\RegionGrid\Connection.cs" />
     <Compile Include="Pathing\RegionGrid\VehicleRegionConnector.cs" />
+    <Compile Include="Turrets\Turret\TurretShotReport.cs" />
     <Compile Include="Turrets\Turret\VehicleTurret_Rendering.cs" />
     <Compile Include="Utility\Helpers\AsyncActions\AsyncConnectionAction.cs" />
     <Compile Include="Utility\Helpers\Rendering\BlitRequest.cs" />
@@ -428,7 +453,6 @@
     <Compile Include="Misc\DefOf\DesignationDefOf_Vehicles.cs" />
     <Compile Include="Misc\DefOf\VehicleClamorDefOf.cs" />
     <Compile Include="Misc\DefOf\VehicleEventDefOf.cs" />
-    <Compile Include="Misc\Enums\Turret\TurretDisableType.cs" />
     <Compile Include="Misc\Enums\Debug\DebugRegionType.cs" />
     <Compile Include="Misc\Enums\Vehicle\VehicleEnabledFor.cs" />
     <Compile Include="Misc\Interfaces\ICustomSettingsDrawer.cs" />
@@ -493,7 +517,7 @@
     <Compile Include="Misc\Interfaces\IPatchCategory.cs" />
     <Compile Include="Misc\Enums\Animation\AnimationWrapperType.cs" />
     <Compile Include="Misc\Enums\Vehicle\FuelConsumptionCondition.cs" />
-    <Compile Include="Misc\Enums\Vehicle\HandlingTypeFlags.cs" />
+    <Compile Include="Misc\Enums\Vehicle\HandlingType.cs" />
     <Compile Include="Misc\Enums\Vehicle\NavigationCategory.cs" />
     <Compile Include="Misc\Enums\Turret\PawnStatusOnTarget.cs" />
     <Compile Include="Misc\Enums\UI\SettingsPage.cs" />
@@ -726,9 +750,6 @@
     <Folder Include="Components\Rendering\PawnRenderNode\" />
     <Folder Include="Comps\Fishing\" />
     <Folder Include="CustomFeatures\AerialVehicles\Skyfaller\Bombs\" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(DefineConstants)' != '' And !$(DefineConstants.Contains('DEV_TOOLS'))">
-    <Compile Remove="DevTools\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Lib.Harmony">

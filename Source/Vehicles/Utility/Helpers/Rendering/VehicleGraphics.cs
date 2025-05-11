@@ -506,36 +506,24 @@ public static class VehicleGraphics
     Rot8 rot, float iconScale = 1)
   {
     //Ensure CannonGraphics are up to date (only required upon changes to default pattern from mod settings)
-    turret.ResolveCannonGraphics(vehicleDef);
+    turret.ResolveGraphics(vehicleDef);
     return turret.ScaleUIRectFor(vehicleDef, rect, rot, iconScale: iconScale);
   }
 
   /// <summary>
   /// Retrieve GraphicOverlay adjusted to <paramref name="rect"/> of where it's being rendered.
   /// </summary>
-  /// <remarks>Best used inside GUI Group</remarks>
-  /// <param name="rect"></param>
-  /// <param name="vehicleDef"></param>
-  /// <param name="graphicOverlay"></param>
-  /// <param name="rot"></param>
   internal static Rect OverlayRect(Rect rect, VehicleDef vehicleDef,
     GraphicOverlay graphicOverlay, Rot8 rot, float scale = 1)
   {
-    //Scale to VehicleDef drawSize
-    Vector2 size = vehicleDef.ScaleDrawRatio(graphicOverlay.data.graphicData, rot, rect.size,
-      iconScale: scale);
-    //Adjust position from new rect size
-    Vector2 adjustedPosition = rect.position + (rect.size - size) / 2f;
-    // Size / V_max = scalar
-    float scalar = rect.size.x / Mathf.Max(vehicleDef.graphicData.drawSize.x,
-      vehicleDef.graphicData.drawSize.y);
-
-    Vector3 graphicOffset = graphicOverlay.data.graphicData.DrawOffsetForRot(rot);
-
-    //Invert y axis post-calculations, UI y-axis is top to bottom
-    Vector2 position =
-      adjustedPosition + (scalar * new Vector2(graphicOffset.x, -graphicOffset.z));
-    return new Rect(position, size);
+    GraphicDataRGB data = graphicOverlay.data.graphicData;
+    Vector2 size = vehicleDef.ScaleDrawRatio(data, rot, rect.size, iconScale: scale);
+    Vector2 basePos = rect.position + (rect.size - size) * 0.5f;
+    Vector3 off = data.DrawOffsetForRot(rot);
+    Vector2 original = new(data.drawSize.x, data.drawSize.y);
+    Vector2 scaleFactors = new(size.x / original.x, size.y / original.y);
+    Vector2 pos = basePos + new Vector2(off.x * scaleFactors.x, -off.z * scaleFactors.y);
+    return new Rect(pos, size);
   }
 
   public static void DrawVehicleFitted(Rect rect, VehicleDef vehicleDef, Rot4 rot,
@@ -687,7 +675,7 @@ public static class VehicleGraphics
               renderData.material, renderData.angle);
           }
         }
-          break;
+        break;
         case GUILayer.Upper:
         {
           foreach (RenderData renderData in renderDataUpper)
@@ -696,7 +684,7 @@ public static class VehicleGraphics
               renderData.material, renderData.angle);
           }
         }
-          break;
+        break;
         default:
           throw new NotImplementedException(nameof(GUILayer));
       }

@@ -90,6 +90,7 @@ public class ITab_Vehicle_Upgrades : ITab
 
         if (selectedNode != null)
         {
+          texturesDirty = true;
           RecacheTextEntries();
           RecacheTurretRenderers();
         }
@@ -195,7 +196,7 @@ public class ITab_Vehicle_Upgrades : ITab
           {
             foreach (VehicleTurret turret in turretUpgrade.turrets)
             {
-              turret.ResolveCannonGraphics(Vehicle.VehicleDef, forceRegen: true);
+              turret.ResolveGraphics(Vehicle.VehicleDef, forceRegen: true);
               renderTurrets.Add(turret);
             }
           }
@@ -606,7 +607,7 @@ public class ITab_Vehicle_Upgrades : ITab
       if (hasGraphics || showUpgradeList)
       {
         Widgets.DrawLineHorizontal(rect.x, descriptionRect.yMax + 5, rect.width,
-          UIElements.MenuSectionBGBorderColor);
+          UIElements.menuSectionBGBorderColor);
       }
 
       Rect textEntryRect = new(innerInfoRect.x, descriptionRect.yMax + 10, innerInfoRect.width,
@@ -643,10 +644,23 @@ public class ITab_Vehicle_Upgrades : ITab
     Rect vehicleNewRect = new(arrowPointerRect.xMax + 5, vehicleOriginalRect.y,
       vehicleOriginalRect.width, vehicleOriginalRect.height);
 
+    Widgets.BeginGroup(vehicleOriginalRect);
+    vehicleOriginalRect = vehicleOriginalRect.AtZero();
     if (texturesDirty)
     {
       BlitRequest requestBefore = BlitRequest.For(Vehicle);
+      bufferBefore ??= VehicleGui.CreateRenderTextureBuffer(vehicleOriginalRect, requestBefore);
+      VehicleGui.Blit(bufferBefore.GetWrite(), vehicleOriginalRect, requestBefore);
+    }
+    GUI.DrawTexture(vehicleOriginalRect, bufferBefore.Read);
+    Widgets.EndGroup();
+
+    Widgets.BeginGroup(vehicleNewRect);
+    vehicleNewRect = vehicleNewRect.AtZero();
+    if (texturesDirty)
+    {
       BlitRequest requestAfter = new(Vehicle);
+      requestAfter.blitTargets.Add(Vehicle.VehicleDef);
       List<GraphicOverlay> extraOverlays = Vehicle.CompUpgradeTree.Props.TryGetOverlays(InfoNode);
       if (!extraOverlays.NullOrEmpty())
         requestAfter.blitTargets.AddRange(extraOverlays);
@@ -661,15 +675,15 @@ public class ITab_Vehicle_Upgrades : ITab
         requestAfter.blitTargets.AddRange(compTurrets.turrets.Where(turret =>
           excludeTurrets is null || !excludeTurrets.Contains(turret.key)));
       }
-      bufferBefore ??= VehicleGui.CreateRenderTextureBuffer(vehicleOriginalRect, requestBefore);
       bufferAfter ??= VehicleGui.CreateRenderTextureBuffer(vehicleNewRect, requestAfter);
-      VehicleGui.Blit(bufferBefore.GetWrite(), vehicleOriginalRect, requestBefore);
       VehicleGui.Blit(bufferAfter.GetWrite(), vehicleNewRect, requestAfter);
-      texturesDirty = false;
     }
-    GUI.DrawTexture(vehicleOriginalRect, bufferBefore.Read);
-    Widgets.DrawTextureFitted(arrowPointerRect, TexData.TutorArrowRight, 1);
     GUI.DrawTexture(vehicleNewRect, bufferAfter.Read);
+    Widgets.EndGroup();
+
+    Widgets.DrawTextureFitted(arrowPointerRect, TexData.TutorArrowRight, 1);
+
+    texturesDirty = false;
   }
 
   private void DrawSubIconsBar(Rect rect)

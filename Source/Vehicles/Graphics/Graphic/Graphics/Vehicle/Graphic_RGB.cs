@@ -1,4 +1,5 @@
-﻿using SmashTools;
+﻿using JetBrains.Annotations;
+using SmashTools;
 using SmashTools.Rendering;
 using UnityEngine;
 using Vehicles.Rendering;
@@ -6,6 +7,7 @@ using Verse;
 
 namespace Vehicles;
 
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public class Graphic_Rgb : Graphic
 {
   public const string MaskSuffix = "m";
@@ -83,7 +85,7 @@ public class Graphic_Rgb : Graphic
     get { return materials[3]; }
   }
 
-  public virtual GraphicDataRGB DataRGB
+  public virtual GraphicDataRGB DataRgb
   {
     get
     {
@@ -459,7 +461,7 @@ public class Graphic_Rgb : Graphic
   }
 
   public PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData,
-    float extraRotation = 0)
+    Thing thing = null, float extraRotation = 0)
   {
     PreRenderResults render = new()
     {
@@ -484,6 +486,10 @@ public class Graphic_Rgb : Graphic
       quaternion *= Quaternion.Euler(Vector3.left * 2f);
     }
     Vector3 position = transformData.position;
+    if (thing is { Spawned: true } && DataRgb.altLayerSpawned is { } altLayerSpawned)
+    {
+      position.y = altLayerSpawned.AltitudeFor();
+    }
     position += DrawOffset(transformData.orientation);
     render.position = position;
     render.quaternion = quaternion;
@@ -501,15 +507,5 @@ public class Graphic_Rgb : Graphic
     return Gen.HashCombineStruct(
       Gen.HashCombineStruct(Gen.HashCombineStruct(Gen.HashCombine(0, path), color), colorTwo),
       colorThree);
-  }
-
-  public struct PreRenderResults
-  {
-    public bool valid;
-    public bool draw;
-    public Mesh mesh;
-    public Material material;
-    public Vector3 position;
-    public Quaternion quaternion;
   }
 }

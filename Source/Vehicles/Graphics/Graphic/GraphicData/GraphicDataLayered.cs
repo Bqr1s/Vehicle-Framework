@@ -10,17 +10,26 @@ public class GraphicDataLayered : GraphicData
 {
   public const int SubLayerCount = 10;
 
-  // Simple conversion factor for layering a sprite relative to the
-  // vehicle's body position. Layer is relative to SubLayerCount.
+  /// <summary>
+  /// Conversion factor for layering a sprite relative to the vehicle's body position.
+  /// Layer is relative to SubLayerCount, eg. layer=1 will offset the graphic 1/10th of
+  /// an altitude layer toward the camera.
+  /// </summary>
   private int layer;
+
+  /// <summary>
+  /// Depth offset relative to AltitudeLayer.
+  /// </summary>
+  /// <remarks>
+  /// Only applies when Thing this graphic applies to is spawned.
+  /// </remarks>
+  public AltitudeLayer? altLayerSpawned;
 
   private Vector3 originalDrawOffset;
   private Vector3? originalDrawOffsetNorth;
   private Vector3? originalDrawOffsetEast;
   private Vector3? originalDrawOffsetSouth;
   private Vector3? originalDrawOffsetWest;
-
-  public bool AboveBody => layer >= 0;
 
   public virtual void CopyFrom(GraphicDataLayered graphicData)
   {

@@ -1,54 +1,53 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Verse;
-using RimWorld;
+﻿using JetBrains.Annotations;
 using SmashTools;
-using Verse.AI;
 
-namespace Vehicles
+namespace Vehicles;
+
+[PublicAPI]
+public class VehicleNPCProperties
 {
-	public class VehicleNPCProperties
-	{
-		/// <summary>
-		/// If targets get within minimum distance, vehicle will chase them down and run them over.
-		/// </summary>
-		public bool runDownTargets = false;
-		public bool reverseWhileFleeing = false;
+  /// <summary>
+  /// If targets get within minimum distance, vehicle will chase them down and run them over.
+  /// </summary>
+  public bool runDownTargets;
 
-		/// <summary>
-		/// Preferred distance from target based on max range of turrets. If <see cref="stopToShoot"/> is false, vehicle will ignore this.
-		/// </summary>
-		public float targetPositionRadiusPercent = 0.8f;
-		/// <summary>
-		/// Minimum distance for vehicle to acquire a target
-		/// </summary>
-		public float targetAcquireRadius = 65f;
-		/// <summary>
-		/// Minimum distance a target must be for the vehicle to maintain
-		/// </summary>
-		public float targetKeepRadius = 65f;
+  public bool reverseWhileFleeing;
 
-		/// <summary>
-		/// Vehicle will stop in place before shooting at targets.
-		/// </summary>
-		/// <remarks>Primarily for providing cover to dismounted raiders.</remarks>
-		public bool stopToShoot = true;
-		public float distanceWeight = 2.5f;
+  /// <summary>
+  /// Preferred distance from target based on max range of turrets. If <see cref="stopToShoot"/> is false, vehicle will ignore this.
+  /// </summary>
+  public float targetPositionRadiusPercent = 0.8f;
 
-		/// <summary>
-		/// Configuration for injecting vehicles into raids
-		/// </summary>
-		public VehicleRaidParamsDef raidParams;
+  /// <summary>
+  /// Minimum distance for vehicle to acquire a target
+  /// </summary>
+  public float targetAcquireRadius = 65f;
 
-		// TODO
-		public VehicleStrategyDef strategy;
+  /// <summary>
+  /// Minimum distance a target must be for the vehicle to maintain
+  /// </summary>
+  public float targetKeepRadius = 65f;
 
-		/// <summary>
-		/// Defines target priorities for an NPC vehicle. This is separate from turret target priorities, 
-		/// which are defined in VehicleTurretDef. However, during raids the target priorities will override
-		/// turret target priorities under certain conditions.
-		/// </summary>
-		public SimpleDictionary<TargetCategory, int> targets;
-	}
+  /// <summary>
+  /// Vehicle will stop in place before shooting at targets.
+  /// </summary>
+  /// <remarks>Primarily for providing cover to dismounted raiders.</remarks>
+  public bool stopToShoot = true;
+
+  public float distanceWeight = 2.5f;
+
+  /// <summary>
+  /// Configuration for injecting vehicles into raids
+  /// </summary>
+  public VehicleRaidParamsDef raidParams;
+
+  // TODO
+  public VehicleStrategyDef strategy;
+
+  /// <summary>
+  /// Defines target priorities for an NPC vehicle. This is separate from turret target priorities, 
+  /// which are defined in VehicleTurretDef. However, during raids the target priorities will override
+  /// turret target priorities under certain conditions.
+  /// </summary>
+  public SimpleDictionary<TargetCategory, int> targets;
 }

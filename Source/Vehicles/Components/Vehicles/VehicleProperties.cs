@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using JetBrains.Annotations;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
@@ -6,7 +7,7 @@ using Verse;
 
 namespace Vehicles;
 
-[VehicleSettingsClass]
+[PublicAPI, VehicleSettingsClass]
 [HeaderTitle(Label = "VF_Properties", Translate = true)]
 public class VehicleProperties
 {
@@ -15,7 +16,7 @@ public class VehicleProperties
  true, UISettingsType = UISettingsType.Checkbox, VehicleType = VehicleType.Sea)]
 		[DisableSettingConditional(MayRequireAny = new string[] { CompatibilityPackageIds.VE_Fishing })]
 #endif
-  public bool fishing = false;
+  public bool fishing;
 
   public VehicleTrack track;
 
@@ -37,14 +38,14 @@ public class VehicleProperties
   [PostToSettings(Label = "VF_ManhunterTargetsVehicle",
     Tooltip = "VF_ManhunterTargetsVehicleTooltip", Translate = true,
     UISettingsType = UISettingsType.Checkbox)]
-  public bool manhunterTargetsVehicle = false;
+  public bool manhunterTargetsVehicle;
 
   [PostToSettings(Label = "VF_CanAdaptToEMP", Tooltip = "VF_CanAdaptToEMPTooltip",
     Translate = true, UISettingsType = UISettingsType.Checkbox)]
   [DisableSettingConditional(MemberType = typeof(VehicleDef),
     Property = nameof(VehicleDef.CanDisableEMPSetting), DisableIfEqualTo = true,
     DisableReason = "VF_VehicleCannotStun")]
-  public bool canAdaptToEMP = false;
+  public bool canAdaptToEMP;
 
   /// <summary>
   /// Player-facing only, allowing players to disable emp stuns for a vehicle without having to modify components via patches.
@@ -65,8 +66,8 @@ public class VehicleProperties
 
   //---------------   Pathing   ---------------
 
-  public bool defaultTerrainImpassable = false;
-  public bool defaultBiomesImpassable = false;
+  public bool defaultTerrainImpassable;
+  public bool defaultBiomesImpassable;
 
   // Local Pathing
   /// <summary>
@@ -119,6 +120,43 @@ public class VehicleProperties
 
   [TweakField]
   public List<VehicleRole> roles = [];
+
+  /* ---------- VehicleRole helper getters ---------- */
+  public int TotalSeats
+  {
+    get
+    {
+      int sum = 0;
+      foreach (VehicleRole role in roles)
+      {
+        sum += role.Slots;
+      }
+      return sum;
+    }
+  }
+
+  public int RoleSeats(HandlingType handlingType)
+  {
+    int sum = 0;
+    foreach (VehicleRole role in roles)
+    {
+      if (role.HandlingTypes.HasFlag(handlingType))
+        sum += role.Slots;
+    }
+    return sum;
+  }
+
+  public int RoleSeatsToOperate(HandlingType handlingType)
+  {
+    int sum = 0;
+    foreach (VehicleRole role in roles)
+    {
+      if (role.HandlingTypes.HasFlag(handlingType))
+        sum += role.SlotsToOperate;
+    }
+    return sum;
+  }
+  /* ------------------------------------------------ */
 
   public IEnumerable<string> ConfigErrors(VehicleDef vehicleDef)
   {

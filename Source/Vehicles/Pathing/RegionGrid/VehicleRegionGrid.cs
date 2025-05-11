@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using SmashTools;
+using SmashTools.Debugging;
 using UnityEngine.Assertions;
 using Verse;
 
@@ -69,7 +70,7 @@ public sealed class VehicleRegionGrid : VehicleGridManager
   {
     get
     {
-      Assert.IsTrue(VehicleHarmony.RunningUnitTests);
+      Assert.IsTrue(TestWatcher.RunningUnitTests);
       if (regionUpdater is not { Enabled: true })
         return false;
 

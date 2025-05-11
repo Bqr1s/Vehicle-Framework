@@ -18,18 +18,12 @@ public class VehicleMod : Mod
 {
   public const int MaxCoastalSettlementPush = 21;
   public const float ResetImageSize = 22;
-  private const float VehicleEntryHeight = 22;
 
   public static VehiclesModSettings settings;
   public static VehicleMod mod;
 
   internal static VehicleDef selectedDef;
-
   private static SettingsSection currentSection;
-
-  internal static Vector2 saveableFieldsScrollPosition;
-  private static Vector2 vehicleDefsScrollPosition;
-  internal static float scrollableViewHeight;
 
   internal string currentKey;
   internal static UpgradeNode selectedNode;
@@ -37,18 +31,10 @@ public class VehicleMod : Mod
   internal static CompProperties_UpgradeTree selectedDefUpgradeComp;
 
   private static List<TabRecord> tabs = [];
-  private static List<VehicleDef> vehicleDefs;
-  private static readonly List<VehicleDef> filteredVehicleDefs = [];
-  private static readonly HashSet<string> headers = [];
-
-  private static readonly QuickSearchFilter vehicleFilter = new();
 
   internal static List<FieldInfo> vehicleDefFields = [];
-
   private static Dictionary<Type, List<FieldInfo>> vehicleCompFields = [];
-
   internal static readonly Dictionary<Type, List<FieldInfo>> cachedFields = [];
-
   internal static readonly HashSet<string> settingsDisabledFor = [];
 
   public VehicleMod(ModContentPack content) : base(content)
@@ -58,10 +44,19 @@ public class VehicleMod : Mod
     InitializeSections();
 
     settings.colorStorage ??= new ColorStorage();
-    selectedPatterns ??= new List<PatternDef>();
+    selectedPatterns ??= [];
 
     CurrentSection = settings.main;
   }
+
+  public static bool ModifiableSettings => settings.main.modifiableSettings;
+
+  public static int CoastRadius =>
+    settings.main.forceFactionCoastRadius >= MaxCoastalSettlementPush ?
+      9999 :
+      settings.main.forceFactionCoastRadius;
+
+  public static float FishingSkillValue => settings.main.fishingSkillIncrease / 100f;
 
   public static SettingsSection CurrentSection
   {
@@ -77,15 +72,6 @@ public class VehicleMod : Mod
     }
   }
 
-  public static bool ModifiableSettings => settings.main.modifiableSettings;
-
-  public static int CoastRadius =>
-    settings.main.forceFactionCoastRadius >= MaxCoastalSettlementPush ?
-      9999 :
-      settings.main.forceFactionCoastRadius;
-
-  public static float FishingSkillValue => settings.main.fishingSkillIncrease / 100f;
-
   public static Dictionary<Type, List<FieldInfo>> VehicleCompFields
   {
     get
@@ -94,11 +80,11 @@ public class VehicleMod : Mod
       {
         ResetSelectedCachedTypes();
         vehicleDefFields =
-          vehicleCompFields.TryGetValue(typeof(VehicleDef), new List<FieldInfo>());
+          vehicleCompFields.TryGetValue(typeof(VehicleDef), []);
         vehicleCompFields.Remove(typeof(VehicleDef));
         vehicleCompFields.RemoveAll(d => d.Value.NullOrEmpty() || d.Value.All(f =>
-          f.TryGetAttribute<PostToSettingsAttribute>(out var settings) &&
-          settings.UISettingsType == UISettingsType.None));
+          f.TryGetAttribute(out PostToSettingsAttribute postToSettings) &&
+          postToSettings.UISettingsType == UISettingsType.None));
         vehicleCompFields = vehicleCompFields
          .OrderByDescending(d => d.Key == typeof(List<VehicleStatModifier>))
          .ThenByDescending(d => d.Key.SameOrSubclass(typeof(VehicleProperties)))
@@ -112,25 +98,6 @@ public class VehicleMod : Mod
     }
   }
 
-  private static List<VehicleDef> VehicleDefs
-  {
-    get
-    {
-      if (vehicleDefs.NullOrEmpty())
-      {
-        var allDefs = DefDatabase<VehicleDef>.AllDefsListForReading;
-        if (!allDefs.NullOrEmpty())
-        {
-          vehicleDefs = allDefs
-           .OrderBy(d => d.modContentPack.PackageId.Contains(VehicleHarmony.VehiclesUniqueId))
-           .ThenBy(d2 => d2.modContentPack.PackageId).ToList();
-          RecacheVehicleFilter();
-        }
-      }
-      return vehicleDefs;
-    }
-  }
-
   public static void SelectVehicle(VehicleDef vehicleDef)
   {
     selectedDef = vehicleDef;
@@ -139,10 +106,9 @@ public class VehicleMod : Mod
      .Where(d => d.ValidFor(selectedDef)).ToList();
     selectedDefUpgradeComp = vehicleDef.GetSortedCompProperties<CompProperties_UpgradeTree>();
     CurrentSection.VehicleSelected();
-    RecalculateHeight(selectedDef);
   }
 
-  private static void DeselectVehicle()
+  public static void DeselectVehicle()
   {
     selectedDef = null;
     selectedPatterns.Clear();
@@ -191,9 +157,9 @@ public class VehicleMod : Mod
 
   private static void IterateTypeFields(Type containingType, FieldInfo field)
   {
-    if (field.TryGetAttribute(out PostToSettingsAttribute settings))
+    if (field.TryGetAttribute(out PostToSettingsAttribute postToSettingsAttr))
     {
-      if (settings.ParentHolder)
+      if (postToSettingsAttr.ParentHolder)
       {
         foreach (FieldInfo innerField in field.FieldType.GetPostSettingsFields())
         {
@@ -233,14 +199,14 @@ public class VehicleMod : Mod
     tabs =
     [
       new TabRecord("VF_MainSettings".Translate(),
-        delegate() { CurrentSection = settings.main; }, () => CurrentSection == settings.main),
+        delegate { CurrentSection = settings.main; }, () => CurrentSection == settings.main),
     ];
     if (ModifiableSettings)
     {
-      tabs.Add(new TabRecord("VF_Vehicles".Translate(), delegate()
+      tabs.Add(new TabRecord("VF_Vehicles".Translate(), delegate
       {
         CurrentSection = settings.vehicles;
-        _ = VehicleDefs; //Trigger recache
+        _ = SectionDrawer.VehicleDefs; // Trigger recache
       }, () => CurrentSection == settings.vehicles));
 #if UPGRADES_TAB
 				tabs.Add(new TabRecord("VF_Upgrades".Translate(), delegate()
@@ -255,6 +221,8 @@ public class VehicleMod : Mod
 
   public override void DoSettingsWindowContents(Rect inRect)
   {
+    const float Padding = ResetImageSize + 5;
+
     base.DoSettingsWindowContents(inRect);
 
     Rect menuRect = inRect.ContractedBy(10f);
@@ -262,31 +230,23 @@ public class VehicleMod : Mod
     menuRect.height -= 20f;
 
     Widgets.DrawMenuSection(menuRect);
-    TabDrawer.DrawTabs(menuRect, tabs, 200f);
+    TabDrawer.DrawTabs(menuRect, tabs);
 
     CurrentSection.OnGUI(menuRect);
 
     /* Reset Buttons */
-    float padding = ResetImageSize + 5;
-    Rect resetAllButton = new Rect(menuRect.width - padding, menuRect.y + 15, ResetImageSize,
-      ResetImageSize);
-    Rect settingsButton = new Rect(resetAllButton.x - padding, resetAllButton.y, ResetImageSize,
+    Rect resetAllButton = new(menuRect.width - Padding, menuRect.y + 15, ResetImageSize,
       ResetImageSize);
 
     if (Widgets.ButtonImage(CurrentSection.ButtonRect(resetAllButton), VehicleTex.ResetPage))
     {
       List<FloatMenuOption> options = CurrentSection.ResetOptions.ToList();
-      FloatMenu floatMenu = new FloatMenu(options)
+      FloatMenu floatMenu = new(options)
       {
         vanishIfMouseDistant = true
       };
-      //floatMenu.onCloseCallback...
       Find.WindowStack.Add(floatMenu);
     }
-    //if (Widgets.ButtonImage(CurrentSection.ButtonRect(settingsButton), VehicleTex.ExportSettings))
-    //{
-
-    //}
   }
 
   public override string SettingsCategory()
@@ -319,158 +279,10 @@ public class VehicleMod : Mod
     }
   }
 
-  public static Rect DrawVehicleList(Rect rect, Func<bool, string> tooltipGetter = null,
-    Predicate<VehicleDef> validator = null)
-  {
-    Rect scrollContainer = rect.ContractedBy(10);
-    scrollContainer.width /= 4;
-
-    Widgets.DrawBoxSolid(scrollContainer, Color.grey);
-    Rect innerContainer = scrollContainer.ContractedBy(1);
-    Widgets.DrawBoxSolid(innerContainer, ListingExtension.MenuSectionBGFillColor);
-
-    Rect searchBoxRect = new Rect(innerContainer)
-    {
-      height = VehicleEntryHeight
-    };
-    using TextBlock textFont = new(GameFont.Small);
-    Widgets.Label(searchBoxRect, "VF_ListSearchText".Translate());
-    searchBoxRect.y += searchBoxRect.height;
-    string searchText = Widgets.TextField(searchBoxRect, vehicleFilter.Text);
-    if (searchText != vehicleFilter.Text)
-    {
-      vehicleFilter.Text = searchText;
-      RecacheVehicleFilter();
-    }
-
-    if (filteredVehicleDefs.NullOrEmpty() && VehicleDefs.NullOrEmpty())
-    {
-      // No need to render list if no vehicle mods active, and also calling get_VehicleDefs will trigger recache if mod settings page is opened directly to Vehicles tab
-      return scrollContainer;
-    }
-
-    if (selectedDef != null)
-    {
-      if (KeyBindingDefOf.MapDolly_Up.KeyDownEvent)
-      {
-        int index = filteredVehicleDefs.IndexOf(selectedDef) - 1;
-        if (index < 0)
-        {
-          index = filteredVehicleDefs.Count - 1;
-        }
-        SelectVehicle(filteredVehicleDefs[index]);
-      }
-      if (KeyBindingDefOf.MapDolly_Down.KeyDownEvent)
-      {
-        int index = filteredVehicleDefs.IndexOf(selectedDef) + 1;
-        if (index >= filteredVehicleDefs.Count)
-        {
-          index = 0;
-        }
-        SelectVehicle(filteredVehicleDefs[index]);
-      }
-    }
-
-    Rect scrollList = new Rect(innerContainer.ContractedBy(1))
-    {
-      y = searchBoxRect.yMax,
-    };
-    scrollList.height -= searchBoxRect.height * 2; //x2 for both label and input field
-    Rect scrollView = scrollList;
-    scrollView.width -= 16f;
-
-    float height = filteredVehicleDefs.Count * 20;
-    foreach (string header in headers)
-    {
-      height += Text.CalcHeight(header, scrollView.width);
-    }
-    scrollView.height = height;
-
-    // Begin ScrollView
-    Listing_SplitColumns listingStandard = new();
-    listingStandard.BeginScrollView(scrollList, ref vehicleDefsScrollPosition, ref scrollView, 1);
-    string currentModTitle = string.Empty;
-    foreach (VehicleDef vehicle in filteredVehicleDefs)
-    {
-      try
-      {
-        if (currentModTitle != vehicle.modContentPack.Name)
-        {
-          currentModTitle = vehicle.modContentPack.Name;
-          listingStandard.Header(currentModTitle, ListingExtension.BannerColor, GameFont.Small,
-            TextAnchor.MiddleCenter);
-        }
-        bool validated = validator is null || validator(vehicle);
-        string tooltip = tooltipGetter != null ? tooltipGetter(validated) : string.Empty;
-        if (listingStandard.ListItemSelectable(vehicle.LabelCap, Color.yellow,
-          selectedDef == vehicle, validated, tooltip))
-        {
-          if (selectedDef == vehicle)
-          {
-            DeselectVehicle();
-          }
-          else
-          {
-            SelectVehicle(vehicle);
-          }
-        }
-      }
-      catch (Exception ex)
-      {
-        Log.Error(
-          $"Exception thrown while trying to select {vehicle.defName}. Disabling vehicle to preserve mod settings.\nException={ex}");
-        selectedDef = null;
-        selectedPatterns.Clear();
-        selectedDefUpgradeComp = null;
-        selectedNode = null;
-        settingsDisabledFor.Add(vehicle.defName);
-      }
-    }
-    listingStandard.EndScrollView(ref scrollView);
-    // End ScrollView
-    return scrollContainer;
-  }
-
-  private static void RecacheVehicleFilter()
-  {
-    filteredVehicleDefs.Clear();
-    headers.Clear();
-    if (!VehicleDefs.NullOrEmpty())
-    {
-      foreach (VehicleDef vehicleDef in VehicleDefs)
-      {
-        if (vehicleFilter.Text.NullOrEmpty() || vehicleFilter.Matches(vehicleDef.defName) ||
-          vehicleFilter.Matches(vehicleDef.label) ||
-          vehicleFilter.Matches(vehicleDef.modContentPack.Name))
-        {
-          headers.Add(vehicleDef.modContentPack.Name);
-          filteredVehicleDefs.Add(vehicleDef);
-        }
-      }
-    }
-  }
-
   public override void WriteSettings()
   {
     base.WriteSettings();
     selectedNode = null;
     Find.WindowStack.Windows.FirstOrDefault(w => w is Dialog_NodeSettings)?.Close();
-  }
-
-  private static void RecalculateHeight(VehicleDef def, int columns = 3)
-  {
-    float propertySectionHeight = 5; //Buffer for bottom scrollable
-    foreach (var saveableObject in VehicleCompFields)
-    {
-      if (saveableObject.Value.NullOrEmpty() || saveableObject.Value.All(f =>
-        f.TryGetAttribute<PostToSettingsAttribute>(out var settings) &&
-        settings.VehicleType != VehicleType.Universal && settings.VehicleType != def.vehicleType))
-      {
-        continue;
-      }
-      int rows = Mathf.CeilToInt(saveableObject.Value.Count / columns);
-      propertySectionHeight += 50 + rows * 16; //72
-    }
-    scrollableViewHeight = propertySectionHeight;
   }
 }

@@ -233,7 +233,7 @@ namespace Vehicles
         }
       }
 
-      using (new TextBlock(TexData.MenuBGColor))
+      using (new TextBlock(UIElements.menuSectionBGBorderColor))
       {
         Widgets.DrawLineHorizontal(rect.x, topLabelRect.y + textHeight / 1.25f, rect.width);
       }

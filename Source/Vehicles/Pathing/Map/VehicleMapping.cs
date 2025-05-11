@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using SmashTools.Debugging;
 using SmashTools.Performance;
 using UnityEngine.Assertions;
 using Verse;
@@ -148,7 +149,7 @@ public sealed class VehicleMapping : MapComponent
     // getting suspended sporadically during unit testing so using deferred grid generation would
     // lead to inconsistent results.
 #if DEV_TOOLS
-    if (VehicleHarmony.RunningUnitTests)
+    if (TestWatcher.RunningUnitTests)
       deferment = GridDeferment.Forced;
 #endif
 

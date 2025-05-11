@@ -38,7 +38,7 @@ namespace Vehicles
       Log.Warning(
         $"Retrieving {GetType()} Colored Graphic from vanilla GraphicDatabase which will result in redundant graphic creation.");
       return GraphicDatabase.Get<Graphic_Vehicle>(path, newShader, drawSize, newColor, newColorTwo,
-        DataRGB);
+        DataRgb);
     }
   }
 }

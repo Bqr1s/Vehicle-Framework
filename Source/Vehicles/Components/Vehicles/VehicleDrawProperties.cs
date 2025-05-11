@@ -10,8 +10,8 @@ namespace Vehicles;
 /// <summary>
 /// Draw Properties for multiple UI dialogs and ModSettings
 /// </summary>
+[PublicAPI]
 [HeaderTitle(Label = nameof(VehicleDrawProperties))]
-[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public class VehicleDrawProperties
 {
   public Rot8 displayRotation = Rot8.East;

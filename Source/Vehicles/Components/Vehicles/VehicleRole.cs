@@ -16,7 +16,7 @@ public class VehicleRole : ITweakFields
   public string label = "[MissingLabel]";
 
   //Operating
-  private HandlingTypeFlags handlingTypes = HandlingTypeFlags.None;
+  private HandlingType handlingTypes = HandlingType.None;
   private int slots;
   private int slotsToOperate;
   private float comfort = 0.5f;
@@ -51,7 +51,7 @@ public class VehicleRole : ITweakFields
   }
 
   //Operating
-  public HandlingTypeFlags HandlingTypes
+  public HandlingType HandlingTypes
   {
     get
     {
@@ -225,7 +225,7 @@ public class VehicleRole : ITweakFields
   }
 
   public bool RequiredForCaravan =>
-    slotsToOperate > 0 && handlingTypes.HasFlag(HandlingTypeFlags.Movement);
+    slotsToOperate > 0 && handlingTypes.HasFlag(HandlingType.Movement);
 
   string ITweakFields.Category => nameof(PawnOverlayRenderer);
 

@@ -16,7 +16,7 @@ namespace Vehicles
   public class ThreadDisabler : IDisposable
   {
     // True = thread was active before disabling
-    private readonly Dictionary<Map, bool> threadStates = [];
+    private Dictionary<Map, bool> threadStates = [];
 
     public ThreadDisabler()
     {
@@ -47,6 +47,7 @@ namespace Vehicles
           mapping.dedicatedThread.IsSuspended = !wasActive;
         }
       }
+      GC.SuppressFinalize(this);
     }
   }
 }

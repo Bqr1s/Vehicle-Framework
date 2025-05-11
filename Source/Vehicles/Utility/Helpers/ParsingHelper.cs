@@ -74,7 +74,6 @@ public static class ParsingHelper
     XmlParseHelper.RegisterAttribute("LockSetting", CheckFieldLocked);
     XmlParseHelper.RegisterAttribute("AssignDefaults", AssignDefaults);
     XmlParseHelper.RegisterAttribute("DisableSettings", CheckDisabledSettings);
-    XmlParseHelper.RegisterAttribute("TurretAllowedFor", CheckTurretStatus);
     XmlParseHelper.RegisterAttribute("AllowTerrainWithTag", AllowTerrainCosts,
       "customTerrainCosts");
     XmlParseHelper.RegisterAttribute("DisallowTerrainWithTag", DisallowTerrainCosts,
@@ -134,33 +133,6 @@ public static class ParsingHelper
       }
       string defName = defNode.InnerText;
       VehicleMod.settingsDisabledFor.Add(defName);
-    }
-  }
-
-  private static void CheckTurretStatus(XmlNode node, string value, FieldInfo field)
-  {
-    if (value.ToUpperInvariant().Contains("STRAFING"))
-    {
-      string defName = XmlParseHelper.BackSearchDefName(node);
-      if (string.IsNullOrEmpty(defName))
-      {
-        SmashLog.Error(
-          $"Cannot use <attribute>TurretAllowedFor</attribute> on non-VehicleDef XmlNodes.");
-        return;
-      }
-      foreach (XmlNode childNode in node.ChildNodes)
-      {
-        XmlNode keyNode = childNode.SelectSingleNode("key");
-        if (keyNode is null)
-        {
-          SmashLog.Error($"Unable to locate <text>key</text> for VehicleTurret.");
-        }
-        if (!Enum.TryParse(keyNode.InnerText, out TurretDisableType enableType))
-        {
-        }
-        VehicleTurret.conditionalTurrets.Add(
-          new Pair<string, TurretDisableType>(defName, enableType));
-      }
     }
   }
 

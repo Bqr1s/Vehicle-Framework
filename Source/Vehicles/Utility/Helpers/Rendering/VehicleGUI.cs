@@ -13,7 +13,7 @@ namespace Vehicles.Rendering;
 [StaticConstructorOnStartup]
 public static class VehicleGui
 {
-  private const float OversampleFactor = 3f;
+  private const float OversampleFactor = 2f;
 
   private const float IdlerTimeExpiry = 10; // seconds
 
@@ -114,7 +114,7 @@ public static class VehicleGui
   }
 
   public static void Blit(RenderTexture renderTexture, Rect rect, in BlitRequest request,
-    float iconScale = 1)
+    float iconScale = 1, bool forceCentering = false)
   {
     RenderTextureDrawer.Open(renderTexture);
     try
@@ -126,7 +126,7 @@ public static class VehicleGui
           RenderTextureDrawer.Add(renderData);
         }
       }
-      RenderTextureDrawer.Draw(rect, scale: iconScale);
+      RenderTextureDrawer.Draw(rect, scale: iconScale, center: forceCentering);
     }
     finally
     {

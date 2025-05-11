@@ -32,11 +32,11 @@ namespace Vehicles
       base.Init(req);
       if (req.path.NullOrEmpty())
       {
-        throw new ArgumentNullException("folderPath");
+        throw new ArgumentNullException(nameof(req.path));
       }
       if (req.shader == null)
       {
-        throw new ArgumentNullException("shader");
+        throw new ArgumentNullException(nameof(req.shader));
       }
       //Texture2D mainTex = ContentFinder<Texture2D>.Get(req.path);
       //textures = new Texture2D[] { mainTex };
@@ -45,7 +45,7 @@ namespace Vehicles
 
     protected override void GetMasks(string path, Shader shader)
     {
-      patternPointers = new int[] { 0, 1, 2, 3, 4, 5, 6, 7 };
+      patternPointers = [0, 1, 2, 3, 4, 5, 6, 7];
 
       Texture2D maskTex = ContentFinder<Texture2D>.Get(path + TurretMaskSuffix, false);
       masks = Enumerable.Repeat(maskTex, MatCount).ToArray();
@@ -54,7 +54,7 @@ namespace Vehicles
     public override Graphic GetColoredVersion(Shader newShader, Color newColor, Color newColorTwo)
     {
       return GraphicDatabase.Get<Graphic_Turret>(path, newShader, drawSize, newColor, newColorTwo,
-        DataRGB);
+        DataRgb);
     }
   }
 }

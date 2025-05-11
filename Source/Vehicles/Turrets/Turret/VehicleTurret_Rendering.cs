@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using RimWorld;
 using SmashTools;
+using SmashTools.Performance;
 using SmashTools.Rendering;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Vehicles.Rendering;
 using Verse;
+using Verse.Sound;
 
 namespace Vehicles;
 
@@ -80,9 +85,177 @@ public partial class VehicleTurret
   [Unsaved]
   protected RotatingList<Texture2D> overheatIcons;
 
+  public bool GizmoHighlighted { get; set; }
+
   public MaterialPropertyBlock PropertyBlock { get; private set; }
 
   public static MaterialPropertyBlock TargeterPropertyBlock { get; private set; }
+
+  public int MaterialCount => 1;
+
+  public string Name => $"{def}_{key}_{vehicle?.ThingID ?? "Def"}";
+
+  public bool NoGraphic => def.graphicData is null;
+
+  public float DrawLayerOffset => drawLayer * (Altitudes.AltInc / GraphicDataLayered.SubLayerCount);
+
+  public PatternDef PatternDef
+  {
+    get
+    {
+      if (NoGraphic)
+      {
+        return PatternDefOf.Default;
+      }
+
+      if (vehicle == null)
+      {
+        return VehicleMod.settings.vehicles.defaultGraphics
+           .TryGetValue(vehicleDef.defName, vehicleDef.graphicData)?.patternDef ??
+          PatternDefOf.Default;
+      }
+
+      if (def.matchParentColor)
+      {
+        return vehicle?.PatternDef ?? PatternDefOf.Default;
+      }
+
+      return GraphicData.pattern;
+    }
+  }
+
+  public Texture2D FireIcon
+  {
+    get
+    {
+      if (Find.TickManager.TicksGame % TicksPerOverheatingFrame == 0)
+      {
+        currentFireIcon = OverheatIcons.Next;
+      }
+      return currentFireIcon;
+    }
+  }
+
+  protected RotatingList<Texture2D> OverheatIcons
+  {
+    get
+    {
+      if (overheatIcons.NullOrEmpty())
+      {
+        overheatIcons = VehicleTex.FireIcons.ToRotatingList();
+      }
+      return overheatIcons;
+    }
+  }
+
+  public virtual Material Material
+  {
+    get
+    {
+      if (cachedMaterial is null)
+        ResolveGraphics(vehicle);
+      return cachedMaterial;
+    }
+  }
+
+  public virtual Texture2D Texture
+  {
+    get
+    {
+      if (GraphicData.texPath.NullOrEmpty())
+        return null;
+      cachedTexture ??= ContentFinder<Texture2D>.Get(GraphicData.texPath);
+      return cachedTexture;
+    }
+  }
+
+  public virtual Texture2D MainMaskTexture
+  {
+    get
+    {
+      if (GraphicData.texPath.NullOrEmpty())
+        return null;
+
+      mainMaskTex ??=
+        ContentFinder<Texture2D>.Get(GraphicData.texPath + Graphic_Turret.TurretMaskSuffix);
+      return mainMaskTex;
+    }
+  }
+
+  public virtual GraphicDataRGB GraphicData
+  {
+    get
+    {
+      if (cachedGraphicData is null)
+        ResolveGraphics(vehicle);
+      return cachedGraphicData;
+    }
+  }
+
+  public virtual Graphic_Turret Graphic
+  {
+    get
+    {
+      if (cachedGraphic is null)
+        ResolveGraphics(vehicle);
+      return cachedGraphic;
+    }
+  }
+
+  public virtual List<TurretDrawData> TurretGraphics
+  {
+    get { return turretGraphics; }
+  }
+
+  public virtual Texture2D GizmoIcon
+  {
+    get
+    {
+      if (gizmoIcon is null)
+      {
+        if (!string.IsNullOrEmpty(def.gizmoIconTexPath))
+        {
+          gizmoIcon = ContentFinder<Texture2D>.Get(def.gizmoIconTexPath);
+        }
+        else if (NoGraphic)
+        {
+          gizmoIcon = BaseContent.BadTex;
+        }
+        else
+        {
+          gizmoIcon = Texture ?? BaseContent.BadTex;
+        }
+      }
+
+      return gizmoIcon;
+    }
+  }
+
+  /// <summary>
+  /// Smaller actions inside VehicleTurret gizmo
+  /// </summary>
+  public virtual IEnumerable<SubGizmo> SubGizmos
+  {
+    get
+    {
+      if (def.magazineCapacity > 0)
+      {
+        if (def.ammunition != null)
+        {
+          yield return SubGizmo_RemoveAmmo(this);
+        }
+
+        yield return SubGizmo_ReloadFromInventory(this);
+      }
+
+      yield return SubGizmo_FireMode(this);
+
+      if (autoTargeting)
+      {
+        yield return SubGizmo_AutoTarget(this);
+      }
+    }
+  }
 
   public virtual void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
   {
@@ -94,14 +267,17 @@ public partial class VehicleTurret
       case DrawPhase.EnsureInitialized:
         if (!def.graphics.NullOrEmpty())
           subGraphicResults = [];
-        break;
+        // Ensure meshes are created and cached
+        for (int i = 0; i < 4; i++)
+          _ = Graphic.MeshAt(new Rot4(i));
+      break;
       case DrawPhase.ParallelPreDraw:
         results = ParallelPreRenderResults(in transformData, TurretRotation);
         if (subGraphicResults != null)
         {
           AddSubGraphicParallelPreRenderResults(in transformData, subGraphicResults);
         }
-        break;
+      break;
       case DrawPhase.Draw:
         // TODO - Check if we'll be rendering turrets with dynamic rotations, otherwise we'll
         // need to change this to be more flexible for unspawned vehicle rendering.
@@ -111,7 +287,7 @@ public partial class VehicleTurret
         Draw();
         results = default;
         subGraphicResults?.Clear();
-        break;
+      break;
       default:
         throw new NotImplementedException(nameof(DrawPhase));
     }
@@ -125,6 +301,9 @@ public partial class VehicleTurret
       valid = true,
       draw = true
     };
+    // This is more or less the same implementation as Graphic_Rgb::ParallelGetPreRenderResults
+    // The fixed North orientation, turret rotation, and additional offsetting makes it more
+    // trouble than its worth to try and fetch then modify.
     Vector3 rootPos = transformData.position + TurretDrawLocFor(transformData.orientation);
     if (addRecoil)
     {
@@ -139,6 +318,11 @@ public partial class VehicleTurret
       }
     }
     render.position = rootPos;
+    if (vehicle is { Spawned: true } && def.graphicData.altLayerSpawned is { } altLayerSpawned)
+    {
+      render.position.y = altLayerSpawned.AltitudeFor();
+      render.position.y += Graphic.DrawOffset(Rot4.North).y;
+    }
     render.quaternion = turretRotation.ToQuat();
     render.mesh = Graphic.MeshAt(transformData.orientation);
     render.material = Material;
@@ -160,6 +344,9 @@ public partial class VehicleTurret
       TurretDrawData turretDrawData = TurretGraphics[i];
       Turret_RecoilTracker subRecoilTracker = recoilTrackers[i];
 
+      // This is more or less the same implementation as Graphic_Rgb::ParallelGetPreRenderResults
+      // The fixed North orientation, turret rotation, and additional offsetting makes it more
+      // trouble than its worth to try and fetch then modify.
       Vector3 rootPos =
         turretDrawData.DrawOffset(transformData.position, transformData.orientation);
       Vector3 recoilOffset = Vector3.zero;
@@ -175,6 +362,12 @@ public partial class VehicleTurret
           attachedTo.recoilTracker.Angle);
       }
       render.position = rootPos + recoilOffset + parentRecoilOffset;
+      if (vehicle is { Spawned: true } && turretDrawData.graphicData.altLayerSpawned is
+        { } altLayerSpawned)
+      {
+        render.position.y = altLayerSpawned.AltitudeFor();
+        render.position.y += Graphic.DrawOffset(Rot4.North).y;
+      }
       render.quaternion = TurretRotation.ToQuat();
       render.mesh = turretDrawData.graphic.MeshAt(transformData.orientation);
       render.material = turretDrawData.graphic.MatAt(Rot4.North);
@@ -200,30 +393,21 @@ public partial class VehicleTurret
 
   public Rect ScaleUIRectFor(VehicleDef vehicleDef, Rect rect, Rot8 rot, float iconScale = 1)
   {
-    // Scale to VehicleDef drawSize, vehicle will scale based on max dimension
-    Vector2 size =
-      vehicleDef.ScaleDrawRatio(def.graphicData, rot, rect.size, iconScale: iconScale);
-    float scalar = rect.width /
-      Mathf.Max(vehicleDef.graphicData.drawSize.x, vehicleDef.graphicData.drawSize.y);
-
-    Vector2 offset = renderProperties.OffsetFor(rot) * scalar;
-    offset.y *= -1;
-
-    Vector3 graphicOffset = def.graphicData.DrawOffsetForRot(rot);
-    Vector2 baseOffset = new Vector2(graphicOffset.x, graphicOffset.z) * scalar;
-
+    GraphicDataRGB data = def.graphicData;
+    Vector2 size = vehicleDef.ScaleDrawRatio(data, rot, rect.size, iconScale: iconScale);
+    Vector2 original = new(data.drawSize.x, data.drawSize.y);
+    Vector2 scaleFactors = new(size.x / original.x, size.y / original.y);
+    Vector3 drawOffset = data.DrawOffsetForRot(rot);
+    Vector2 baseOffset = new(drawOffset.x * scaleFactors.x, -drawOffset.z * scaleFactors.y);
+    Vector2 propOffset = renderProperties.OffsetFor(rot);
+    Vector2 offset = new(propOffset.x * scaleFactors.x, -propOffset.y * scaleFactors.y);
     Vector2 position = rect.center + baseOffset + offset;
-
     if (attachedTo != null)
     {
-      Vector2 parentCenter = attachedTo.ScaleUIRectFor(vehicleDef, rect, rot, iconScale: iconScale)
-       .center;
-      position += parentCenter - rect.center;
-      //float parentRotation = TurretRotationFor(rot, attachedTo.defaultAngleRotated);
-      //offsetPosition = Ext_Math.RotatePointClockwise(offsetPosition, parentRotation);
+      Rect parentRect = attachedTo.ScaleUIRectFor(vehicleDef, rect, rot, iconScale);
+      position += parentRect.center - rect.center;
     }
-
-    return new Rect(position - size / 2, size);
+    return new Rect(position - size * 0.5f, size);
   }
 
   (int width, int height) IBlitTarget.TextureSize(in BlitRequest request)
@@ -309,7 +493,7 @@ public partial class VehicleTurret
               turret.TurretLocation.PointFromAngle(turret.MaxRange, turret.TurretRotation);
             float range = Vector3.Distance(turret.TurretLocation, target);
             GenDraw.DrawRadiusRing(target.ToIntVec3(),
-              turret.CurrentFireMode.spreadRadius * (range / turret.def.maxRange));
+              turret.CurrentFireMode.forcedMissRadius * (range / turret.def.maxRange));
           }
         }
         else
@@ -317,7 +501,7 @@ public partial class VehicleTurret
           Vector3 target = TurretLocation.PointFromAngle(MaxRange, TurretRotation);
           float range = Vector3.Distance(TurretLocation, target);
           GenDraw.DrawRadiusRing(target.ToIntVec3(),
-            CurrentFireMode.spreadRadius * (range / def.maxRange));
+            CurrentFireMode.forcedMissRadius * (range / def.maxRange));
         }
       }
       else
@@ -373,26 +557,23 @@ public partial class VehicleTurret
     }
   }
 
-  public virtual void ResolveCannonGraphics(VehiclePawn vehicle, bool forceRegen = false)
+  public virtual void ResolveGraphics(VehiclePawn vehicle, bool forceRegen = false)
   {
-    ResolveCannonGraphics(vehicle.patternData, forceRegen: forceRegen);
+    ResolveGraphics(vehicle.patternData, forceRegen: forceRegen);
   }
 
-  public virtual void ResolveCannonGraphics(VehicleDef vehicleDef, bool forceRegen = false)
+  public virtual void ResolveGraphics(VehicleDef vehicleDef, bool forceRegen = false)
   {
     PatternData patternData =
       VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(vehicleDef.defName,
         vehicleDef.graphicData);
-    ResolveCannonGraphics(patternData, forceRegen: forceRegen);
+    ResolveGraphics(patternData, forceRegen: forceRegen);
   }
 
-  // TODO 1.6 - Rename to ResolveGraphics
-  public virtual void ResolveCannonGraphics(PatternData patternData, bool forceRegen = false)
+  public virtual void ResolveGraphics(PatternData patternData, bool forceRegen = false)
   {
     if (NoGraphic)
-    {
       return;
-    }
 
     if (cachedGraphicData is null || forceRegen)
     {
@@ -466,6 +647,278 @@ public partial class VehicleTurret
     return graphic;
   }
 
+  public virtual void InitTurretMotes(Vector3 loc)
+  {
+    if (def.motes.NullOrEmpty())
+      return;
+
+    foreach (AnimationProperties moteProps in def.motes)
+    {
+      Vector3 moteLoc = loc;
+      if (!loc.ShouldSpawnMotesAt(vehicle.Map))
+        continue;
+
+      try
+      {
+        float altitudeLayer = moteProps.moteDef.altitudeLayer.AltitudeFor();
+        Vector3 offset = moteProps.offset.RotatedBy(TurretRotation);
+        moteLoc += new Vector3(offset.x, altitudeLayer + offset.y, offset.z);
+        Mote mote = (Mote)ThingMaker.MakeThing(moteProps.moteDef);
+        mote.exactPosition = moteLoc;
+        mote.exactRotation = moteProps.exactRotation.RandomInRange;
+        mote.instanceColor = moteProps.color;
+        mote.rotationRate = moteProps.rotationRate;
+        mote.Scale = moteProps.scale;
+        if (mote is MoteThrown thrownMote)
+        {
+          float thrownAngle = TurretRotation + moteProps.angleThrown.RandomInRange;
+          if (thrownMote is MoteThrownExpand expandMote)
+          {
+            if (expandMote is MoteThrownSlowToSpeed accelMote)
+            {
+              accelMote.SetDecelerationRate(moteProps.deceleration.RandomInRange,
+                moteProps.fixedAcceleration, thrownAngle);
+            }
+
+            expandMote.growthRate = moteProps.growthRate.RandomInRange;
+          }
+
+          thrownMote.SetVelocity(thrownAngle, moteProps.speedThrown.RandomInRange);
+        }
+
+        if (mote is MoteCannonPlume cannonMote)
+        {
+          cannonMote.cyclesLeft = moteProps.cycles;
+          cannonMote.animationType = moteProps.animationType;
+          cannonMote.angle = TurretRotation;
+        }
+
+        mote.def = moteProps.moteDef;
+        mote.PostMake();
+        GenSpawn.Spawn(mote, moteLoc.ToIntVec3(), vehicle.Map);
+      }
+      catch (Exception ex)
+      {
+        SmashLog.Error(
+          $"Failed to spawn mote at {loc}. MoteDef = <field>{moteProps.moteDef?.defName ?? "Null"}</field> Exception = {ex}");
+      }
+    }
+  }
+
+  /// <summary>
+  /// Caches VehicleTurret draw location based on <see cref="renderProperties"/>, <see cref="attachedTo"/> draw loc is not cached, as rotating can alter the final draw location
+  /// </summary>
+  public void RecacheRootDrawPos()
+  {
+    if (GraphicData != null)
+    {
+      rootDrawPos_North = TurretDrawLocFor(Rot8.North, fullLoc: false);
+      rootDrawPos_East = TurretDrawLocFor(Rot8.East, fullLoc: false);
+      rootDrawPos_South = TurretDrawLocFor(Rot8.South, fullLoc: false);
+      rootDrawPos_West = TurretDrawLocFor(Rot8.West, fullLoc: false);
+      rootDrawPos_NorthEast = TurretDrawLocFor(Rot8.NorthEast, fullLoc: false);
+      rootDrawPos_SouthEast = TurretDrawLocFor(Rot8.SouthEast, fullLoc: false);
+      rootDrawPos_SouthWest = TurretDrawLocFor(Rot8.SouthWest, fullLoc: false);
+      rootDrawPos_NorthWest = TurretDrawLocFor(Rot8.NorthWest, fullLoc: false);
+    }
+  }
+
+  public Vector3 TurretOffset(Rot8 rot)
+  {
+    return rot.AsInt switch
+    {
+      // North
+      0 => rootDrawPos_North,
+      // East
+      1 => rootDrawPos_East,
+      // South
+      2 => rootDrawPos_South,
+      // West
+      3 => rootDrawPos_West,
+      // NorthEast
+      4 => rootDrawPos_NorthEast,
+      // SouthEast
+      5 => rootDrawPos_SouthEast,
+      // SouthWest
+      6 => rootDrawPos_SouthWest,
+      // NorthWest
+      7 => rootDrawPos_NorthWest,
+      _ => throw new NotImplementedException("Invalid Rot8")
+    };
+  }
+
+  public static SubGizmo SubGizmo_RemoveAmmo(VehicleTurret turret)
+  {
+    return new SubGizmo(
+      drawGizmo: delegate(Rect rect)
+      {
+        //Widgets.DrawTextureFitted(rect, BGTex, 1);
+        if (turret.loadedAmmo != null)
+        {
+          //Only modify alpha
+          using (new TextBlock(new Color(GUI.color.r, GUI.color.g, GUI.color.b,
+            turret.IconAlphaTicked)))
+          {
+            Widgets.DrawTextureFitted(rect, turret.loadedAmmo.uiIcon, 1);
+          }
+
+          Rect ammoCountRect = new(rect);
+          string ammoCount = turret.vehicle.inventory.innerContainer
+           .Where(td => td.def == turret.loadedAmmo).Select(t => t.stackCount).Sum().ToStringSafe();
+          ammoCountRect.y += ammoCountRect.height / 2;
+          ammoCountRect.x += ammoCountRect.width - Text.CalcSize(ammoCount).x;
+          Widgets.Label(ammoCountRect, ammoCount);
+        }
+        else if (turret.def.genericAmmo && turret.def.ammunition.AllowedDefCount > 0)
+        {
+          ThingDef ammoDef = turret.def.ammunition.AllowedThingDefs.FirstOrDefault();
+          Assert.IsNotNull(ammoDef);
+          Widgets.DrawTextureFitted(rect, ammoDef.uiIcon, 1);
+
+          Rect ammoCountRect = new(rect);
+          string ammoCount = turret.vehicle.inventory.innerContainer
+           .Where(td => td.def == turret.def.ammunition.AllowedThingDefs.FirstOrDefault())
+           .Select(t => t.stackCount).Sum().ToStringSafe();
+          ammoCountRect.y += ammoCountRect.height / 2;
+          ammoCountRect.x += ammoCountRect.width - Text.CalcSize(ammoCount).x;
+          Widgets.Label(ammoCountRect, ammoCount);
+        }
+      },
+      canClick: () => turret.shellCount > 0,
+      onClick: delegate
+      {
+        turret.TryClearChamber();
+        SoundDefOf.Artillery_ShellLoaded.PlayOneShot(new TargetInfo(turret.vehicle.Position,
+          turret.vehicle.Map));
+      },
+      tooltip: turret.loadedAmmo?.LabelCap
+    );
+  }
+
+  public static SubGizmo SubGizmo_ReloadFromInventory(VehicleTurret turret)
+  {
+    return new SubGizmo(
+      drawGizmo: delegate(Rect rect) { Widgets.DrawTextureFitted(rect, VehicleTex.ReloadIcon, 1); },
+      canClick: () => true,
+      onClick: delegate
+      {
+        if (turret.def.ammunition is null)
+        {
+          turret.Reload();
+        }
+        else if (turret.def.genericAmmo)
+        {
+          if (!turret.vehicle.inventory.innerContainer.Contains(turret.def.ammunition
+           .AllowedThingDefs.FirstOrDefault()))
+          {
+            Messages.Message("VF_NoAmmoAvailable".Translate(), MessageTypeDefOf.RejectInput);
+          }
+          else
+          {
+            turret.Reload(turret.def.ammunition.AllowedThingDefs.FirstOrDefault());
+          }
+        }
+        else
+        {
+          List<FloatMenuOption> options = [];
+          List<ThingDef> ammoAvailable = turret.vehicle.inventory.innerContainer
+           .Where(d => turret.ContainsAmmoDefOrShell(d.def)).Select(t => t.def).Distinct().ToList();
+          for (int i = ammoAvailable.Count - 1; i >= 0; i--)
+          {
+            ThingDef ammo = ammoAvailable[i];
+            options.Add(new FloatMenuOption(ammoAvailable[i].LabelCap,
+              delegate { turret.Reload(ammo, ammo != turret.savedAmmoType); }));
+          }
+
+          if (options.NullOrEmpty())
+          {
+            FloatMenuOption noAmmoOption =
+              new("VF_VehicleTurrets_NoAmmoToReload".Translate(), null)
+              {
+                Disabled = true
+              };
+            options.Add(noAmmoOption);
+          }
+
+          Find.WindowStack.Add(new FloatMenu(options));
+        }
+      },
+      tooltip: "VF_ReloadVehicleTurret".Translate()
+    );
+  }
+
+  public static SubGizmo SubGizmo_FireMode(VehicleTurret turret)
+  {
+    return new SubGizmo(
+      drawGizmo: delegate(Rect rect)
+      {
+        Widgets.DrawTextureFitted(rect, turret.CurrentFireMode.Icon, 1);
+      },
+      canClick: () => turret.def.fireModes.Count > 1,
+      onClick: turret.CycleFireMode,
+      tooltip: turret.CurrentFireMode.label
+    );
+  }
+
+  public static SubGizmo SubGizmo_AutoTarget(VehicleTurret turret)
+  {
+    return new SubGizmo(
+      drawGizmo: delegate(Rect rect)
+      {
+        Widgets.DrawTextureFitted(rect, VehicleTex.AutoTargetIcon, 1);
+        Rect checkboxRect = new(rect.x + rect.width / 2, rect.y + rect.height / 2,
+          rect.width / 2, rect.height / 2);
+        GUI.DrawTexture(checkboxRect,
+          turret.AutoTarget ? Widgets.CheckboxOnTex : Widgets.CheckboxOffTex);
+      },
+      canClick: () => turret.CanAutoTarget,
+      onClick: turret.SwitchAutoTarget,
+      tooltip: AutoTargetingTooltip()
+    );
+
+    string AutoTargetingTooltip()
+    {
+      StringBuilder tooltip = UIHelper.tooltipBuilder;
+      tooltip.Clear();
+      tooltip.AppendLine("VF_ToggleAutoTargeting".Translate());
+      tooltip.AppendLine();
+      tooltip.AppendLine();
+      tooltip.AppendLine("VF_ToggleAutoTargetingDesc"
+       .Translate((turret.AutoTarget ? "On".TranslateSimple() : "Off".TranslateSimple())
+         .UncapitalizeFirst().Named("ONOFF"))
+       .Resolve());
+      string text = tooltip.ToString();
+      tooltip.Clear();
+      return text;
+    }
+  }
+
+  [NoProfiling]
+  public (Texture2D mainTex, Texture2D maskTex) GetTextures(Rot8 rot)
+  {
+    throw new NotImplementedException();
+  }
+
+  public readonly struct SubGizmo
+  {
+    public readonly Action<Rect> drawGizmo;
+    public readonly Func<bool> canClick;
+    public readonly Action onClick;
+    public readonly string tooltip;
+
+    public SubGizmo(Action<Rect> drawGizmo, Func<bool> canClick, Action onClick, string tooltip)
+    {
+      this.drawGizmo = drawGizmo;
+      this.canClick = canClick;
+      this.onClick = onClick;
+      this.tooltip = tooltip;
+    }
+
+    public bool IsValid => onClick != null;
+
+    public static SubGizmo None { get; private set; } = new();
+  }
+
   public class TurretDrawData : IMaterialCacheTarget
   {
     private readonly VehicleTurret turret;
@@ -513,15 +966,5 @@ public partial class VehicleTurret
     {
       return $"TurretDrawData_{turret.key}_({graphicData.texPath})";
     }
-  }
-
-  protected struct PreRenderResults
-  {
-    public bool valid;
-    public bool draw;
-    public Mesh mesh;
-    public Material material;
-    public Vector3 position;
-    public Quaternion quaternion;
   }
 }

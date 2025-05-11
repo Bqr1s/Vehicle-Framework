@@ -2,20 +2,22 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 using HarmonyLib;
-using Verse;
-using Verse.Sound;
 using RimWorld;
 using SmashTools;
 using SmashTools.Rendering;
+using UnityEngine;
 using Vehicles.Rendering;
-using RenderTexture = UnityEngine.RenderTexture;
+using Verse;
+using Verse.Sound;
 
 namespace Vehicles;
 
 public class Section_Vehicles : SettingsSection
 {
+  private const int DefPropertyColumns = 2;
+  private const int CompPropertyColumns = 3;
+
   private const float SmallIconSize = 24;
 
   private static readonly FieldInfo enabledField =
@@ -36,6 +38,8 @@ public class Section_Vehicles : SettingsSection
 
   private bool textureDirty;
   private RenderTextureBuffer buffer;
+
+  private float propertyHeight;
 
   public override IEnumerable<FloatMenuOption> ResetOptions
   {
@@ -66,6 +70,12 @@ public class Section_Vehicles : SettingsSection
   public override void OnOpen()
   {
     textureDirty = true;
+
+    listingSplit = new Listing_Settings
+    {
+      maxOneColumn = true,
+      shiftRectScrollbar = true
+    };
   }
 
   public override void Initialize()
@@ -114,9 +124,27 @@ public class Section_Vehicles : SettingsSection
   public override void OnGUI(Rect rect)
   {
     DrawVehicleOptions(rect);
-    VehicleMod.DrawVehicleList(rect,
+    SectionDrawer.DrawVehicleList(rect,
       isValid => isValid ? string.Empty : "VF_SettingsDisabledTooltip".Translate().ToString(),
       vehicleDef => !VehicleMod.settingsDisabledFor.Contains(vehicleDef.defName));
+  }
+
+  private void RecalculateHeight()
+  {
+    float propertySectionHeight = 5; // Buffer for bottom scrollable
+    foreach (List<FieldInfo> fields in VehicleMod.VehicleCompFields.Values)
+    {
+      if (fields.NullOrEmpty() || fields.All(f =>
+        f.TryGetAttribute(out PostToSettingsAttribute settings) &&
+        settings.VehicleType != VehicleType.Universal &&
+        settings.VehicleType != VehicleMod.selectedDef.vehicleType))
+      {
+        continue;
+      }
+      int rows = Mathf.CeilToInt((float)fields.Count / 3);
+      propertySectionHeight += 50 + rows * 16; //72
+    }
+    propertyHeight = propertySectionHeight;
   }
 
   public override void VehicleSelected()
@@ -125,16 +153,11 @@ public class Section_Vehicles : SettingsSection
     buffer?.Dispose();
     buffer = null;
     textureDirty = true;
+    RecalculateHeight();
   }
 
   private void DrawVehicleOptions(Rect menuRect)
   {
-    listingSplit = new Listing_Settings
-    {
-      maxOneColumn = true,
-      shiftRectScrollbar = true
-    };
-
     Rect vehicleIconContainer = menuRect.ContractedBy(10);
     vehicleIconContainer.width /= 4;
     vehicleIconContainer.height = vehicleIconContainer.width;
@@ -148,11 +171,11 @@ public class Section_Vehicles : SettingsSection
     Rect vehicleDetailsRect = vehicleDetailsContainer.ContractedBy(1);
     Widgets.DrawBoxSolid(vehicleDetailsRect, ListingExtension.MenuSectionBGFillColor);
 
-    listingStandard = new Listing_Standard();
-    listingStandard.Begin(vehicleDetailsContainer.ContractedBy(1));
-    listingStandard.Header($"{VehicleMod.selectedDef?.LabelCap ?? string.Empty}",
-      ListingExtension.BannerColor, GameFont.Medium, TextAnchor.MiddleCenter);
-    listingStandard.End();
+    UIElements.Header(
+      (vehicleDetailsContainer with { height = Text.LineHeightOf(GameFont.Medium) })
+     .ContractedBy(1),
+      $"{VehicleMod.selectedDef?.LabelCap ?? string.Empty}", ListingExtension.BannerColor,
+      fontSize: GameFont.Medium, anchor: TextAnchor.MiddleCenter);
 
     if (VehicleMod.selectedDef != null)
     {
@@ -217,13 +240,13 @@ public class Section_Vehicles : SettingsSection
           menuRect.height - scrollableFieldY - 10);
 
         Rect scrollableFieldsViewRect = new(scrollableFieldsRect.x, scrollableFieldsRect.y,
-          scrollableFieldsRect.width - 20, VehicleMod.scrollableViewHeight);
+          scrollableFieldsRect.width - 20, propertyHeight);
         //UIElements.DrawLineVerticalGrey(iconRect.x + iconRect.width + 24, iconRect.y, VehicleMod.scrollableViewHeight - 10);
         UIElements.DrawLineHorizontalGrey(scrollableFieldsRect.x, scrollableFieldsRect.y - 1,
           scrollableFieldsRect.width);
 
         listingSplit.BeginScrollView(scrollableFieldsRect,
-          ref VehicleMod.saveableFieldsScrollPosition, ref scrollableFieldsViewRect, 3);
+          ref SectionDrawer.saveableFieldsScrollPosition, ref scrollableFieldsViewRect, 3);
 
         foreach ((Type type, List<FieldInfo> fields) in VehicleMod.VehicleCompFields)
         {

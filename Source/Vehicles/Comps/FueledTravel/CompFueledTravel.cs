@@ -16,6 +16,7 @@ namespace Vehicles;
 
 [HeaderTitle(Label = nameof(CompFueledTravel))]
 [UsedImplicitly]
+[StaticConstructorOnStartup]
 public class CompFueledTravel : VehicleComp, IRefundable
 {
   private const float FuelPerLeak = 1;
@@ -26,6 +27,12 @@ public class CompFueledTravel : VehicleComp, IRefundable
   private const float EfficiencyIdleMultiplier = 0.5f;
   private const float CellOffsetIntVec3ToVector3 = 0.5f;
   private const float TicksToCharge = 120;
+
+  // Same as TransferableOneWayWidget::DrawNutritionEatenPerDay
+  private static readonly Color fuelPerDayColor = new(1f, 0.5f, 0f);
+
+  private static readonly Texture2D electricPowerTex =
+    ContentFinder<Texture2D>.Get("UI/Overlays/NeedsPower");
 
   private static readonly MethodInfo powerNetMethod;
 
@@ -43,9 +50,16 @@ public class CompFueledTravel : VehicleComp, IRefundable
   private CompPower connectedPower;
   private bool postLoadReconnect;
 
+  private readonly Gizmo_RefuelableFuelTravel refuelGizmo;
+
   static CompFueledTravel()
   {
     powerNetMethod = AccessTools.Method(typeof(PowerNet), "ChangeStoredEnergy");
+  }
+
+  public CompFueledTravel()
+  {
+    refuelGizmo = new Gizmo_RefuelableFuelTravel(this, false);
   }
 
   private List<(VehicleComponent component, Reactor_FuelLeak fuelLeak)> FuelComponents { get; set; }
@@ -79,6 +93,9 @@ public class CompFueledTravel : VehicleComp, IRefundable
   // Fuel Consumption
   public float ConsumptionRatePerTick => FuelEfficiency * EfficiencyTickMultiplier;
 
+  public float ConsumptionRateWorldPerTick =>
+    ConsumptionRatePerTick * Props.fuelConsumptionWorldMultiplier;
+
   public FuelConsumptionCondition FuelCondition => Props.fuelConsumptionCondition;
 
   public bool ShouldAutoRefuelNow => FuelPercentOfTarget <= Props.autoRefuelPercent &&
@@ -90,7 +107,7 @@ public class CompFueledTravel : VehicleComp, IRefundable
       DesignationDefOf_Vehicles.DisassembleVehicle) == null;
 
   // Electric
-  private bool Charging => connectedPower != null && !FullTank &&
+  public bool Charging => connectedPower != null && !FullTank &&
     connectedPower.PowerNet.CurrentStoredEnergy() > Props.chargeRate;
 
   public IEnumerable<(ThingDef thingDef, float count)> Refunds
@@ -272,7 +289,7 @@ public class CompFueledTravel : VehicleComp, IRefundable
     if (fuel <= 0f)
       return;
 
-    float fuelToConsume = ConsumptionRatePerTick * Props.fuelConsumptionWorldMultiplier;
+    float fuelToConsume = ConsumptionRateWorldPerTick;
     VehicleCaravan caravan = Vehicle.GetVehicleCaravan();
     if (!caravan.vehiclePather.Moving) fuelToConsume *= EfficiencyIdleMultiplier;
 
@@ -294,6 +311,48 @@ public class CompFueledTravel : VehicleComp, IRefundable
     }
   }
 
+  public override float CompStatCard(Rect rect)
+  {
+    Widgets.DrawHighlightIfMouseover(rect);
+    rect.SplitVertically(rect.width / 2, out Rect labelRect, out Rect valueRect);
+    using TextBlock fontBlock = new(GameFont.Small);
+    //TooltipHandler.TipRegionByKey(rect, fuel tooltip here...);
+
+    float fuelConsumption = ConsumptionRateWorldPerTick;
+    float fuelPerDay = 0;
+    if (fuelConsumption > 0)
+    {
+      // Conversion for tiles per day
+      fuelPerDay = fuelConsumption * GenDate.TicksPerDay;
+    }
+    using (new TextBlock(TextAnchor.MiddleLeft))
+    {
+      Widgets.Label(labelRect, Props.GizmoLabel);
+    }
+    using (new TextBlock(TextAnchor.MiddleRight /*, fuelPerDayColor*/))
+    {
+      string fuelPerDayText = "VF_PerDay".Translate();
+      float width = Text.CalcSize(fuelPerDayText).x;
+      Rect fuelSuffixRect = valueRect;
+      fuelSuffixRect.xMin = fuelSuffixRect.xMax - width;
+      Widgets.Label(fuelSuffixRect, fuelPerDayText);
+      Rect fuelIconRect = valueRect with { width = valueRect.height };
+      fuelIconRect.x = fuelSuffixRect.x - fuelIconRect.width;
+      if (Props.ElectricPowered)
+      {
+        GUI.DrawTexture(fuelIconRect, electricPowerTex);
+      }
+      else
+      {
+        Widgets.DefIcon(fuelIconRect, Props.fuelType);
+        TooltipHandler.TipRegion(fuelIconRect, Props.fuelType.LabelCap);
+      }
+      valueRect.xMax = fuelIconRect.xMin;
+      Widgets.Label(valueRect, $"{fuelPerDay:0.#}");
+    }
+    return Text.LineHeight;
+  }
+
   public override IEnumerable<Gizmo> CompGetGizmosExtra()
   {
     foreach (Gizmo gizmo in base.CompGetGizmosExtra())
@@ -303,26 +362,7 @@ public class CompFueledTravel : VehicleComp, IRefundable
 
     if (Find.Selector.SelectedObjects.Count == 1)
     {
-      yield return new Gizmo_RefuelableFuelTravel(this, false);
-
-      if (Props.ElectricPowered)
-      {
-        yield return new Command_Toggle
-        {
-          hotKey = KeyBindingDefOf.Command_TogglePower,
-          icon = VehicleTex.FlickerIcon,
-          defaultLabel = "VF_ElectricFlick".Translate(),
-          defaultDesc = "VF_ElectricFlickDesc".Translate(),
-          isActive = () => Charging,
-          toggleAction = delegate
-          {
-            if (!Charging)
-              TryConnectPower();
-            else
-              DisconnectPower();
-          }
-        };
-      }
+      yield return refuelGizmo;
     }
 
     if (DebugSettings.ShowDevGizmos)
@@ -401,10 +441,14 @@ public class CompFueledTravel : VehicleComp, IRefundable
 
   private void RevalidateConsumptionStatus()
   {
-    if (ShouldConsumeNow)
+    if (ShouldConsumeNow || Charging)
+    {
       StartTicking();
+    }
     else
+    {
       StopTicking();
+    }
   }
 
   [UsedImplicitly]
@@ -523,24 +567,28 @@ public class CompFueledTravel : VehicleComp, IRefundable
     }
   }
 
-  private void TryConnectPower()
+  [UsedImplicitly]
+  public bool TryConnectPower()
   {
-    if (Props.ElectricPowered)
+    if (!Props.ElectricPowered)
+      return false;
+
+    Vehicle.RequestTickStart(this);
+    foreach (IntVec3 cell in Vehicle.InhabitedCells(1))
     {
-      foreach (IntVec3 cell in Vehicle.InhabitedCells(1))
+      Thing building = Vehicle.Map.thingGrid.ThingAt(cell, ThingCategory.Building);
+      CompPower powerSource = building?.TryGetComp<CompPower>();
+      if (powerSource is { TransmitsPowerNow: true })
       {
-        Thing building = Vehicle.Map.thingGrid.ThingAt(cell, ThingCategory.Building);
-        CompPower powerSource = building?.TryGetComp<CompPower>();
-        if (powerSource is { TransmitsPowerNow: true })
-        {
-          connectedPower = powerSource;
-          return;
-        }
+        connectedPower = powerSource;
+        return true;
       }
     }
+    return false;
   }
 
-  protected virtual void DisconnectPower()
+  [UsedImplicitly]
+  public void DisconnectPower()
   {
     connectedPower = null;
     changeStoredEnergy = null;

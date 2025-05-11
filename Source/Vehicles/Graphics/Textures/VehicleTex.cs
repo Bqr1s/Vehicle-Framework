@@ -171,6 +171,8 @@ namespace Vehicles
     public static readonly Texture2D ColorHue =
       ContentFinder<Texture2D>.Get("UI/ColorTools/ColorHue");
 
+    public static readonly Texture2D Arrow = ContentFinder<Texture2D>.Get("UI/Icons/Arrow");
+
     public static readonly Texture2D LeftArrow = ContentFinder<Texture2D>.Get("UI/Icons/ArrowLeft");
 
     public static readonly Texture2D RightArrow =
@@ -291,7 +293,7 @@ namespace Vehicles
     private static void SetTextureCache(VehicleDef vehicleDef, GraphicDataRGB graphicData)
     {
       Texture2D texNorth = ContentFinder<Texture2D>.Get(graphicData.texPath + "_north", false);
-      texNorth ??= ContentFinder<Texture2D>.Get(graphicData.texPath, true);
+      texNorth ??= ContentFinder<Texture2D>.Get(graphicData.texPath);
       if (!texNorth)
       {
         throw new Exception($"Unable to locate north texture for {vehicleDef}");

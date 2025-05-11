@@ -10,7 +10,6 @@ public struct BlitRequest
 {
   public Rot8 rot;
   public PatternData patternData;
-
   public List<IBlitTarget> blitTargets = [];
 
   public BlitRequest(Rot8 rot, PatternData patternData)

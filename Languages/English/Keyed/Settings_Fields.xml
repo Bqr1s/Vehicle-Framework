@@ -63,6 +63,8 @@
   <VF_TicksPerCharge>Charge Rate</VF_TicksPerCharge>
   <VF_TicksPerChargeTooltip>Charge amount per tick applied to battery.</VF_TicksPerChargeTooltip>
   <VF_NotElectricPowered>Not electric powered.</VF_NotElectricPowered>
+  <VF_PerDay>/ day</VF_PerDay>
+  <VF_Fuel>Fuel</VF_Fuel>
   <VF_FuelConsumptionRate>Fuel Consumption Rate</VF_FuelConsumptionRate>
   <VF_FuelConsumptionRateTooltip>Fuel consumed per day.  Idle vehicles consume 50% less fuel.</VF_FuelConsumptionRateTooltip>
   <VF_FuelCapacity>Fuel Capacity</VF_FuelCapacity>

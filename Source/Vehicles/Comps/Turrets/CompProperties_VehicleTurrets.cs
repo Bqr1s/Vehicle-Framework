@@ -52,7 +52,7 @@ namespace Vehicles
       //Cache turret graphics for UI
       foreach (VehicleTurret turret in turrets)
       {
-        turret.ResolveCannonGraphics(turret.vehicleDef, forceRegen: true);
+        turret.ResolveGraphics(turret.vehicleDef, forceRegen: true);
         turret.renderProperties.PostLoad();
       }
     }

@@ -1,14 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using DevTools.Benchmarking;
-using UnityEngine.Diagnostics;
-using Verse;
 
 // ReSharper disable all
 
 namespace SmashTools.Performance;
 
-[BenchmarkClass("Recursion"), SampleSize(1000)]
+[BenchmarkClass("Recursion"), SampleSize(10_000)]
 internal class Benchmark_Recursion
 {
   [Benchmark(Label = "Recursion")]

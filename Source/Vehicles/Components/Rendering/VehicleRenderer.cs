@@ -3,18 +3,11 @@ using RimWorld;
 using SmashTools.Rendering;
 using UnityEngine;
 using Verse;
-using PreRenderResults = Vehicles.Graphic_Rgb.PreRenderResults;
 
-namespace Vehicles;
+namespace Vehicles.Rendering;
 
 public sealed class VehicleRenderer : IParallelRenderer
 {
-  // values pulled from RimWorld pawn offsets
-  //public const float SubInterval = 0.003787879f;
-  //public const float YOffset_Body = 0.007575758f;
-  //public const float YOffset_Damage = 0.018939395f;
-  //public const float YOffset_CoveredInOverlay = 0.033301156f;
-
   private readonly VehiclePawn vehicle;
 
   private PreRenderResults results;
@@ -43,17 +36,17 @@ public sealed class VehicleRenderer : IParallelRenderer
       case DrawPhase.EnsureInitialized:
         _ = vehicle.VehicleGraphic; // Ensure graphic has been created
         // TODO - generate combined mesh here and/or build list of things that should be batch rendered
-        break;
+      break;
       case DrawPhase.ParallelPreDraw:
         results = ParallelGetPreRenderResults(in transformData);
-        break;
+      break;
       case DrawPhase.Draw:
         // Out of phase drawing must immediately generate pre-render results for valid data.
         if (!results.valid)
           results = ParallelGetPreRenderResults(in transformData);
         Draw();
         results = default;
-        break;
+      break;
       default:
         throw new NotImplementedException();
     }
@@ -66,7 +59,6 @@ public sealed class VehicleRenderer : IParallelRenderer
 
   private void Draw()
   {
-    // TODO - use material property blocks
     Graphics.DrawMesh(results.mesh, results.position, results.quaternion, results.material, 0);
     vehicle.VehicleGraphic.ShadowGraphic?.Draw(results.position, vehicle.FullRotation, vehicle);
 

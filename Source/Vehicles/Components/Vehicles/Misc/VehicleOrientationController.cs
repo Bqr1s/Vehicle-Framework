@@ -89,7 +89,7 @@ public class VehicleOrientationController : BaseTargeter
     OnStart();
   }
 
-  public override void OnStart()
+  protected override void OnStart()
   {
     base.OnStart();
     // If multiple vehicles are selected, just start orienting immediately
