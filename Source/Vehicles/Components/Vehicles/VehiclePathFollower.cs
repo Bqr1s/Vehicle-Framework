@@ -421,7 +421,7 @@ public class VehiclePathFollower : IExposable
     switch (pathRequest)
     {
       case PathRequest.None:
-        break;
+      break;
       case PathRequest.Fail:
         PatherFailed();
         return;
@@ -430,7 +430,7 @@ public class VehiclePathFollower : IExposable
         return;
       case PathRequest.NeedNew:
         RequestNewPath();
-        break;
+      break;
       default:
         throw new NotImplementedException("TryEnterNextPathCell.PathRequest");
     }
@@ -556,7 +556,7 @@ public class VehiclePathFollower : IExposable
             tickCost = MinCostAmble;
           }
 
-          break;
+        break;
         case LocomotionUrgency.Walk:
           tickCost *= 2;
           if (tickCost < MinCostWalk)
@@ -564,12 +564,12 @@ public class VehiclePathFollower : IExposable
             tickCost = MinCostWalk;
           }
 
-          break;
+        break;
         case LocomotionUrgency.Jog:
-          break;
+        break;
         case LocomotionUrgency.Sprint:
           tickCost = Mathf.RoundToInt(tickCost * 0.75f);
-          break;
+        break;
       }
     }
   }

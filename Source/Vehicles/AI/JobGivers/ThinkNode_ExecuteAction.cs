@@ -9,7 +9,7 @@ public class ThinkNode_ExecuteAction : ThinkNode
 {
   // First argument must be VehiclePawn instance if not
   // invoking instance method from VehiclePawn
-  private ResolvedMethod<VehiclePawn> action;
+  private DynamicDelegate<VehiclePawn> action;
 
   public override ThinkNode DeepCopy(bool resolve = true)
   {

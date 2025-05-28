@@ -1,22 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using RimWorld;
+﻿using RimWorld;
 using Verse;
 
-namespace Vehicles
+namespace Vehicles;
+
+[DefOf]
+public static class KeyBindingDefOf_Vehicles
 {
-	[DefOf]
-	public static class KeyBindingDefOf_Vehicles
-	{
-		public static KeyBindingDef VF_QuickStartMenu;
+  public static KeyBindingDef VF_Command_ReverseVehicle;
 
-		public static KeyBindingDef VF_RestartGame;
+  public static KeyBindingDef VF_QuickStartMenu;
+  public static KeyBindingDef VF_RestartGame;
+  public static KeyBindingDef VF_DebugSettings;
 
-		public static KeyBindingDef VF_DebugSettings;
-
-		static KeyBindingDefOf_Vehicles()
-		{
-			DefOfHelper.EnsureInitializedInCtor(typeof(KeyBindingDefOf));
-		}
-	}
+  static KeyBindingDefOf_Vehicles()
+  {
+    DefOfHelper.EnsureInitializedInCtor(typeof(KeyBindingDefOf));
+  }
 }

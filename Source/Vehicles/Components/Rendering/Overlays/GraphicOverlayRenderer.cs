@@ -6,13 +6,15 @@ using Verse;
 
 namespace Vehicles;
 
-public sealed class GraphicOverlayRenderer : IParallelRenderer
+public sealed class GraphicOverlayRenderer
 {
   private readonly VehiclePawn vehicle;
 
+  [TweakField]
   [AnimationProperty(Name = "Overlays")]
   private readonly List<GraphicOverlay> overlays = [];
 
+  [TweakField]
   private readonly List<GraphicOverlay> extraOverlays = [];
 
   private readonly Dictionary<string, List<GraphicOverlay>> extraOverlayLookup = [];
@@ -41,6 +43,7 @@ public sealed class GraphicOverlayRenderer : IParallelRenderer
         GraphicOverlay graphicOverlay = GraphicOverlay.Create(graphicDataOverlay, vehicle);
         overlays.Add(graphicOverlay);
         AllOverlaysListForReading.Add(graphicOverlay);
+        vehicle.DrawTracker.AddRenderer(graphicOverlay);
       }
       RecacheRotatorOverlays();
     }
@@ -61,6 +64,7 @@ public sealed class GraphicOverlayRenderer : IParallelRenderer
     extraOverlayLookup.AddOrInsert(key, graphicOverlay);
     extraOverlays.Add(graphicOverlay);
     AllOverlaysListForReading.Add(graphicOverlay);
+    vehicle.DrawTracker.AddRenderer(graphicOverlay);
     RecacheRotatorOverlays();
   }
 
@@ -72,6 +76,7 @@ public sealed class GraphicOverlayRenderer : IParallelRenderer
       {
         extraOverlays.Remove(graphicOverlay);
         AllOverlaysListForReading.Remove(graphicOverlay);
+        vehicle.DrawTracker.RemoveRenderer(graphicOverlay);
         graphicOverlay.Destroy();
       }
       extraOverlayLookup.Remove(key);
@@ -79,22 +84,14 @@ public sealed class GraphicOverlayRenderer : IParallelRenderer
     }
   }
 
-  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
-  {
-    foreach (GraphicOverlay graphicOverlay in AllOverlaysListForReading)
-    {
-      graphicOverlay.DynamicDrawPhaseAt(phase, transformData);
-    }
-  }
-
   // Right now this is strictly for the old animation system which has applies the same
   // rotation rates for all Graphic_Rotator overlays. The new animator will remove the necessity
   // for all of this and directly right to the transform / acceleration rate of the overlay.
-  public void AddRotation(float rotation)
+  public void SetAcceleration(float rotation)
   {
     foreach (GraphicOverlay graphicOverlay in RotatorOverlays)
     {
-      graphicOverlay.acceleration +=
+      graphicOverlay.acceleration =
         ((Graphic_Rotator)graphicOverlay.Graphic).ModifyIncomingRotation(rotation);
     }
   }

@@ -5,11 +5,11 @@ using System.Linq;
 using System.Threading;
 using LudeonTK;
 using SmashTools;
-using SmashTools.Pathfinding;
+using SmashTools.Algorithms;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Verse;
-using Dijkstra = SmashTools.Pathfinding.Dijkstra<int>;
+using Dijkstra = SmashTools.Algorithms.Dijkstra<int>;
 
 namespace Vehicles;
 

@@ -4,6 +4,7 @@ using SmashTools.Rendering;
 using UnityEngine;
 using Vehicles.Rendering;
 using Verse;
+using Transform = SmashTools.Rendering.Transform;
 
 namespace Vehicles;
 
@@ -120,14 +121,13 @@ public class Graphic_Rgb : Graphic
     if ((rot == Rot4.West && WestFlipped) || (rot == Rot4.East && EastFlipped))
     {
       if (EastRotated)
-      {
-        return RenderHelper.NewPlaneMesh(vector, rot.AsInt);
-      }
+        vector = vector.Rotated();
       return MeshPool.GridPlaneFlip(vector);
     }
     if ((EastRotated && rot == Rot4.East) || (SouthRotated && rot == Rot4.South))
     {
-      return RenderHelper.NewPlaneMesh(vector, rot.AsInt);
+      vector = vector.Rotated();
+      return EastFlipped ? MeshPool.GridPlaneFlip(vector) : MeshPool.GridPlane(vector);
     }
     return MeshPool.GridPlane(vector);
   }
@@ -461,7 +461,7 @@ public class Graphic_Rgb : Graphic
   }
 
   public PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData,
-    Thing thing = null, float extraRotation = 0)
+    bool forceDraw = false, Thing thing = null, float extraRotation = 0)
   {
     PreRenderResults render = new()
     {
@@ -471,15 +471,9 @@ public class Graphic_Rgb : Graphic
       material = MatAtFull(transformData.orientation)
     };
 
-    float rotation = transformData.orientation.AsRotationAngle + transformData.rotation +
-      extraRotation;
-    if (EastDiagonalRotated && (transformData.orientation == Rot8.NorthEast ||
-        transformData.orientation == Rot8.SouthEast) ||
-      (WestDiagonalRotated && (transformData.orientation == Rot8.NorthWest ||
-        transformData.orientation == Rot8.SouthWest)))
-    {
-      rotation *= -1;
-    }
+    float rotAngle = transformData.orientation.AsRotationAngle + transformData.rotation;
+    float rotation = rotAngle + extraRotation;
+    AdjustAngle(transformData.orientation, ref rotation, ref rotAngle);
     Quaternion quaternion = Quaternion.AngleAxis(rotation, Vector3.up);
     if (data is { addTopAltitudeBias: true })
     {
@@ -490,10 +484,54 @@ public class Graphic_Rgb : Graphic
     {
       position.y = altLayerSpawned.AltitudeFor();
     }
-    position += DrawOffset(transformData.orientation);
+    Vector3 drawOffset = DrawOffset(transformData.orientation);
+    drawOffset = Quaternion.AngleAxis(rotAngle, Vector3.up) * drawOffset;
+    position += drawOffset;
     render.position = position;
     render.quaternion = quaternion;
     return render;
+  }
+
+  private void AdjustAngle(Rot8 orientation, ref float rotation, ref float rotAngle)
+  {
+    switch (orientation.AsInt)
+    {
+      case 0:
+      break;
+      case 1:
+        if (EastRotated)
+          rotation += orientation.AsAngle;
+      break;
+      case 2:
+        if (SouthRotated)
+          rotation += orientation.AsAngle;
+      break;
+      case 3:
+        if (WestFlipped)
+        {
+          if (EastRotated)
+            rotation += orientation.AsAngle;
+          else
+            rotation *= -1;
+        }
+      break;
+      case 4:
+      case 5:
+        if (EastDiagonalRotated)
+        {
+          rotation *= -1;
+          rotAngle += Rot8.East.AsAngle;
+        }
+      break;
+      case 6:
+      case 7:
+        if (WestDiagonalRotated)
+        {
+          rotation *= -1;
+          rotAngle += Rot8.West.AsAngle;
+        }
+      break;
+    }
   }
 
   public override string ToString()

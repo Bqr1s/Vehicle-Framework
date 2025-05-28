@@ -52,7 +52,7 @@ public struct TurretShotReport
   {
     IntVec3 cell = target.Cell;
     Vector3 cellPos = cell.ToVector3Shifted();
-    Vector3 turretPos = turret.TurretDrawLocFor(vehicle.FullRotation);
+    Vector3 turretPos = turret.DrawPosition(vehicle.FullRotation);
     TurretShotReport result = new()
     {
       distance = Vector2.Distance(new Vector2(cellPos.x, cellPos.z),

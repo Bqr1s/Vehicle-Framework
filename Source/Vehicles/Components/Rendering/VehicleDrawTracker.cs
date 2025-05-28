@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using JetBrains.Annotations;
 using SmashTools;
 using SmashTools.Animations;
@@ -15,7 +16,7 @@ public class VehicleDrawTracker
 
   public readonly VehicleRenderer renderer;
 
-  [AnimationProperty]
+  [AnimationProperty, TweakField]
   public GraphicOverlayRenderer overlayRenderer;
 
   public readonly VehicleTweener tweener;
@@ -34,7 +35,11 @@ public class VehicleDrawTracker
     overlayRenderer = new GraphicOverlayRenderer(vehicle);
     trackMaker = new VehicleTrackMaker(vehicle);
     recoilTracker = new Vehicle_RecoilTracker();
+
+    AddRenderer(renderer);
   }
+
+  private bool RenderersInitialized { get; set; }
 
   public Vector3 DrawPos
   {
@@ -54,6 +59,7 @@ public class VehicleDrawTracker
 
   public void AddRenderer(IParallelRenderer parallelRenderer)
   {
+    parallelRenderer.SetDirty();
     parallelRenderers.Add(parallelRenderer);
   }
 
@@ -65,17 +71,25 @@ public class VehicleDrawTracker
   public void DynamicDrawPhaseAt(DrawPhase phase, in Vector3 drawLoc, Rot8 rot, float rotation)
   {
     TransformData transformData = new(drawLoc, rot, rotation);
-
-    renderer.DynamicDrawPhaseAt(phase, transformData);
-    overlayRenderer.DynamicDrawPhaseAt(phase, transformData);
-    foreach (VehicleRoleHandler handler in vehicle.HandlersWithPawnRenderer)
-    {
-      handler.DynamicDrawPhaseAt(phase, transformData);
-    }
-
     foreach (IParallelRenderer parallelRenderer in parallelRenderers)
     {
-      parallelRenderer.DynamicDrawPhaseAt(phase, transformData);
+      switch (phase)
+      {
+        case DrawPhase.EnsureInitialized:
+          // Only initialize on request
+          if (parallelRenderer.IsDirty)
+          {
+            parallelRenderer.DynamicDrawPhaseAt(phase, in transformData);
+            parallelRenderer.IsDirty = false;
+          }
+        break;
+        case DrawPhase.ParallelPreDraw:
+        case DrawPhase.Draw:
+          parallelRenderer.DynamicDrawPhaseAt(phase, in transformData);
+        break;
+        default:
+          throw new NotImplementedException(nameof(DrawPhase));
+      }
     }
   }
 

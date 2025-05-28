@@ -255,7 +255,7 @@ namespace Vehicles
               {
                 cannonMote.cyclesLeft = moteProps.cycles;
                 cannonMote.animationType = moteProps.animationType;
-                cannonMote.angle = angle;
+                cannonMote.exactRotation = angle;
               }
               mote.def = moteProps.moteDef;
               mote.PostMake();

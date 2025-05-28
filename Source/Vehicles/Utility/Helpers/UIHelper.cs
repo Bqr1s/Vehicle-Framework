@@ -173,9 +173,9 @@ public static class UIHelper
     }
     if (trad.CountToTransfer != 0)
     {
-      Rect position = new Rect(rect2.x + rect2.width / 2f - (VehicleTex.TradeArrow.width / 2),
-        rect2.y + rect2.height / 2f - (VehicleTex.TradeArrow.height / 2),
-        VehicleTex.TradeArrow.width, VehicleTex.TradeArrow.height);
+      Rect position = new Rect(rect2.x + rect2.width / 2f - (TexData.TradeArrow.width / 2),
+        rect2.y + rect2.height / 2f - (TexData.TradeArrow.height / 2),
+        TexData.TradeArrow.width, TexData.TradeArrow.height);
       TransferablePositiveCountDirection positiveCountDirection2 = trad.PositiveCountDirection;
       if ((positiveCountDirection2 == TransferablePositiveCountDirection.Source &&
           trad.CountToTransfer > 0) ||
@@ -255,16 +255,16 @@ public static class UIHelper
   public static bool DrawPagination(Rect rect, ref int pageNumber, int pageCount)
   {
     bool pageChanged = false;
-    Rect leftButtonRect = new Rect(rect.x, rect.y, rect.height, rect.height);
+    Rect leftButtonRect = new(rect.x, rect.y, rect.height, rect.height);
     Rect rightButtonRect =
-      new Rect(rect.x + rect.width - rect.height, rect.y, rect.height, rect.height);
+      new(rect.x + rect.width - rect.height, rect.y, rect.height, rect.height);
     if (Widgets.ButtonImage(leftButtonRect, VehicleTex.LeftArrow))
     {
       pageChanged = true;
       pageNumber = (--pageNumber).Clamp(1, pageCount);
       SoundDefOf.PageChange.PlayOneShotOnCamera();
     }
-    if (Widgets.ButtonImage(rightButtonRect, VehicleTex.Arrow))
+    if (Widgets.ButtonImage(rightButtonRect, VehicleTex.RightArrow))
     {
       pageChanged = true;
       pageNumber = (++pageNumber).Clamp(1, pageCount);

@@ -15,8 +15,8 @@ namespace Vehicles;
 
 [PublicAPI]
 public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakFields,
-                                     IEventManager<VehicleTurretEventDef>,
-                                     IMaterialCacheTarget, IParallelRenderer, IBlitTarget
+                                     IEventManager<VehicleTurretEventDef>, IMaterialCacheTarget,
+                                     IParallelRenderer, IBlitTarget, ITransformable
 {
   public const int AutoTargetInterval = 60;
   public const int TicksPerOverheatingFrame = 15;
@@ -59,16 +59,13 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
 
   public float defaultAngleRotated;
 
-  public TurretComponentRequirement component;
+  public ComponentRequirement component;
 
   /* ----------------- */
 
   public string upgradeKey;
 
   public LocalTargetInfo targetInfo;
-
-  // True rotation of turret separate from Vehicle rotation and angle for saving
-  protected float rotation;
 
   protected float restrictedTheta;
 
@@ -192,14 +189,15 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
 
   public bool IsTargetable => def?.turretType == TurretType.Rotatable;
 
-  public bool RotationAligned => Mathf.Approximately(rotation, rotationTargeted);
+  public bool RotationAligned => Mathf.Approximately(transform.rotation, rotationTargeted);
 
   public bool TurretRestricted => restrictions?.Disabled ?? false;
 
   public virtual bool TurretDisabled =>
     TurretRestricted || !IsManned || !DeploymentSatisfied || ComponentDisabled;
 
-  public bool ComponentDisabled => component is { MeetsRequirements: false };
+  public bool ComponentDisabled => component is { MeetsRequirements: false } ||
+    attachedTo is { ComponentDisabled: true };
 
   protected virtual bool TurretTargetValid => targetInfo.Cell.IsValid && !TurretDisabled;
 
@@ -237,20 +235,6 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
         DeploymentType.Undeployed => vehicle.CompVehicleTurrets is
           { Deployed: false, Deploying: false },
         _ => throw new NotImplementedException(nameof(DeploymentType))
-      };
-    }
-  }
-
-  public string DeploymentDisabledReason
-  {
-    get
-    {
-      return deployment switch
-      {
-        DeploymentType.None       => string.Empty,
-        DeploymentType.Deployed   => "VF_MustBeDeployed".Translate(),
-        DeploymentType.Undeployed => "VF_MustBeUndeployed".Translate(),
-        _                         => throw new NotImplementedException(nameof(DeploymentType))
       };
     }
   }
@@ -338,10 +322,9 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     {
       if (attachedTo != null)
       {
-        //Don't use cached value if attached to parent turret (position may change with rotations)
-        return vehicle.DrawPos + TurretDrawLocFor(vehicle.FullRotation);
+        // Don't use cached value if attached to parent turret (position may change with rotations)
+        return vehicle.DrawPos + DrawPosition(vehicle.FullRotation);
       }
-
       return vehicle.DrawPos + TurretOffset(vehicle.FullRotation);
     }
   }
@@ -351,22 +334,19 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     get
     {
       if (!IsTargetable && attachedTo is null)
-      {
         return defaultAngleRotated + vehicle.FullRotation.AsAngle;
-      }
 
       ValidateLockStatus();
 
-      rotation = rotation.ClampAndWrap(0, 360);
+      transform.rotation = transform.rotation.ClampAndWrap(0, 360);
+      if (angleRestricted != Vector2.zero)
+        transform.rotation = transform.rotation.Clamp(angleRestricted.x, angleRestricted.y);
 
       if (attachedTo != null)
-      {
-        return rotation + attachedTo.TurretRotation;
-      }
-
-      return rotation;
+        return transform.rotation + attachedTo.TurretRotation;
+      return transform.rotation;
     }
-    set { rotation = value.ClampAndWrap(0, 360); }
+    set { transform.rotation = value.ClampAndWrap(0, 360); }
   }
 
   public float TurretRotationTargeted
@@ -428,7 +408,6 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
       {
         return DefaultMaxRange;
       }
-
       return def.maxRange;
     }
   }
@@ -438,6 +417,10 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     get { return def.minRange; }
   }
 
+  /// <summary>
+  /// Initialize non-serialized data to the turret, pulls in values from what's defined in xml.
+  /// </summary>
+  /// <param name="reference">Non-spawnable turret reference containing xml values.</param>
   public void Init(VehicleTurret reference)
   {
     this.reference = reference;
@@ -447,10 +430,8 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     renderProperties = new VehicleTurretRender(reference.renderProperties);
     if (reference.component != null)
     {
-      component = TurretComponentRequirement.CopyFrom(reference.component);
-      component.RegisterEvents(this);
+      component = ComponentRequirement.CopyFrom(reference.component);
     }
-
     aimPieOffset = reference.aimPieOffset;
     angleRestricted = reference.angleRestricted;
     restrictedTheta = (int)Mathf.Abs(angleRestricted.x - (angleRestricted.y + 360)).ClampAngle();
@@ -465,16 +446,13 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     }
 
     ResetAngle();
-    if (vehicle.Spawned)
-    {
-      LongEventHandler.ExecuteWhenFinished(RecacheRootDrawPos);
-      LongEventHandler.ExecuteWhenFinished(() => PropertyBlock ??= new MaterialPropertyBlock());
-    }
+    LongEventHandler.ExecuteWhenFinished(() => PropertyBlock ??= new MaterialPropertyBlock());
   }
 
   public virtual void PostSpawnSetup(bool respawningAfterLoad)
   {
     LongEventHandler.ExecuteWhenFinished(RecacheRootDrawPos);
+    component?.RegisterEvents(vehicle);
   }
 
   public void SetTurretRestriction(Type type)
@@ -492,6 +470,42 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
   public void RemoveTurretRestriction()
   {
     restrictions = null;
+  }
+
+  public bool IsDisabled(out string reason)
+  {
+    if (TurretRestricted)
+    {
+      reason = restrictions.DisableReason;
+      return true;
+    }
+    if (!DeploymentSatisfied)
+    {
+      reason = deployment switch
+      {
+        DeploymentType.None       => string.Empty,
+        DeploymentType.Deployed   => "VF_MustBeDeployed".Translate(),
+        DeploymentType.Undeployed => "VF_MustBeUndeployed".Translate(),
+        _                         => throw new NotImplementedException(nameof(DeploymentType))
+      };
+      return true;
+    }
+    if (ComponentDisabled)
+    {
+      VehicleTurret turretRestriction = this;
+      while (turretRestriction != null)
+      {
+        if (turretRestriction.component is { MeetsRequirements: false })
+        {
+          reason = "VF_TurretComponentDisabled".Translate(turretRestriction.component.Label);
+          return true;
+        }
+        turretRestriction = attachedTo;
+      }
+      throw new InvalidOperationException(nameof(IsDisabled));
+    }
+    reason = null;
+    return false;
   }
 
   public void OnFieldChanged()
@@ -681,63 +695,48 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
 
   protected virtual bool TurretRotationTick()
   {
+    if (ComponentDisabled)
+    {
+      ResetAngle();
+      return false;
+    }
     bool tick = false;
     if (TargetLocked)
     {
       AlignToTargetRestricted();
       tick = true;
     }
-
     if (RotationAligned)
     {
       ticksRotating = 0;
       return tick;
     }
-
-    if (ComponentDisabled)
+    if (def.autoSnapTargeting)
     {
-      ResetAngle();
-      return false;
+      TurretRotation = TurretRotationTargeted;
+      return true;
     }
 
-    if (Math.Abs(rotation - TurretRotationTargeted) < def.rotationSpeed + 0.1f)
+    if (Math.Abs(TurretRotation - TurretRotationTargeted) < def.rotationSpeed + 0.1f)
     {
-      rotation = TurretRotationTargeted;
+      TurretRotation = TurretRotationTargeted;
     }
     else
     {
       int rotationDir;
-      if (rotation < TurretRotationTargeted)
+      if (TurretRotation < TurretRotationTargeted)
       {
-        if (Math.Abs(rotation - TurretRotationTargeted) < 180)
-        {
-          rotationDir = 1;
-        }
-        else
-        {
-          rotationDir = -1;
-        }
+        rotationDir = Mathf.Abs(TurretRotation - TurretRotationTargeted) < 180 ? 1 : -1;
       }
       else
       {
-        if (Math.Abs(rotation - TurretRotationTargeted) < 180)
-        {
-          rotationDir = -1;
-        }
-        else
-        {
-          rotationDir = 1;
-        }
+        rotationDir = Mathf.Abs(TurretRotation - TurretRotationTargeted) < 180 ? -1 : 1;
       }
       float delta = def.rotationDelta > 0 ?
         Ext_Math.SmoothStep(0, 1, ticksRotating / (def.rotationDelta * 60)) :
         1;
       float rotateStep = delta * def.rotationSpeed * rotationDir;
-      rotation += rotateStep;
-      foreach (VehicleTurret turret in childTurrets)
-      {
-        turret.rotation += rotateStep;
-      }
+      TurretRotation += rotateStep;
       ticksRotating++;
     }
     return true;
@@ -747,7 +746,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
   {
     if (TurretTargetValid)
     {
-      if (Mathf.Approximately(rotation, TurretRotationTargeted) && !TargetLocked)
+      if (Mathf.Approximately(transform.rotation, TurretRotationTargeted) && !TargetLocked)
       {
         TargetLocked = true;
         ResetPrefireTimer();
@@ -767,26 +766,16 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
 
       if (PrefireTickCount > 0)
       {
-        if (targetInfo.HasThing)
+        TurretRotationTargeted = targetInfo.HasThing ?
+          TurretLocation.AngleToPoint(targetInfo.Thing.DrawPos) :
+          TurretLocation.ToIntVec3().AngleToCell(targetInfo.Cell);
+        if (attachedTo != null)
         {
-          TurretRotationTargeted = TurretLocation.AngleToPoint(targetInfo.Thing.DrawPos);
-          if (attachedTo != null)
-          {
-            TurretRotationTargeted -= attachedTo.TurretRotation;
-          }
+          TurretRotationTargeted -= attachedTo.TurretRotation;
         }
-        else
-        {
-          TurretRotationTargeted = TurretLocation.ToIntVec3().AngleToCell(targetInfo.Cell);
-          if (attachedTo != null)
-          {
-            TurretRotationTargeted -= attachedTo.TurretRotation;
-          }
-        }
-
         if (def.autoSnapTargeting)
         {
-          rotation = TurretRotationTargeted;
+          TurretRotation = TurretRotationTargeted;
         }
 
         if (TargetLocked && ReadyToFire)
@@ -1033,36 +1022,17 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
 
   public void AlignToTargetRestricted()
   {
-    if (targetInfo.HasThing)
-    {
-      TurretRotationTargeted = TurretLocation.AngleToPoint(targetInfo.Thing.DrawPos);
-      if (attachedTo != null)
-      {
-        TurretRotationTargeted -= attachedTo.TurretRotation;
-      }
-    }
-    else
-    {
-      TurretRotationTargeted = TurretLocation.ToIntVec3().AngleToCell(targetInfo.Cell);
-      if (attachedTo != null)
-      {
-        TurretRotationTargeted -= attachedTo.TurretRotation;
-      }
-    }
+    TurretRotationTargeted = targetInfo.HasThing ?
+      TurretLocation.AngleToPoint(targetInfo.Thing.DrawPos) :
+      TurretLocation.ToIntVec3().AngleToCell(targetInfo.Cell);
+    if (attachedTo != null)
+      TurretRotationTargeted -= attachedTo.TurretRotation;
   }
 
   public void AlignToAngleRestricted(float angle)
   {
     float additionalAngle = attachedTo?.TurretRotation ?? 0;
-    if (def.autoSnapTargeting)
-    {
-      TurretRotation = angle - additionalAngle;
-      TurretRotationTargeted = rotation;
-    }
-    else
-    {
-      TurretRotationTargeted = (angle - additionalAngle).ClampAndWrap(0, 360);
-    }
+    TurretRotationTargeted = angle - additionalAngle;
   }
 
   public virtual void Reload(ThingDef ammo = null, bool ignoreTimer = false)
@@ -1320,8 +1290,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
 
   public void ResetAngle()
   {
-    rotation = rotation.ClampAndWrap(0, 360);
-    TurretRotationTargeted = rotation;
+    TurretRotationTargeted = TurretRotation;
   }
 
   public void FlagForAlignment()
@@ -1347,12 +1316,11 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
         float angleDifference = vehicle.Angle - parentAngleCached;
         if (attachedTo is null)
         {
-          rotation += 90 * (vehicle.Rotation.AsInt - parentRotCached.AsInt) + angleDifference;
+          transform.rotation +=
+            90 * (vehicle.Rotation.AsInt - parentRotCached.AsInt) + angleDifference;
         }
-
-        TurretRotationTargeted = rotation;
+        TurretRotationTargeted = transform.rotation;
       }
-
       parentRotCached = vehicle.Rotation;
       parentAngleCached = vehicle.Angle;
     }
@@ -1424,6 +1392,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     Scribe_Values.Look(ref upgradeKey, nameof(upgradeKey), forceSave: true);
 
     Scribe_Defs.Look(ref def, nameof(def));
+    Scribe_Deep.Look(ref transform, nameof(transform));
 
     Scribe_Values.Look(ref targetPersists, nameof(targetPersists));
     Scribe_Values.Look(ref autoTargeting, nameof(autoTargeting));
@@ -1436,7 +1405,6 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     Scribe_Values.Look(ref ticksSinceLastShot, nameof(ticksSinceLastShot));
     Scribe_Values.Look(ref burstsTillWarmup, nameof(burstsTillWarmup));
 
-    Scribe_Values.Look(ref rotation, nameof(rotation), defaultValue: defaultAngleRotated);
     Scribe_Values.Look(ref restrictedTheta, nameof(restrictedTheta),
       defaultValue: (int)Mathf.Abs(angleRestricted.x - (angleRestricted.y + 360)).ClampAngle());
 

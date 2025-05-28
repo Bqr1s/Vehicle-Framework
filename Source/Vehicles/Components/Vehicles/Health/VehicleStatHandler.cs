@@ -331,6 +331,7 @@ namespace Vehicles
 
       component.health = value;
       MarkAllDirty();
+      vehicle.EventRegistry[VehicleEventDefOf.HealthChanged].ExecuteEvents();
     }
 
     public VehicleComponent GetComponent(string key)
@@ -359,6 +360,7 @@ namespace Vehicles
 
       component.health = component.MaxHealth * value;
       MarkAllDirty();
+      vehicle.EventRegistry[VehicleEventDefOf.HealthChanged].ExecuteEvents();
     }
 
     /// <param name="statDef"></param>

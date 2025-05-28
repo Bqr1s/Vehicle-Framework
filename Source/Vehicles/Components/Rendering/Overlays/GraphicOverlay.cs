@@ -11,9 +11,10 @@ using Transform = SmashTools.Rendering.Transform;
 
 namespace Vehicles;
 
-public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelRenderer, IBlitTarget
+public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget,
+                              IParallelRenderer, IBlitTarget, ITransformable,
+                              ITweakFields
 {
-  [TweakField]
   public GraphicDataOverlay data;
 
   private readonly VehiclePawn vehicle;
@@ -28,9 +29,11 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
   // ReSharper disable once FieldCanBeMadeReadOnly.Local
   private Graphic_DynamicShadow graphicShadow;
 
+  [TweakField]
   [AnimationProperty(Name = "Transform")]
   private readonly Transform transform = new();
 
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
   [AnimationProperty(Name = "Propeller Acceleration")]
   internal float acceleration;
 
@@ -71,6 +74,14 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
   string IAnimationObject.ObjectId => data.identifier ?? nameof(GraphicOverlay);
 
   public Graphic_DynamicShadow ShadowGraphic => graphicShadow;
+
+  public Transform Transform => transform;
+
+  string ITweakFields.Category => "Graphic Overlay";
+
+  string ITweakFields.Label => data.identifier ?? data.graphicData.texPath;
+
+  bool IParallelRenderer.IsDirty { get; set; }
 
   public Graphic Graphic
   {
@@ -115,25 +126,27 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
           graphic = ((GraphicData)graphicData).Graphic;
         }
       }
-
       return graphic;
     }
   }
 
-  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
+  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData,
+    bool forceDraw = false)
   {
     switch (phase)
     {
       case DrawPhase.EnsureInitialized:
-        _ = Graphic; // Force Graphic to cache before any predraw occurs
+        // Ensure meshes are cached beforehand
+        for (int i = 0; i < 4; i++)
+          _ = Graphic.MeshAt(new Rot4(i));
       break;
       case DrawPhase.ParallelPreDraw:
-        results = ParallelGetPreRenderResults(in transformData);
+        results = ParallelGetPreRenderResults(in transformData, forceDraw: forceDraw);
       break;
       case DrawPhase.Draw:
         // Out of phase drawing must immediately generate pre-render results for valid data.
         if (!results.valid)
-          results = ParallelGetPreRenderResults(in transformData);
+          results = ParallelGetPreRenderResults(in transformData, forceDraw: forceDraw);
         Draw(in transformData);
         results = default;
       break;
@@ -142,23 +155,21 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
     }
   }
 
-  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData)
+  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData,
+    bool forceDraw = false)
   {
-    if (data.component != null)
+    if (data.component is { MeetsRequirements: false })
     {
       // Skip rendering if health percent is below set amount for rendering
-      float healthPercent = vehicle.statHandler.GetComponentHealthPercent(data.component.key);
-      if (!data.component.comparison.Compare(healthPercent, data.component.healthPercent))
-      {
-        return new PreRenderResults { valid = true, draw = false };
-      }
+      return new PreRenderResults { valid = true, draw = false };
     }
 
     if (Graphic is Graphic_Rgb graphicRgb)
     {
       float extraRotation = transform.rotation + data.rotation;
       PreRenderResults render =
-        graphicRgb.ParallelGetPreRenderResults(in transformData, vehicle, extraRotation);
+        graphicRgb.ParallelGetPreRenderResults(in transformData, forceDraw: forceDraw,
+          thing: vehicle, extraRotation: extraRotation);
       render.position += transform.position;
       return render;
     }
@@ -194,7 +205,6 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
        .defaultGraphics
        .TryGetValue(vehicleDef.defName, new PatternData(vehicleDef.graphicData));
       RGBMaterialPool.SetProperties(this, patternData);
-      graphic = null;
     }
   }
 
@@ -303,5 +313,10 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget, IParallelR
     RenderData overlayRenderData = new(overlayRect, texture, material, vehicleDef.PropertyBlock,
       data.graphicData.DrawOffsetFull(request.rot).y, data.rotation);
     yield return overlayRenderData;
+  }
+
+  void ITweakFields.OnFieldChanged()
+  {
+    this.SetDirty();
   }
 }

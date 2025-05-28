@@ -95,9 +95,10 @@ namespace Vehicles
         lastStep = "Post Generation Setup";
         result.PostGenerationSetup();
         lastStep = "Component Post Generation Setup";
-        foreach (VehicleComp comp in result.AllComps.Where(c => c is VehicleComp))
+        foreach (ThingComp comp in result.AllComps)
         {
-          comp.PostGeneration();
+          if (comp is VehicleComp vehicleComp)
+            vehicleComp.PostGeneration();
         }
 
         //REDO - Allow other modders to add setup for non clean-slate items

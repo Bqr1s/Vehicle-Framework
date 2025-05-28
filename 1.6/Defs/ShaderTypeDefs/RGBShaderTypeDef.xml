@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <Defs>
-	<Vehicles.RGBShaderTypeDef>
+	<ShaderTypeDef>
 		<defName>CutoutComplexRGB</defName>
-		<shaderPath>Assets/Shaders/ShaderRGB.shader</shaderPath>
-	</Vehicles.RGBShaderTypeDef>
+		<shaderPath>ShaderRGB</shaderPath>
+	</ShaderTypeDef>
 	
-	<Vehicles.RGBShaderTypeDef>
+	<ShaderTypeDef>
 		<defName>CutoutComplexPattern</defName>
-		<shaderPath>Assets/Shaders/ShaderRGBPattern.shader</shaderPath>
-	</Vehicles.RGBShaderTypeDef>
+		<shaderPath>ShaderRGBPattern</shaderPath>
+	</ShaderTypeDef>
 	
-	<Vehicles.RGBShaderTypeDef>
+	<ShaderTypeDef>
 		<defName>CutoutComplexSkin</defName>
-		<shaderPath>Assets/Shaders/ShaderRGBSkin.shader</shaderPath>
-	</Vehicles.RGBShaderTypeDef>
+		<shaderPath>ShaderRGBSkin</shaderPath>
+	</ShaderTypeDef>
 </Defs>

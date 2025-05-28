@@ -39,7 +39,7 @@ public static class VehicleHarmony
   static VehicleHarmony()
   {
     //harmony.PatchAll(Assembly.GetExecutingAssembly());
-    //Harmony.DEBUG = true;
+    Harmony.DEBUG = true;
 
     VehicleMCP = VehicleMod.mod.Content;
     VehicleMMD = ModLister.GetActiveModWithIdentifier(VehiclesUniqueId, ignorePostfix: true);
@@ -97,24 +97,20 @@ public static class VehicleHarmony
       {
         patch.PatchMethods();
       }
-      catch (AmbiguousMatchException ex)
-      {
-        SmashLog.Error(
-          $"Failed to Patch <type>{patch.GetType().FullName}</type>. Previous=\"{methodPatching}\"\n{ex}");
-      }
       catch (Exception ex)
       {
         SmashLog.Error(
           $"Failed to Patch <type>{patch.GetType().FullName}</type>. Method=\"{methodPatching}\"\n{ex}");
       }
     }
-
+#if !RELEASE
     if (Prefs.DevMode)
     {
       SmashLog.Message(
         $"<color=orange>{LogLabel}</color> <success>{Harmony.GetPatchedMethods().Count()} " +
         $"patches successfully applied.</success>");
     }
+#endif
   }
 
   public static void Patch(MethodBase original, HarmonyMethod prefix = null,
@@ -127,7 +123,8 @@ public static class VehicleHarmony
 
   private static void ResolveAllReferences()
   {
-    foreach (var defFields in VehicleMod.settings.upgrades.upgradeSettings.Values)
+    foreach (Dictionary<SaveableField, SavedField<object>> defFields in VehicleMod.settings.upgrades
+     .upgradeSettings.Values)
     {
       foreach (SaveableField field in defFields.Keys)
       {

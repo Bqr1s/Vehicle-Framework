@@ -247,10 +247,11 @@ namespace Vehicles
       vehicle.AddEvent(VehicleEventDefOf.PawnCapacitiesDirty,
         vehicle.vehiclePather.RecalculatePermissions);
       vehicle.AddEvent(VehicleEventDefOf.IgnitionOff, vehicle.vehiclePather.RecalculatePermissions);
-      vehicle.AddEvent(VehicleEventDefOf.DamageTaken, vehicle.vehiclePather.RecalculatePermissions,
-        vehicle.statHandler.MarkAllDirty, vehicle.Notify_TookDamage);
-      vehicle.AddEvent(VehicleEventDefOf.Repaired, vehicle.vehiclePather.RecalculatePermissions,
-        vehicle.statHandler.MarkAllDirty);
+      vehicle.AddEvent(VehicleEventDefOf.HealthChanged,
+        vehicle.vehiclePather.RecalculatePermissions);
+      vehicle.AddEvent(VehicleEventDefOf.DamageTaken, vehicle.statHandler.MarkAllDirty,
+        vehicle.Notify_TookDamage);
+      vehicle.AddEvent(VehicleEventDefOf.Repaired, vehicle.statHandler.MarkAllDirty);
       vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, delegate
       {
         if (vehicle.Spawned)
@@ -263,12 +264,12 @@ namespace Vehicles
       vehicle.AddEvent(VehicleEventDefOf.UpgradeRefundCompleted, vehicle.ResetRenderStatus);
       if (!vehicle.VehicleDef.events.NullOrEmpty())
       {
-        foreach ((VehicleEventDef vehicleEventDef, List<ResolvedMethod<VehiclePawn>> methods) in
+        foreach ((VehicleEventDef vehicleEventDef, List<DynamicDelegate<VehiclePawn>> methods) in
           vehicle.VehicleDef.events)
         {
           if (!methods.NullOrEmpty())
           {
-            foreach (ResolvedMethod<VehiclePawn> method in methods)
+            foreach (DynamicDelegate<VehiclePawn> method in methods)
             {
               vehicle.AddEvent(vehicleEventDef, () => method.Invoke(null, vehicle));
             }

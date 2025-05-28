@@ -111,6 +111,7 @@
     <Compile Include="UnitTests\UnitTest_TerrainGrid.cs" />
     <Compile Include="UnitTests\UnitTest_ThingGrid.cs" />
     <Compile Include="UnitTests\UnitTest_VehicleDefTest.cs" />
+    <Compile Include="UnitTests\UnitTest_VehicleTurret.cs" />
     <Compile Include="UnitTests\UnitTest_VehicleHandler.cs" />
     <Compile Include="UnitTests\UnitTest_VehicleTest.cs" />
     <Compile Include="UnitTests\UnitTest_VehicleTurretDef.cs" />

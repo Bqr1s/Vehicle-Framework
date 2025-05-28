@@ -29,6 +29,12 @@ public class Dialog_VehiclePainter : Window
   private const int GridDimensionRows = 2;
   private const int SampleCount = GridDimensionColumns * GridDimensionRows;
 
+  private static readonly Texture2D mouseOpenCursor =
+    ContentFinder<Texture2D>.Get("UI/Cursors/MouseHandOpen");
+
+  private static readonly Texture2D mouseClosedCursor =
+    ContentFinder<Texture2D>.Get("UI/Cursors/MouseHandClosed");
+
   private int pageNumber;
   private int pageCount;
 
@@ -439,13 +445,12 @@ public class Dialog_VehiclePainter : Window
   {
     if (selectedPattern.properties.dynamicTiling && Mouse.IsOver(rect))
     {
-      if (!mouseOver && AssetBundleDatabase.MouseHandOpen)
+      if (!mouseOver && mouseOpenCursor)
       {
         mouseOver = true;
-        Cursor.SetCursor(AssetBundleDatabase.MouseHandOpen, new Vector2(3, 3), CursorMode.Auto);
+        Cursor.SetCursor(mouseOpenCursor, new Vector2(3, 3), CursorMode.Auto);
       }
-      if (Input.GetMouseButtonDown(0) && !draggingDisplacement &&
-        AssetBundleDatabase.MouseHandClosed)
+      if (Input.GetMouseButtonDown(0) && !draggingDisplacement && mouseClosedCursor)
       {
         draggingDisplacement = true;
         initialDragDifferenceX =
@@ -454,7 +459,7 @@ public class Dialog_VehiclePainter : Window
         initialDragDifferenceY =
           Mathf.InverseLerp(rect.height, 0f, Event.current.mousePosition.y - rect.y) * 2 - 1 -
           displacementY;
-        Cursor.SetCursor(AssetBundleDatabase.MouseHandClosed, new Vector2(3, 3), CursorMode.Auto);
+        Cursor.SetCursor(mouseClosedCursor, new Vector2(3, 3), CursorMode.Auto);
       }
       if (draggingDisplacement && Event.current.isMouse)
       {
@@ -475,10 +480,10 @@ public class Dialog_VehiclePainter : Window
           SetRenderTexturesDirty();
         }
       }
-      if (Input.GetMouseButtonUp(0) && AssetBundleDatabase.MouseHandOpen)
+      if (Input.GetMouseButtonUp(0) && mouseOpenCursor)
       {
         draggingDisplacement = false;
-        Cursor.SetCursor(AssetBundleDatabase.MouseHandOpen, new Vector2(3, 3), CursorMode.Auto);
+        Cursor.SetCursor(mouseOpenCursor, new Vector2(3, 3), CursorMode.Auto);
       }
     }
     else

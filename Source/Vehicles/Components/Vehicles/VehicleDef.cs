@@ -76,7 +76,7 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
   // <Start Event, Stop Event> : SoundDef
   public List<VehicleSustainerEventEntry<VehicleEventDef>> soundSustainersOnEvent;
 
-  public SimpleDictionary<VehicleEventDef, List<ResolvedMethod<VehiclePawn>>> events;
+  public SimpleDictionary<VehicleEventDef, List<DynamicDelegate<VehiclePawn>>> events;
 
   public List<Type> designatorTypes = [];
 

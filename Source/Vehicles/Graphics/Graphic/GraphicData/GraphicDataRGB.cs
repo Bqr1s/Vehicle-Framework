@@ -73,7 +73,7 @@ public class GraphicDataRGB : GraphicDataLayered
     }
     pattern ??= PatternDefOf.Default; //Ensure 1 last check that pattern isn't null
     ShaderTypeDef shaderTypeDef =
-      pattern is SkinDef ? RGBShaderTypeDefOf.CutoutComplexSkin : shaderType;
+      pattern is SkinDef ? VehicleShaderTypeDefOf.CutoutComplexSkin : shaderType;
     if (shaderTypeDef == null)
     {
       color = Color.white;

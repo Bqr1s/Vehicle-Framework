@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using RimWorld;
 using SmashTools;
-using SmashTools.Xml;
 using UnityEngine;
 using Verse;
 
@@ -19,26 +15,9 @@ namespace Vehicles
   /// I may not be able to support that previous version. AssetBundles on older versions of Unity might not load properly and vice verse. Vanilla also doesn't support
   /// AssetBundles loading on other platforms, which requires different builds.
   /// </remarks>
-  [StaticConstructorOnStartup]
+  //[StaticConstructorOnStartup]
   public static class AssetBundleDatabase
   {
-    private const string VehicleAssetFolder = "Assets";
-
-    private static readonly string CutoutComplexRGBPath =
-      Path.Combine("Assets", "Shaders", "ShaderRGB.shader");
-
-    private static readonly string CutoutComplexPatternPath =
-      Path.Combine("Assets", "Shaders", "ShaderRGBPattern.shader");
-
-    private static readonly string CutoutComplexSkinPath =
-      Path.Combine("Assets", "Shaders", "ShaderRGBSkin.shader");
-
-    private static readonly string MouseHandOpenPath =
-      Path.Combine("Assets", "Textures", "MouseHandOpen.png");
-
-    private static readonly string MouseHandClosedPath =
-      Path.Combine("Assets", "Textures", "MouseHandClosed.png");
-
     /// <summary>
     /// AssetBundle version loader
     /// </summary>
@@ -50,21 +29,21 @@ namespace Vehicles
       { "1.6", "2022.3.35f1" }
     };
 
+    // Bundle Versions
+    // 1.3 - 2019.4.30f1
+    // 1.4 - 2019.4.30f1
+    // 1.5 - 2019.4.30f1
+    // 1.6 - 2022.3.35f1
+
     private static readonly Dictionary<string, UnityEngine.Object> assetLookup = [];
 
     private static readonly List<string> loadFoldersChecked = [];
 
     private static readonly List<AssetBundle> vehicleAssets = [];
 
-    private static Shader CutoutComplexRGB { get; }
-    private static Shader CutoutComplexPattern { get; }
-    private static Shader CutoutComplexSkin { get; }
-
-    public static Texture2D MouseHandOpen { get; private set; }
-    public static Texture2D MouseHandClosed { get; private set; }
-
     private static bool IsLoaded { get; }
 
+    /*
     static AssetBundleDatabase()
     {
       if (!UnityData.IsInMainThread)
@@ -136,10 +115,14 @@ namespace Vehicles
       {
         if (Prefs.DevMode)
         {
+          const string SuccessLabel = "successfully loaded.";
+          const string FailLabel = "failed to load.";
           foreach (AssetBundle assetBundle in vehicleAssets)
           {
-            SmashLog.Message(
-              $"<color=orange>{VehicleHarmony.LogLabel}</color> Importing additional assets from {assetBundle.name}. UnityVersion={Application.unityVersion} Status: {AssetBundleLoadMessage(assetBundle)}");
+            Log.Message(
+              $"{VehicleHarmony.LogLabel} Importing assets from {assetBundle?.name}.\n" +
+              $"UnityVersion={Application.unityVersion}\n" +
+              $"Status: {(assetBundle != null ? SuccessLabel : FailLabel)}");
           }
         }
       }
@@ -147,8 +130,15 @@ namespace Vehicles
       CutoutComplexRGB = LoadAsset<Shader>(CutoutComplexRGBPath);
       CutoutComplexPattern = LoadAsset<Shader>(CutoutComplexPatternPath);
       CutoutComplexSkin = LoadAsset<Shader>(CutoutComplexSkinPath);
-      MouseHandOpen = LoadAsset<Texture2D>(MouseHandOpenPath);
-      MouseHandClosed = LoadAsset<Texture2D>(MouseHandClosedPath);
+
+      IsLoaded = true;
+    }
+    */
+
+    static AssetBundleDatabase()
+    {
+      // TODO - remove when shader loading is supported in base game
+      vehicleAssets = [.. VehicleMod.mod.Content.assetBundles.loadedAssetBundles];
 
       IsLoaded = true;
     }
@@ -178,26 +168,18 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Status message
-    /// </summary>
-    /// <param name="assetBundle"></param>
-    private static string AssetBundleLoadMessage(AssetBundle assetBundle) => assetBundle != null ?
-      "<success>successfully loaded.</success>" :
-      "<error>failed to load.</error>";
-
-    /// <summary>
     /// Shader load from AssetBundle
     /// </summary>
     /// <param name="path"></param>
-    public static T LoadAsset<T>(string path) where T : UnityEngine.Object
+    public static T LoadAsset<T>(string path) where T : Object
     {
-      if (assetLookup.TryGetValue(path, out UnityEngine.Object asset))
+      if (assetLookup.TryGetValue(path, out Object asset))
       {
         return (T)asset;
       }
       foreach (AssetBundle assetBundle in vehicleAssets)
       {
-        UnityEngine.Object unityObject = assetBundle.LoadAsset(path);
+        Object unityObject = assetBundle.LoadAsset(path);
         if (unityObject != null)
         {
           if (unityObject is not T obj)
@@ -223,8 +205,9 @@ namespace Vehicles
       {
         return false;
       }
-      return shader == CutoutComplexPattern || shader == CutoutComplexSkin ||
-        shader == CutoutComplexRGB;
+      return shader == VehicleShaderTypeDefOf.CutoutComplexPattern.Shader ||
+        shader == VehicleShaderTypeDefOf.CutoutComplexSkin.Shader ||
+        shader == VehicleShaderTypeDefOf.CutoutComplexRGB.Shader;
     }
   }
 }

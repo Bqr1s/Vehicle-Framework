@@ -29,11 +29,14 @@ internal sealed class UnitTest_MaterialPool : UnitTest_MapTest
       // VehicleGraphic invocation.
       if (vehicle.CompVehicleTurrets != null && !vehicle.CompVehicleTurrets.turrets.NullOrEmpty())
       {
+        int cacheTargetsPreForceRegen = vehicleMats.CacheTargets;
         foreach (VehicleTurret turret in vehicle.CompVehicleTurrets.turrets)
         {
           // Turret graphic is created in ctor, we need to force regenerate to
           // log results in MaterialPoolWatcher and track material lifetime.
+          int matsPreForceRegen = vehicleMats.MaterialsAllocated;
           turret.ResolveGraphics(vehicle.patternData, forceRegen: true);
+          Expect.AreEqual(matsPreForceRegen, vehicleMats.MaterialsAllocated);
           if (!turret.NoGraphic &&
             turret.def.graphicData.shaderType.Shader.SupportsRGBMaskTex())
           {
@@ -52,8 +55,11 @@ internal sealed class UnitTest_MaterialPool : UnitTest_MapTest
               materialCount += turret.MaterialCount;
             }
           }
+          Expect.AreEqual(cacheTargetsPreForceRegen, vehicleMats.CacheTargets,
+            "Precached Turret CacheTarget");
+          Expect.AreEqual(matsPreForceRegen, vehicleMats.MaterialsAllocated,
+            "Precached Turret Materials");
         }
-
         Expect.AreEqual(vehicleMats.CacheTargets, targets, "Add Turret CacheTarget");
         Expect.AreEqual(vehicleMats.MaterialsAllocated, materialCount, "Materials Allocated");
       }

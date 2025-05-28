@@ -1,5 +1,6 @@
 ﻿using System;
 using RimWorld;
+using SmashTools;
 using SmashTools.Rendering;
 using UnityEngine;
 using Verse;
@@ -29,13 +30,17 @@ public sealed class VehicleRenderer : IParallelRenderer
   [Obsolete("Not currently implemented, still WIP. Do not reference.", error: true)]
   public PawnFirefoamDrawer FirefoamOverlays => throw new NotImplementedException();
 
-  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
+  bool IParallelRenderer.IsDirty { get; set; }
+
+  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData,
+    bool forceDraw = false)
   {
     switch (phase)
     {
       case DrawPhase.EnsureInitialized:
-        _ = vehicle.VehicleGraphic; // Ensure graphic has been created
-        // TODO - generate combined mesh here and/or build list of things that should be batch rendered
+        // Ensure meshes are cached beforehand
+        for (int i = 0; i < 4; i++)
+          _ = vehicle.VehicleGraphic.MeshAt(new Rot4(i));
       break;
       case DrawPhase.ParallelPreDraw:
         results = ParallelGetPreRenderResults(in transformData);
@@ -52,9 +57,11 @@ public sealed class VehicleRenderer : IParallelRenderer
     }
   }
 
-  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData)
+  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData,
+    bool forceDraw = false)
   {
-    return vehicle.VehicleGraphic.ParallelGetPreRenderResults(in transformData);
+    return vehicle.VehicleGraphic.ParallelGetPreRenderResults(in transformData,
+      forceDraw: forceDraw, thing: vehicle);
   }
 
   private void Draw()

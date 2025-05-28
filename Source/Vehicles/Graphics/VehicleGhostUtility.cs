@@ -150,7 +150,7 @@ public static class VehicleGhostUtility
           {
             locationRotation += turret.attachedTo.defaultAngleRotated; // + rot.AsAngle;
           }
-          Vector3 turretDrawLoc = turret.TurretDrawLocFor(rot);
+          Vector3 turretDrawLoc = turret.DrawPosition(rot);
           Vector3 turretLoc = loc + turretDrawLoc;
 
           if (!turret.NoGraphic)

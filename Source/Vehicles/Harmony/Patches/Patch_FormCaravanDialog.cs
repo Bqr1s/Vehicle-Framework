@@ -161,16 +161,16 @@ internal class Patch_FormCaravanDialog : IPatchCategory
       // Since we're using our own int-based values parallel to the Tab enum, we can skip the entire
       // switch block and just handle the drawing ourselves. If we didn't do this, the enum would never
       // be able to hold our Vehicle tab int value, so it would never be drawn.
-      else if (!tabClearing && instruction.LoadsField(tabField))
+      else if (!tabClearing && !switchBlockClearing && instruction.LoadsField(tabField))
       {
         switchBlockClearing = true;
         instruction = instructionList[++i]; // Ldfld: Dialog_FormCaravan::tab
         // transferablesRect
-        yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, operand: 4);
+        yield return new CodeInstruction(opcode: OpCodes.Ldloc_S, operand: 3);
         // Dialog_FormCaravan::tabsList
         yield return new CodeInstruction(opcode: OpCodes.Ldsfld, operand: tabListField);
         // out bool anythingChanged
-        yield return new CodeInstruction(opcode: OpCodes.Ldloca_S, operand: 5);
+        yield return new CodeInstruction(opcode: OpCodes.Ldloca_S, operand: 4);
         // this->pawnsTransfer
         yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
         yield return new CodeInstruction(opcode: OpCodes.Ldfld,
@@ -188,7 +188,7 @@ internal class Patch_FormCaravanDialog : IPatchCategory
           operand: AccessTools.Method(typeof(Patch_FormCaravanDialog), nameof(DrawActiveTab)));
       }
       if (switchBlockClearing && instructionList[i + 1].opcode == OpCodes.Ldloc_S &&
-        instructionList[i + 1].operand is LocalBuilder { LocalIndex: 5 })
+        instructionList[i + 1].operand is LocalBuilder { LocalIndex: 4 })
       {
         switchBlockClearing = false;
         instruction = instructionList[++i]; // Br_S: IL_02D8  (end of switch block)
@@ -221,7 +221,9 @@ internal class Patch_FormCaravanDialog : IPatchCategory
         itemsTransfer.OnGUI(transferablesRect, out anythingChanged);
       break;
       case 2: // Dialog_FormCaravan.Tab.TravelSupplies
+        travelSuppliesTransfer.extraHeaderSpace = 35;
         travelSuppliesTransfer.OnGUI(transferablesRect, out anythingChanged);
+        __instance.DrawAutoSelectCheckbox(transferablesRect, ref anythingChanged);
       break;
       case TabVehicles: // Vehicles Tab
         vehiclesTransfer.OnGUI(transferablesRect /*, out anythingChanged*/);

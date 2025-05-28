@@ -67,7 +67,7 @@ namespace Vehicles
         if (vehicle is null)
         {
           var vehicleDefs = DefDatabase<VehicleDef>.AllDefsListForReading.Where(vehicleDef =>
-            vehicleDef.graphicData.shaderType is RGBShaderTypeDef).ToList();
+            vehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex()).ToList();
           if (vehicleDefs.NullOrEmpty())
           {
             SmashLog.Error(

@@ -503,7 +503,7 @@ public class CompFueledTravel : VehicleComp, IRefundable
       FuelLeaking = false;
       foreach ((VehicleComponent component, Reactor_FuelLeak fuelLeak) in FuelComponents)
       {
-        FuelLeaking |= component.HealthPercent <= fuelLeak.maxHealth;
+        FuelLeaking |= component.HealthPercent <= fuelLeak.healthPercent;
       }
     }
 
@@ -512,7 +512,7 @@ public class CompFueledTravel : VehicleComp, IRefundable
     {
       foreach ((VehicleComponent component, Reactor_FuelLeak fuelLeak) in FuelComponents)
       {
-        float t = (fuelLeak.maxHealth - component.HealthPercent) * (1 / fuelLeak.maxHealth);
+        float t = (fuelLeak.healthPercent - component.HealthPercent) * (1 / fuelLeak.healthPercent);
         float rate = Mathf.Lerp(fuelLeak.rate.min, fuelLeak.rate.max, t);
         if (rate == 0)
         {
@@ -651,8 +651,7 @@ public class CompFueledTravel : VehicleComp, IRefundable
     Vehicle.AddEvent(VehicleEventDefOf.Refueled, RevalidateConsumptionStatus);
     Vehicle.AddEvent(VehicleEventDefOf.IgnitionOn, RevalidateConsumptionStatus);
     Vehicle.AddEvent(VehicleEventDefOf.IgnitionOff, RevalidateConsumptionStatus);
-    Vehicle.AddEvent(VehicleEventDefOf.DamageTaken, RevalidateConsumptionStatus);
-    Vehicle.AddEvent(VehicleEventDefOf.Repaired, RevalidateConsumptionStatus);
+    Vehicle.AddEvent(VehicleEventDefOf.HealthChanged, RevalidateConsumptionStatus);
   }
 
   public override void PostGeneration()

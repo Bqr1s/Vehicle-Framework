@@ -343,7 +343,7 @@ public class Command_CooldownAction : Command_Turret
   protected virtual void DrawBottomBar(Rect rect, ref bool mouseOver)
   {
     Widgets.FillableBar(rect, (float)turret.shellCount / turret.def.magazineCapacity,
-      VehicleTex.FullBarTex, VehicleTex.EmptyBarTex, true);
+      TexData.FullBarTex, TexData.EmptyBarTex, true);
 
     using (new TextBlock(GameFont.Small, TextAnchor.MiddleCenter))
     {

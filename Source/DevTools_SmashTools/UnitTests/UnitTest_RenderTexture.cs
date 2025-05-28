@@ -57,7 +57,7 @@ internal class UnitTest_RenderTexture
     Expect.ReferencesAreEqual(buffer.Read, rtA, "Swap 2 Reset Read");
     Expect.ReferencesAreEqual(buffer.Write, rtB, "Swap 2 Reset Write");
 
-    // Dispose will queue the texture object for destruction but we still have 1 frame to validate
+    // Dispose will queue the texture object for destruction but we still have 1 frame to verify
     // GPU allocations were released.
     buffer.Dispose();
 
@@ -111,8 +111,6 @@ internal class UnitTest_RenderTexture
       idler.SetTimeDirect(9999);
       bool continue9999 = idler.UpdateLoop();
       Expect.IsFalse(continue9999, "UpdateLoop Stopping");
-      // If continue9999 is false, Dispose will be called but we need to call DestroyImmediately for
-      // this test so we don't have to wait another frame to check it was freed natively.
       UnityThread.RemoveUpdate(idler.UpdateLoop);
 
       Expect.AreEqual(idler.Read.GetNativeDepthBufferPtr(), IntPtr.Zero,

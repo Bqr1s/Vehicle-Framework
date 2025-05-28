@@ -1,26 +1,34 @@
 ﻿using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using DevTools.Benchmarking;
 
 // ReSharper disable all
 
 namespace SmashTools.Performance;
 
-[BenchmarkClass("Recursion"), SampleSize(10_000)]
-internal class Benchmark_Recursion
+[BenchmarkClass("Recursion Tree"), SampleSize(100_000)]
+internal class Benchmark_RecursionTree
 {
   [Benchmark(Label = "Recursion")]
-  [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
   private static void Recursion_TailCall(ref RecursionContext context)
   {
     ProcessNode(context.root);
   }
 
   [Benchmark(Label = "Stack Loop")]
-  [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
   private static void Recursion_StackLoop(ref RecursionContext context)
   {
-    DevTools.Utils.DoRecursive(context.root, ProcessNode, GetChildren);
+    Stack<Node> stack = context.stack;
+    stack.Push(context.root);
+    while (context.stack.Count > 0)
+    {
+      Node current = stack.Pop();
+      current.processed = true;
+
+      foreach (Node child in current.children)
+      {
+        stack.Push(child);
+      }
+    }
   }
 
   private static void ProcessNode(Node node)
@@ -30,18 +38,19 @@ internal class Benchmark_Recursion
       ProcessNode(childNode);
   }
 
-  private static IEnumerable<Node> GetChildren(Node node)
+  private static List<Node> GetChildren(Node node)
   {
     return node.children;
   }
 
   private readonly struct RecursionContext
   {
+    public readonly Stack<Node> stack = new();
     public readonly Node root;
 
     public RecursionContext()
     {
-      const int Depth = 15;
+      const int Depth = 10;
 
       root = new Node(Depth);
     }
