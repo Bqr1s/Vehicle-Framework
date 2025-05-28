@@ -7,14 +7,16 @@ using Verse;
 
 namespace Vehicles
 {
-	[DefOf]
-	public static class ThingDefOf_VehicleMotes
-	{
-		static ThingDefOf_VehicleMotes()
-		{
-			DefOfHelper.EnsureInitializedInCtor(typeof(ThingDefOf_VehicleMotes));
-		}
+  [DefOf]
+  public static class ThingDefOf_VehicleMotes
+  {
+    static ThingDefOf_VehicleMotes()
+    {
+      DefOfHelper.EnsureInitializedInCtor(typeof(ThingDefOf_VehicleMotes));
+    }
 
-		public static ThingDef Mote_FishingNet;
-	}
+    public static ThingDef Mote_FishingNet;
+
+    public static ThingDef MoteLaunchedTurret;
+  }
 }

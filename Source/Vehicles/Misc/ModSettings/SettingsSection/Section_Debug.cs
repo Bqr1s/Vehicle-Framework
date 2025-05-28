@@ -39,7 +39,6 @@ public class Section_Debug : SettingsSection
 
   public bool debugSpawnVehicleBuildingGodMode;
   public bool debugUseMultithreading = true;
-  public bool debugLoadAssetBundles = true;
 
   public bool debugAllowRaiders;
   public bool hierarchalPathfinding;
@@ -68,7 +67,6 @@ public class Section_Debug : SettingsSection
 
     debugSpawnVehicleBuildingGodMode = false;
     debugUseMultithreading = true;
-    debugLoadAssetBundles = true;
 
     debugAllowRaiders = false;
     hierarchalPathfinding = false;
@@ -100,8 +98,6 @@ public class Section_Debug : SettingsSection
         nameof(debugSpawnVehicleBuildingGodMode));
 
       Scribe_Values.Look(ref debugUseMultithreading, nameof(debugUseMultithreading),
-        defaultValue: true);
-      Scribe_Values.Look(ref debugLoadAssetBundles, nameof(debugLoadAssetBundles),
         defaultValue: true);
     }
 
@@ -201,7 +197,6 @@ public class Section_Debug : SettingsSection
           }
         }
 
-        listingStandard.CheckboxLabeled("Load AssetBundles", ref debugLoadAssetBundles);
 #endif
 
         listingStandard.Header("VF_DevMode_Drawers".Translate(), ListingExtension.BannerColor,

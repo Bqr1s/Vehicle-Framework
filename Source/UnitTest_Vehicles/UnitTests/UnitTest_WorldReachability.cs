@@ -3,7 +3,7 @@ using System.Linq;
 using DevTools.UnitTesting;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.Pathfinding;
+using SmashTools.Algorithms;
 using UnityEngine.Assertions;
 using Verse;
 using WorldRegionGrid = Vehicles.WorldVehicleReachability.WorldRegionGrid;

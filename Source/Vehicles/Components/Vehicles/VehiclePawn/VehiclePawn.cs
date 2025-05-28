@@ -3,17 +3,17 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Animations;
+using SmashTools.Rendering;
 using UnityEngine;
 using Vehicles.Rendering;
 using Verse;
 
 namespace Vehicles
 {
-  public partial class VehiclePawn : Pawn, IInspectable, IAnimationTarget, IAnimator,
+  public partial class VehiclePawn : Pawn, IInspectable,
+                                     IAnimationTarget, IAnimator, ITransformable,
                                      IEventManager<VehicleEventDef>, IMaterialCacheTarget
   {
-    public bool Initialized { get; private set; }
-
     public EventManager<VehicleEventDef> EventRegistry { get; set; }
 
     public VehicleDef VehicleDef => def as VehicleDef;
@@ -83,12 +83,14 @@ namespace Vehicles
 
     public virtual void PostGenerationSetup()
     {
+      this.RegisterEvents();
       InitializeVehicle();
       ageTracker.AgeBiologicalTicks = 0;
       ageTracker.AgeChronologicalTicks = 0;
       ageTracker.BirthAbsTicks = 0;
       health.Reset();
       statHandler.InitializeComponents();
+
       if (Faction != Faction.OfPlayer && VehicleDef.npcProperties != null)
       {
         GenerateInventory();
@@ -149,7 +151,8 @@ namespace Vehicles
 
     public override void SpawnSetup(Map map, bool respawningAfterLoad)
     {
-      this.RegisterEvents(); //Must register before comps call SpawnSetup to allow comps to access Registry
+      // Must register before comps call SpawnSetup to allow comps to access Registry
+      this.RegisterEvents();
       base.SpawnSetup(map, respawningAfterLoad);
 
 #if ANIMATOR
@@ -222,8 +225,6 @@ namespace Vehicles
       ReclaimPosition();
       Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleSpawned(this);
       ResetRenderStatus();
-
-      Initialized = true;
     }
 
     public override void ExposeData()

@@ -94,6 +94,7 @@ public class FloatMenuOptionProvider_OrderVehicle : FloatMenuOptionProvider_Vehi
     if (vehicle.Position == gotoLoc)
     {
       jobSuccess = true;
+      vehicle.FullRotation = rot;
       if (vehicle.CurJobDef == JobDefOf.Goto)
       {
         vehicle.jobs.EndCurrentJob(JobCondition.Succeeded);

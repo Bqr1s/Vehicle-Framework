@@ -83,7 +83,7 @@ public class Gizmo_RefuelableFuelTravel : Gizmo_Slider
 
     bool electric = refuelable.Props.ElectricPowered;
 
-    GUI.DrawTexture(iconRect, electric ? VehicleTex.FlickerIcon : refuelable.Props.FuelIcon);
+    GUI.DrawTexture(iconRect, electric ? TexData.FlickerIcon : refuelable.Props.FuelIcon);
     Rect subIconRect =
       new(iconRect.center.x, iconRect.y, iconRect.width / 2f, iconRect.height / 2f);
     bool checkOn = electric ? refuelable.Charging : refuelable.allowAutoRefuel;

@@ -148,6 +148,10 @@ namespace Vehicles
         original: AccessTools.Method(typeof(Caravan), nameof(Caravan.RemovePawn)),
         postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
           nameof(RemovePawnInVehicleCaravan)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(Caravan), nameof(Caravan.RemoveAllPawns)),
+        postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
+          nameof(ClearAllPawnsInVehicleCaravan)));
       VehicleHarmony.Patch(original: AccessTools.Method(typeof(Caravan), nameof(Caravan.IsOwner)),
         postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
           nameof(IsOwnerOfVehicle)));
@@ -1038,7 +1042,7 @@ namespace Vehicles
       }
     }
 
-    public static void AddPawnInVehicleCaravan(Caravan __instance)
+    private static void AddPawnInVehicleCaravan(Caravan __instance)
     {
       if (__instance is VehicleCaravan vehicleCaravan)
       {
@@ -1046,12 +1050,16 @@ namespace Vehicles
       }
     }
 
-    public static void RemovePawnInVehicleCaravan(Caravan __instance)
+    private static void RemovePawnInVehicleCaravan(Caravan __instance)
     {
       if (__instance is VehicleCaravan vehicleCaravan)
-      {
         vehicleCaravan.RecacheVehicles();
-      }
+    }
+
+    private static void ClearAllPawnsInVehicleCaravan(Caravan __instance)
+    {
+      if (__instance is VehicleCaravan vehicleCaravan)
+        vehicleCaravan.RecacheVehicles();
     }
 
     public static void IsOwnerOfVehicle(Pawn p, Caravan __instance, ref bool __result)

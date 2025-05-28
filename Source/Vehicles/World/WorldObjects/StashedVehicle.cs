@@ -5,6 +5,7 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
@@ -184,30 +185,31 @@ public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
       25 * Mathf.Lerp(1.2f, 0.8f, t); //20 to 30 days depending on size of vehicle
     stashedVehicle.GetComponent<TimeoutComp>().StartTimeout(Mathf.CeilToInt(timeoutDays * 60000));
 
-    List<Pawn> pawns = vehicleCaravan.PawnsListForReading.Where(pawn => pawn is not VehiclePawn)
-     .ToList();
-    List<Pawn> vehicles = [];
-    List<Pawn> inventoryPawns = [];
+    List<Pawn> inventoryCandidates = [];
+
+    caravan = CaravanMaker.MakeCaravan([], vehicleCaravan.Faction, vehicleCaravan.Tile, true);
 
     foreach (VehiclePawn vehicle in vehicleCaravan.VehiclesListForReading)
     {
-      vehicles.Add(vehicle);
       foreach (VehicleRoleHandler handler in vehicle.handlers)
       {
-        pawns.AddRange(handler.thingOwner);
-      }
-      foreach (Thing thing in vehicle.inventory.innerContainer)
-      {
-        if (thing is Pawn pawn)
+        for (int i = handler.thingOwner.Count - 1; i >= 0; i--)
         {
-          inventoryPawns.Add(pawn);
+          Pawn pawn = handler.thingOwner[i];
+          inventoryCandidates.Add(pawn);
+          // We need to remove then add, so that the vehicle registers that the pawn was taken
+          // out of the vehicle handler (and also triggers the PawnRemoved event)
+          vehicle.TryRemovePawn(pawn, handler);
+          caravan.AddPawn(pawn, true);
         }
       }
+      for (int i = vehicle.inventory.innerContainer.Count - 1; i >= 0; i--)
+      {
+        Thing thing = vehicle.inventory.innerContainer[i];
+        if (thing is Pawn)
+          vehicle.inventory.innerContainer.TryTransferToContainer(thing, caravan.pawns);
+      }
     }
-
-    caravan = CaravanMaker.MakeCaravan([], vehicleCaravan.Faction, vehicleCaravan.Tile, true);
-    caravan.pawns.TryAddRangeOrTransfer(pawns, canMergeWithExistingStacks: false);
-    caravan.pawns.TryAddRangeOrTransfer(inventoryPawns, canMergeWithExistingStacks: false);
 
     if (!transferables.NullOrEmpty())
     {
@@ -224,21 +226,23 @@ public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
             }
             else
             {
-              CaravanInventoryUtility.MoveInventoryToSomeoneElse(ownerOf, thing, pawns, vehicles,
+              CaravanInventoryUtility.MoveInventoryToSomeoneElse(ownerOf, thing,
+                inventoryCandidates, vehicleCaravan.pawns.InnerListForReading,
                 numToTake);
             }
           });
       }
     }
 
-    //Transfer vehicles to stashed vehicle object
-    for (int i = vehicles.Count - 1; i >= 0; i--)
+    // Transfer vehicles to stashed vehicle object
+    for (int i = vehicleCaravan.pawns.Count - 1; i >= 0; i--)
     {
-      Pawn vehiclePawn = vehicles[i];
-      stashedVehicle.stash.TryAddOrTransfer(vehiclePawn, false);
+      Pawn vehiclePawn = vehicleCaravan.pawns[i];
+      vehicleCaravan.pawns.TryTransferToContainer(vehiclePawn, stashedVehicle.stash,
+        canMergeWithExistingStacks: false);
     }
     Find.WorldObjects.Add(stashedVehicle);
-    vehicleCaravan.RemoveAllPawns();
+    Assert.IsTrue(vehicleCaravan.pawns.Count == 0);
     vehicleCaravan.Destroy();
     return stashedVehicle;
   }

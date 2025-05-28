@@ -34,119 +34,12 @@ public static class VehicleGraphics
   }
 
   /// <summary>
-  /// Calculate VehicleTurret draw offset
-  /// </summary>
-  /// <param name="rot"></param>
-  /// <param name="renderProps"></param>
-  /// <param name="extraRotation"></param>
-  /// <param name="attachedTo"></param>
-  public static Vector2 TurretDrawOffset(Rot8 rot, VehicleTurretRender renderProps,
-    float extraRotation = 0, VehicleTurret attachedTo = null)
-  {
-    Vector2 turretOffset = renderProps.OffsetFor(rot);
-    if (attachedTo != null)
-    {
-      Vector2 parentOffset = attachedTo.renderProperties.OffsetFor(rot);
-      turretOffset = ConvertRelativeOffset(rot, turretOffset);
-      Vector2 rootLoc =
-        Ext_Math.RotatePointClockwise(turretOffset.x, turretOffset.y, extraRotation);
-      return new Vector2(rootLoc.x + parentOffset.x, rootLoc.y + parentOffset.y);
-    }
-    return turretOffset;
-  }
-
-  public static Vector2 ConvertRelativeOffset(Rot8 rot, Vector2 offset)
-  {
-    return rot.AsInt switch
-    {
-      0 => offset,
-      1 => offset * new Vector2(-1, -1),
-      2 => offset,
-      3 => offset * new Vector2(-1, 1),
-      4 => new Vector2(-1 * offset.y, offset.x),
-      5 => new Vector2(offset.y, -1 * offset.x),
-      6 => new Vector2(-1 * offset.y, offset.x),
-      7 => new Vector2(offset.y, -1 * offset.x),
-      _ => offset,
-    };
-  }
-
-  /// <summary>
   /// Calculate draw offset given offsets from center rotated alongside <paramref name="rot"/>
   /// </summary>
   public static Vector2 VehicleDrawOffset(Rot8 rot, float offsetX, float offsetY,
     float additionalRotation = 0)
   {
     return Ext_Math.RotatePointClockwise(offsetX, offsetY, rot.AsAngle + additionalRotation);
-  }
-
-  public static void DrawTurret(VehicleTurret turret, Vector3 drawPos, Rot8 rot)
-  {
-    try
-    {
-      Vector3 turretDrawLoc = turret.TurretDrawLocFor(rot);
-      Vector3 rootPos = drawPos + turretDrawLoc;
-      Vector3 recoilOffset = Vector3.zero;
-      Vector3 parentRecoilOffset = Vector3.zero;
-      if (turret.recoilTracker != null && turret.recoilTracker.Recoil > 0f)
-      {
-        recoilOffset =
-          Vector3.zero.PointFromAngle(turret.recoilTracker.Recoil, turret.recoilTracker.Angle);
-      }
-      if (turret.attachedTo?.recoilTracker != null && turret.attachedTo.recoilTracker.Recoil > 0f)
-      {
-        parentRecoilOffset = Vector3.zero.PointFromAngle(turret.attachedTo.recoilTracker.Recoil,
-          turret.attachedTo.recoilTracker.Angle);
-      }
-      Mesh cannonMesh = turret.Graphic.MeshAt(rot);
-      Graphics.DrawMesh(cannonMesh, rootPos + recoilOffset + parentRecoilOffset,
-        turret.TurretRotation.ToQuat(), turret.Material, 0);
-
-      DrawTurretOverlays(turret, rootPos + parentRecoilOffset, rot);
-    }
-    catch (Exception ex)
-    {
-      Log.Error(
-        $"Error occurred during rendering of attached thing on {turret.vehicle.Label}. Exception: {ex}");
-    }
-  }
-
-  public static void DrawTurretOverlays(VehicleTurret turret, Vector3 drawPos, Rot8 rot)
-  {
-    try
-    {
-      if (!turret.TurretGraphics.NullOrEmpty())
-      {
-        for (int i = 0; i < turret.TurretGraphics.Count; i++)
-        {
-          VehicleTurret.TurretDrawData turretDrawData = turret.TurretGraphics[i];
-          Turret_RecoilTracker recoilTracker = turret.recoilTrackers[i];
-
-          Vector3 rootPos = turretDrawData.DrawOffset(drawPos, rot);
-          Vector3 recoilOffset = Vector3.zero;
-          Vector3 parentRecoilOffset = Vector3.zero;
-          if (recoilTracker != null && recoilTracker.Recoil > 0f)
-          {
-            recoilOffset = Ext_Math.PointFromAngle(Vector3.zero, recoilTracker.Recoil,
-              recoilTracker.Angle);
-          }
-          if (turret.attachedTo != null && turret.attachedTo.recoilTracker != null &&
-            turret.attachedTo.recoilTracker.Recoil > 0f)
-          {
-            parentRecoilOffset = Ext_Math.PointFromAngle(Vector3.zero,
-              turret.attachedTo.recoilTracker.Recoil, turret.attachedTo.recoilTracker.Angle);
-          }
-          Mesh cannonMesh = turretDrawData.graphic.MeshAt(rot);
-          Graphics.DrawMesh(cannonMesh, rootPos + recoilOffset + parentRecoilOffset,
-            turret.TurretRotation.ToQuat(), turretDrawData.graphic.MatAt(Rot4.North), 0);
-        }
-      }
-    }
-    catch (Exception ex)
-    {
-      Log.Error(
-        $"Error occurred during rendering of layered turret graphics on {turret.vehicle.Label}. Exception: {ex}");
-    }
   }
 
   public static Rect AdjustRectToVehicleDef(VehicleDef vehicleDef, Rect rect, Rot8 rot)

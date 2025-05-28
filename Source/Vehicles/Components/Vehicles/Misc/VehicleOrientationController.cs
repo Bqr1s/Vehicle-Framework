@@ -2,6 +2,7 @@
 using System.Linq;
 using RimWorld;
 using SmashTools;
+using SmashTools.Algorithms;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Verse;
@@ -40,6 +41,9 @@ public class VehicleOrientationController : BaseTargeter
 
   private int lastUpdatedTick;
 
+  private float[,] costMatrix;
+  private KuhnMunkres assigner;
+  private readonly List<IntVec3> potentialDests = [];
   private readonly List<IntVec3> dests = [];
   private readonly List<VehiclePawn> vehicles = [];
 
@@ -81,11 +85,20 @@ public class VehicleOrientationController : BaseTargeter
     Assert.IsNotNull(vehicle);
     this.vehicles.AddRange(vehicles);
     dests.Populate(IntVec3.Invalid, vehicles.Count);
+    potentialDests.Populate(IntVec3.Invalid, vehicles.Count);
     dests[0] = cell;
     Rotation = this.vehicle.FullRotation;
     this.start = clickCell;
     this.end = cell;
     this.clickPos = UI.MouseMapPosition();
+
+    if (IsMultiSelect)
+    {
+      int n = vehicles.Count;
+      costMatrix = new float[n, n];
+      assigner = new KuhnMunkres(n);
+    }
+
     OnStart();
   }
 
@@ -100,7 +113,8 @@ public class VehicleOrientationController : BaseTargeter
 
   private void ConfirmOrientation()
   {
-    RecomputeDestinations();
+    if (IsMultiSelect)
+      RecomputeDestinations();
 
     for (int i = 0; i < vehicles.Count; i++)
     {
@@ -123,14 +137,16 @@ public class VehicleOrientationController : BaseTargeter
     StopTargeting();
   }
 
+
   private void RecomputeDestinations()
   {
+    Assert.IsTrue(IsMultiSelect);
     dests.Populate(IntVec3.Invalid, dests.Count);
 
-    vehicles.SortBy(DistToClickCell);
-
-    float denominator = vehicles.Count > 1 ? vehicles.Count - 1 : 1;
-    for (int i = 0; i < vehicles.Count; i++)
+    // Calculate every expected destination
+    int count = vehicles.Count;
+    float denominator = count > 1 ? count - 1 : 1;
+    for (int i = 0; i < count; i++)
     {
       VehiclePawn selVehicle = vehicles[i];
       if (!selVehicle.Spawned)
@@ -148,16 +164,27 @@ public class VehicleOrientationController : BaseTargeter
          .ToIntVec3();
       }
       if (!PathingHelper.TryFindNearestStandableCell(selVehicle, destPos, out IntVec3 result))
-      {
         result = IntVec3.Invalid;
-      }
-      dests[i] = result;
+      potentialDests[i] = result;
     }
-  }
 
-  private float DistToClickCell(VehiclePawn vehicle)
-  {
-    return vehicle.Position.DistanceTo(start);
+    // Calculate cheapest path sum
+    for (int i = 0; i < count; i++)
+    {
+      for (int j = 0; j < count; j++)
+        costMatrix[i, j] = vehicles[i].Position.DistanceTo(dests[j]);
+    }
+    int[] assignment = assigner.Compute(costMatrix);
+
+    // Assign
+    for (int i = 0; i < count; i++)
+    {
+      VehiclePawn selVehicle = vehicles[i];
+      if (!selVehicle.Spawned)
+        continue;
+
+      dests[i] = potentialDests[assignment[i]];
+    }
   }
 
   public override void ProcessInputEvents()

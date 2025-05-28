@@ -45,6 +45,8 @@ namespace Vehicles
       roleKey = role.key;
     }
 
+    bool IParallelRenderer.IsDirty { get; set; }
+
     public IThingHolder ParentHolder => vehicle;
 
     Rot4 IThingHolderPawnOverlayer.PawnRotation =>
@@ -102,15 +104,15 @@ namespace Vehicles
       thingOwner.DoTick();
     }
 
-    public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
+    public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData,
+      bool forceDraw = false)
     {
       foreach (Pawn pawn in thingOwner)
       {
         Rot4 rotOverride = role.PawnRenderer.RotFor(transformData.orientation);
         Vector3 offset = role.PawnRenderer.DrawOffsetFor(transformData.orientation);
         pawn.Drawer.renderer.DynamicDrawPhaseAt(phase, transformData.position + offset,
-          rotOverride: rotOverride,
-          neverAimWeapon: true);
+          rotOverride: rotOverride, neverAimWeapon: true);
       }
     }
 

@@ -5,7 +5,7 @@ using LudeonTK;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.Pathfinding;
+using SmashTools.Algorithms;
 using Verse;
 using Verse.Sound;
 

@@ -137,8 +137,9 @@ namespace Vehicles
 
           if (mouseTarget != Turret.vehicle)
           {
-            Turret.AlignToAngleRestricted(Turret.TurretLocation.ToIntVec3()
-             .AngleToCell(mouseTarget.Cell));
+            float angle = Turret.TurretLocation.AngleToPoint(mouseTarget.Thing?.DrawPos ??
+              mouseTarget.Cell.ToVector3Shifted());
+            Turret.AlignToAngleRestricted(angle);
           }
         }
       }

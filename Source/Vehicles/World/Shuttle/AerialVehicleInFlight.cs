@@ -222,12 +222,12 @@ namespace Vehicles
           {
             defaultLabel = "CommandLaunchGroup".Translate(),
             defaultDesc = "CommandLaunchGroupDesc".Translate(),
-            icon = VehicleTex.LaunchCommandTex,
+            icon = TexData.LaunchCommandTex,
             alsoClickIfOtherInGroupClicked = false,
             action = delegate
             {
               LaunchTargeter.BeginTargeting(vehicle, ChoseTargetOnMap, this, true,
-                VehicleTex.TargeterMouseAttachment, false, null,
+                TexData.TargeterMouseAttachment, false, null,
                 (target, path, fuelCost) =>
                   vehicle.CompVehicleLauncher.launchProtocol.TargetingLabelGetter(target, Tile,
                     path, fuelCost));

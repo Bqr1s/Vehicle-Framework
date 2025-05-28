@@ -76,11 +76,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Benchmarking\Benchmark_CellRectUtils.cs" />
+    <Compile Include="Benchmarking\Benchmark_RecursionLinear.cs" />
+    <Compile Include="Benchmarking\Benchmark_TypeCheck.cs" />
     <Compile Include="Benchmarking\Benchmark_GetComp.cs" />
     <Compile Include="Benchmarking\Benchmark_GenTypes.cs" />
     <Compile Include="Benchmarking\Benchmark_HashSet.cs" />
     <Compile Include="Benchmarking\Benchmark_PriorityQueue.cs" />
-    <Compile Include="Benchmarking\Benchmark_Recursion.cs" />
+    <Compile Include="Benchmarking\Benchmark_RecursionTree.cs" />
     <Compile Include="Benchmarking\Benchmark_TypeByName.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StartupConfig.cs" />
@@ -89,6 +91,7 @@
     <Compile Include="UnitTests\UnitTest_AsyncPool.cs" />
     <Compile Include="UnitTests\UnitTest_CellRectUtils.cs" />
     <Compile Include="UnitTests\UnitTest_ComponentCache.cs" />
+    <Compile Include="UnitTests\UnitTest_KuhnMunkres.cs" />
     <Compile Include="UnitTests\UnitTest_UnityThread.cs" />
     <Compile Include="UnitTests\UnitTest_DedicatedThread.cs" />
     <Compile Include="UnitTests\UnitTest_ObjectPool.cs" />

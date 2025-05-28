@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
@@ -10,6 +11,8 @@ namespace Vehicles.Rendering;
 public static class RenderHelper
 {
   private static readonly List<PlanetTile> cachedEdgeTiles = [];
+
+  private static readonly Dictionary<(Vector2 size, Rot4 rot), Mesh> rotatedMeshes = [];
 
   private static int cachedEdgeTilesForCenter = -1;
   private static int cachedEdgeTilesForRadius = -1;
@@ -81,12 +84,24 @@ public static class RenderHelper
     return mote;
   }
 
+  // TODO - This is ugly, we could instead be rotating the quaternion and not
+  // be pooling even more meshes. Will want to refactor this later.
+  public static Mesh GridPlaneRotated(Vector2 size, Rot4 rot)
+  {
+    if (!rotatedMeshes.TryGetValue((size, rot), out Mesh mesh))
+    {
+      mesh = CreateRotatedMesh(size, rot);
+      rotatedMeshes[(size, rot)] = mesh;
+    }
+    return mesh;
+  }
+
   /// <summary>
   /// Create rotated Mesh where <paramref name="rot"/> [1:3] indicates number of 90 degree rotations
   /// </summary>
   /// <param name="size"></param>
   /// <param name="rot"></param>
-  public static Mesh NewPlaneMesh(Vector2 size, int rot)
+  private static Mesh CreateRotatedMesh(Vector2 size, Rot4 rot)
   {
     Vector3[] vertices = new Vector3[4];
     Vector2[] uv = new Vector2[4];
@@ -95,32 +110,32 @@ public static class RenderHelper
     vertices[1] = new Vector3(-0.5f * size.x, 0f, 0.5f * size.y);
     vertices[2] = new Vector3(0.5f * size.x, 0f, 0.5f * size.y);
     vertices[3] = new Vector3(0.5f * size.x, 0f, -0.5f * size.y);
-    switch (rot)
+    switch (rot.AsInt)
     {
       case 1:
         uv[0] = new Vector2(1f, 0f);
         uv[1] = new Vector2(0f, 0f);
         uv[2] = new Vector2(0f, 1f);
         uv[3] = new Vector2(1f, 1f);
-        break;
+      break;
       case 2:
         uv[0] = new Vector2(1f, 1f);
         uv[1] = new Vector2(1f, 0f);
         uv[2] = new Vector2(0f, 0f);
         uv[3] = new Vector2(0f, 1f);
-        break;
+      break;
       case 3:
         uv[0] = new Vector2(0f, 1f);
         uv[1] = new Vector2(1f, 1f);
         uv[2] = new Vector2(1f, 0f);
         uv[3] = new Vector2(0f, 0f);
-        break;
+      break;
       default:
         uv[0] = new Vector2(0f, 0f);
         uv[1] = new Vector2(0f, 1f);
         uv[2] = new Vector2(1f, 1f);
         uv[3] = new Vector2(1f, 0f);
-        break;
+      break;
     }
     triangles[0] = 0;
     triangles[1] = 1;
@@ -128,10 +143,12 @@ public static class RenderHelper
     triangles[3] = 0;
     triangles[4] = 2;
     triangles[5] = 3;
-    Mesh mesh = new Mesh();
-    mesh.name = "NewPlaneMesh()";
-    mesh.vertices = vertices;
-    mesh.uv = uv;
+    Mesh mesh = new()
+    {
+      name = "NewPlaneMesh()",
+      vertices = vertices,
+      uv = uv
+    };
     mesh.SetTriangles(triangles, 0);
     mesh.RecalculateNormals();
     mesh.RecalculateBounds();

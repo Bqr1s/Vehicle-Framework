@@ -2,6 +2,10 @@
 
 <Defs>
 	<!-- Health -->
+  <Vehicles.VehicleEventDef>
+    <defName>HealthChanged</defName>
+  </Vehicles.VehicleEventDef>
+  
 	<Vehicles.VehicleEventDef>
 		<defName>DamageTaken</defName>
 	</Vehicles.VehicleEventDef>

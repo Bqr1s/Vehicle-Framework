@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using JetBrains.Annotations;
 using RimWorld;
 using SmashTools.Rendering;
 using UnityEngine;
@@ -13,6 +14,7 @@ namespace Vehicles;
 
 // TODO - Create ExplosionManager to contain these
 // TODO - Rename to something more descriptive
+[PublicAPI]
 [StaticConstructorOnStartup]
 public class TimedExplosion : IExposable, IParallelRenderer
 {
@@ -36,7 +38,7 @@ public class TimedExplosion : IExposable, IParallelRenderer
 
   private int ticksLeft;
 
-  private VehiclePawn vehicle;
+  public VehiclePawn vehicle;
 
   private PreRenderResults results;
   private Data data;
@@ -45,6 +47,12 @@ public class TimedExplosion : IExposable, IParallelRenderer
   private Sustainer wickSoundSustainer;
 
   private readonly List<Pawn> pawnsNotifiedOfExplosion = [];
+
+  // NOTE - while this could be an event, setting it up to save / load would be a massive
+  // pain, and right now it's only used for the pop turret event.
+  public Action<TimedExplosion> explosionCallback;
+
+  bool IParallelRenderer.IsDirty { get; set; }
 
   public bool Active { get; private set; }
 
@@ -71,32 +79,35 @@ public class TimedExplosion : IExposable, IParallelRenderer
     }
   }
 
-  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
+  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData,
+    bool forceDraw = false)
   {
     switch (phase)
     {
       case DrawPhase.EnsureInitialized:
-        break;
+      break;
       case DrawPhase.ParallelPreDraw:
-        results = ParallelGetPreRenderResults(in transformData);
-        break;
+        results = ParallelGetPreRenderResults(in transformData, forceDraw: forceDraw);
+      break;
       case DrawPhase.Draw:
         // Out of phase drawing must immediately generate pre-render results for valid data.
         if (!results.valid)
-          results = ParallelGetPreRenderResults(in transformData);
+          results = ParallelGetPreRenderResults(in transformData, forceDraw: forceDraw);
         Draw();
         results = default;
-        break;
+      break;
       default:
         throw new NotImplementedException();
     }
   }
 
-  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData)
+  private PreRenderResults ParallelGetPreRenderResults(ref readonly TransformData transformData,
+    bool forceDraw = false)
   {
     PreRenderResults render = new()
     {
       valid = true,
+      draw = true,
       material = (vehicle.thingIDNumber + Find.TickManager.TicksGame) % (WickerFlickerTicks * 2) <
         WickerFlickerTicks ?
           WickMaterialA :
@@ -123,7 +134,7 @@ public class TimedExplosion : IExposable, IParallelRenderer
 
   private void Draw()
   {
-    if (!Active)
+    if (!Active || !results.draw)
       return;
     Graphics.DrawMesh(MeshPool.plane20, results.matrix, results.material, 0);
   }
@@ -135,11 +146,6 @@ public class TimedExplosion : IExposable, IParallelRenderer
       Active = true;
       StartWickSustainer();
       NotifyPawnsOfExplosion();
-
-      if (ticksLeft <= 0)
-      {
-        Explode();
-      }
     }
   }
 
@@ -238,6 +244,7 @@ public class TimedExplosion : IExposable, IParallelRenderer
     GenExplosion.DoExplosion(AdjustedCell, vehicle.Map, data.radius, data.damageDef, vehicle,
       data.damageAmount,
       data.armorPenetration);
+    explosionCallback?.Invoke(this);
   }
 
   public void ExposeData()
@@ -245,11 +252,14 @@ public class TimedExplosion : IExposable, IParallelRenderer
     Scribe_References.Look(ref vehicle, nameof(vehicle));
     Scribe_Deep.Look(ref data, nameof(data));
     Scribe_Values.Look(ref ticksLeft, nameof(ticksLeft));
+    // TODO
+    //Scribe_Values.Look(ref explosionCallback, nameof(explosionCallback));
   }
 
   private struct PreRenderResults
   {
     public bool valid;
+    public bool draw;
     public Material material;
     public Matrix4x4 matrix;
   }

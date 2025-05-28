@@ -165,7 +165,7 @@ namespace Vehicles
         {
           defaultLabel = "CommandLaunchGroup".Translate(),
           defaultDesc = "CommandLaunchGroupDesc".Translate(),
-          icon = VehicleTex.LaunchCommandTex,
+          icon = TexData.LaunchCommandTex,
           alsoClickIfOtherInGroupClicked = false,
           action = delegate()
           {
@@ -214,11 +214,11 @@ namespace Vehicles
         case LaunchType.Landing:
           (result.drawPos, result.rotation, shadowData) =
             AnimateLanding(result.drawPos, result.rotation, shadowData);
-          break;
+        break;
         case LaunchType.Takeoff:
           (result.drawPos, result.rotation, shadowData) =
             AnimateTakeoff(result.drawPos, result.rotation, shadowData);
-          break;
+        break;
       }
       result.drawPos.y = AltitudeLayer.Skyfaller.AltitudeFor();
       Rot8 rot = CurAnimationProperties.forcedRotation ?? vehicle.Rotation;
@@ -360,16 +360,16 @@ namespace Vehicles
     /// </summary>
     public void Tick()
     {
-      vehicle.Tick_TEMP();
+      vehicle.DoTick();
 
       switch (launchType)
       {
         case LaunchType.Landing:
           TickLanding();
-          break;
+        break;
         case LaunchType.Takeoff:
           TickTakeoff();
-          break;
+        break;
       }
     }
 
@@ -779,7 +779,7 @@ namespace Vehicles
         {
           LaunchTargeter.ContinueTargeting(vehicle,
             new Func<GlobalTargetInfo, float, bool>(ChoseWorldTarget), vehicle.Map.Tile, true,
-            VehicleTex.TargeterMouseAttachment, true, null,
+            TexData.TargeterMouseAttachment, true, null,
             (GlobalTargetInfo target, List<FlightNode> path, float fuelCost) =>
               TargetingLabelGetter(target, tile, path, fuelCost));
         }
@@ -789,7 +789,7 @@ namespace Vehicles
             AerialVehicleLaunchHelper.GetOrMakeAerialVehicle(vehicle);
           LaunchTargeter.Instance.ContinueTargeting(vehicle,
             new Func<GlobalTargetInfo, float, bool>(aerialVehicle.ChoseTargetOnMap), aerialVehicle,
-            true, VehicleTex.TargeterMouseAttachment, false, null,
+            true, TexData.TargeterMouseAttachment, false, null,
             (GlobalTargetInfo target, List<FlightNode> path, float fuelCost) =>
               vehicle.CompVehicleLauncher.launchProtocol.TargetingLabelGetter(target,
                 aerialVehicle.Tile, path, fuelCost));
@@ -871,7 +871,7 @@ namespace Vehicles
       int tile = vehicle.Map.Tile;
       LaunchTargeter.BeginTargeting(vehicle,
         new Func<GlobalTargetInfo, float, bool>(ChoseWorldTarget), vehicle.Map.Tile, true,
-        VehicleTex.TargeterMouseAttachment, true, null,
+        TexData.TargeterMouseAttachment, true, null,
         (GlobalTargetInfo target, List<FlightNode> path, float fuelCost) =>
           TargetingLabelGetter(target, tile, path, fuelCost));
     }

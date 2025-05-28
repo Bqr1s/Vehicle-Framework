@@ -15,19 +15,19 @@ public class VehicleRole : ITweakFields
   public string key;
   public string label = "[MissingLabel]";
 
-  //Operating
+  // Operating
   private HandlingType handlingTypes = HandlingType.None;
   private int slots;
   private int slotsToOperate;
   private float comfort = 0.5f;
   private List<string> turretIds;
 
-  //Damaging
+  // Damaging
   private ComponentHitbox hitbox = new();
   private bool exposed;
   private float chanceToHit = 0.3f;
 
-  //Rendering
+  // Rendering
   [TweakField]
   private PawnOverlayRenderer pawnRenderer;
 
@@ -134,8 +134,8 @@ public class VehicleRole : ITweakFields
         for (int i = upgrades.Count - 1; i >= 0; i--)
         {
           RoleUpgrade roleUpgrade = upgrades[i];
-          if (roleUpgrade.turretIds !=
-            null) //empty turret ids can be used to override role management of turret
+          // empty turret ids can be used to override role management of turret
+          if (roleUpgrade.turretIds != null)
           {
             return roleUpgrade.turretIds;
           }

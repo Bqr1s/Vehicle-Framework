@@ -36,6 +36,7 @@ public static class VehicleEventDefOf
   public static VehicleEventDef Undeployed;
 
   // Stats
+  public static VehicleEventDef HealthChanged;
   public static VehicleEventDef DamageTaken;
   public static VehicleEventDef Repaired;
 

@@ -2,19 +2,19 @@
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
-using UnityEngine;
 using RimWorld;
-using Verse;
-using Verse.Sound;
-using Verse.AI;
 using SmashTools;
-using SmashTools.Rendering;
+using UnityEngine;
 using Vehicles.Rendering;
+using Verse;
+using Verse.AI;
+using Verse.Sound;
 
 namespace Vehicles;
 
+[PublicAPI]
 [HeaderTitle(Label = nameof(CompVehicleTurrets))]
-public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
+public class CompVehicleTurrets : VehicleAIComp, IRefundable
 {
   private List<TurretData> turretQueue = [];
 
@@ -177,93 +177,9 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     foreach (VehicleTurret turret in turrets)
     {
       if (turret.key == key)
-      {
         return turret;
-      }
     }
-
     return null;
-  }
-
-  public void AddTurret(VehicleTurret turret, string upgradeKey = null)
-  {
-    VehicleTurret newTurret = CreateTurret(Vehicle, turret, upgradeKey: upgradeKey);
-    newTurret.FillEvents_Def();
-    turrets.Add(newTurret);
-    RevalidateTurrets();
-    RecacheGizmos();
-    if (!backupQuotas.NullOrEmpty())
-    {
-      for (int i = 0; i < backupQuotas.Count; i++)
-      {
-        BackupTurretQuota quota = backupQuotas[i];
-        if (quota.key == newTurret.key && quota.upgradeKey == newTurret.upgradeKey)
-        {
-          SetQuotaLevel(newTurret, quota.config);
-          backupQuotas.RemoveAt(i);
-          break;
-        }
-      }
-    }
-
-    if (Vehicle.CompUpgradeTree != null &&
-      Vehicle.CompUpgradeTree.TryGetStates(turret.key, out List<UpgradeState> states))
-    {
-      // Re-unlock turret-type settings to ensure proper values are
-      // initialized for new turrets of existing keys
-      foreach (UpgradeState state in states)
-      {
-        if (!state.settings.NullOrEmpty())
-        {
-          foreach (UpgradeState.Setting setting in state.settings)
-          {
-            if (setting is UpgradeSetting_Turret turretSetting &&
-              turretSetting.turretKey == turret.key)
-            {
-              turretSetting.Unlocked(Vehicle, false);
-            }
-          }
-        }
-      }
-    }
-
-    CacheBoundaries();
-  }
-
-  public bool RemoveTurret(string key)
-  {
-    RecacheGizmos();
-    for (int i = turrets.Count - 1; i >= 0; i--)
-    {
-      VehicleTurret turret = turrets[i];
-      if (turret.key == key)
-      {
-        return RemoveTurret(turret);
-      }
-    }
-    return false;
-  }
-
-  [UsedImplicitly]
-  public bool RemoveTurret(VehicleTurret turret)
-  {
-    turret.TryClearChamber();
-    if (turretQuotas.TryGetValue(turret, out int quota))
-    {
-      // Move turret quota to simple list for storage,
-      // may pull config later if turret is re-added
-      backupQuotas.Add(new BackupTurretQuota()
-      {
-        key = turret.key,
-        upgradeKey = turret.upgradeKey,
-        config = quota,
-      });
-      turretQuotas.Remove(turret);
-    }
-    turret.OnDestroy();
-    bool removed = turrets.Remove(turret);
-    RecacheGizmos();
-    return removed;
   }
 
   public override void OnDestroy()
@@ -279,14 +195,6 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
   {
     turrets ??= [];
     RecacheTurretPermissions();
-  }
-
-  public void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
-  {
-    foreach (VehicleTurret turret in turrets)
-    {
-      turret.DynamicDrawPhaseAt(phase, transformData);
-    }
   }
 
   private void RecacheGizmos()
@@ -414,12 +322,8 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
       }
 
       // Verify disable conditions
-      if (turret.TurretRestricted)
-        command.Disable(turret.restrictions.DisableReason);
-      if (!turret.DeploymentSatisfied)
-        command.Disable(turret.DeploymentDisabledReason);
-      if (turret.ComponentDisabled)
-        command.Disable("VF_TurretComponentDisabled".Translate(turret.component.Label));
+      if (turret.IsDisabled(out string disableReason))
+        command.Disable(disableReason);
       if (upgrading)
         command.Disable("VF_DisabledByVehicleUpgrading".Translate(Vehicle.LabelCap));
 
@@ -468,7 +372,6 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     }
   }
 
-  [UsedImplicitly]
   public void QueueTurret(TurretData turretData)
   {
     turretData.turret.queuedToFire = true;
@@ -476,7 +379,6 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     turretData.turret.EventRegistry[VehicleTurretEventDefOf.Queued].ExecuteEvents();
   }
 
-  [UsedImplicitly]
   public void DequeueTurret(TurretData turretData)
   {
     turretData.turret.queuedToFire = false;
@@ -595,19 +497,17 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     if (Vehicle.Spawned)
     {
       ResolveTurretQueue();
-      //Only tick VehicleTurrets that actively request to be ticked
+      // Only tick VehicleTurrets that have requested ticking
       for (int i = tickers.Count - 1; i >= 0; i--)
       {
         VehicleTurret turret = tickers[i];
         if (Vehicle.stances.stunner.Stunned && turret.def.empDisables)
-        {
           continue;
-        }
 
+        // VehicleTurret::Tick determines when it should be removed from
+        // the ticker queue.
         if (!turret.Tick())
-        {
           DequeueTicker(turret);
-        }
       }
 
       if (ShouldStopTicking)
@@ -636,12 +536,9 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
       foreach (VehicleTurret turret in turrets)
       {
         if (!turret.TurretDisabled)
-        {
           return true;
-        }
       }
     }
-
     return false;
   }
 
@@ -668,7 +565,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     for (int i = tickers.Count - 1; i >= 0; i--)
     {
       VehicleTurret turret = tickers[i];
-      DequeueTicker(turret); //Dequeue all turrets if vehicle despawns
+      DequeueTicker(turret); // Dequeue all turrets if vehicle despawns
     }
   }
 
@@ -707,56 +604,136 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     }
   }
 
-  [UsedImplicitly]
-  public static VehicleTurret CreateTurret(VehiclePawn vehicle, VehicleTurret reference,
-    string upgradeKey = null)
-  {
-    VehicleTurret newTurret =
-      (VehicleTurret)Activator.CreateInstance(reference.GetType(), vehicle, reference);
-    newTurret.SetTarget(LocalTargetInfo.Invalid);
-    newTurret.ResetAngle();
-    newTurret.upgradeKey = upgradeKey;
-    return newTurret;
-  }
-
   private void CreateTurretInstances()
   {
-    if (Props.turrets.NotNullAndAny())
+    if (!Props.turrets.NullOrEmpty())
     {
       foreach (VehicleTurret turret in Props.turrets)
       {
         try
         {
-          VehicleTurret newTurret = CreateTurret(Vehicle, turret);
-          turrets.Add(newTurret);
+          AddTurret(turret);
         }
         catch (Exception ex)
         {
-          SmashLog.Error(
-            $"Exception thrown while attempting to generate <text>{turret.def.label}</text> " +
-            $"for <text>{Vehicle.Label}</text>. Exception=\"{ex}\"");
+          Log.Error(
+            $"Exception thrown while attempting to generate {turret.def.label} " +
+            $"for {Vehicle.Label}. Exception=\"{ex}\"");
         }
       }
-
       CheckDuplicateKeys();
     }
   }
 
-  public void CheckDuplicateKeys()
+  internal void CheckDuplicateKeys()
   {
-    if (turrets.Select(x => x.key).GroupBy(y => y).NotNullAndAny(key => key.Count() > 1))
-    {
+    if (turrets.Select(turret => turret.key).GroupBy(key => key)
+     .NotNullAndAny(group => group.Count() > 1))
       Log.Warning("Duplicate VehicleTurret key has been found. These are intended to be unique.");
+  }
+
+  /// <summary>
+  /// Creates shallow copy of turret reference and adds to comp.
+  /// </summary>
+  public void AddTurret(VehicleTurret reference, string upgradeKey = null)
+  {
+    VehicleTurret newTurret =
+      (VehicleTurret)Activator.CreateInstance(reference.GetType(), Vehicle, reference);
+    newTurret.SetTarget(LocalTargetInfo.Invalid);
+    newTurret.ResetAngle();
+    newTurret.upgradeKey = upgradeKey;
+    newTurret.FillEvents_Def();
+    newTurret.Init(reference);
+    turrets.Add(newTurret);
+    RevalidateTurrets();
+
+    if (Vehicle.Spawned)
+      RecacheGizmos();
+
+    // Parent turrets take ownership for rendering child turrets so transform data
+    // can be properly passed down and inherited in the final render results.
+    if (!newTurret.NoGraphic && newTurret.attachedTo is null)
+      Vehicle.DrawTracker.AddRenderer(newTurret);
+
+    if (!backupQuotas.NullOrEmpty())
+    {
+      for (int i = 0; i < backupQuotas.Count; i++)
+      {
+        BackupTurretQuota quota = backupQuotas[i];
+        if (quota.key == newTurret.key && quota.upgradeKey == newTurret.upgradeKey)
+        {
+          SetQuotaLevel(newTurret, quota.config);
+          backupQuotas.RemoveAt(i);
+          break;
+        }
+      }
     }
+
+    if (upgradeKey != null && Vehicle.CompUpgradeTree != null &&
+      Vehicle.CompUpgradeTree.TryGetStates(newTurret.key, out List<UpgradeState> states))
+    {
+      // Re-unlock turret-type settings to ensure proper values are
+      // initialized for new turrets of existing keys
+      foreach (UpgradeState state in states)
+      {
+        if (state.settings.NullOrEmpty())
+          continue;
+
+        foreach (UpgradeState.Setting setting in state.settings)
+        {
+          if (setting is UpgradeSetting_Turret turretSetting &&
+            turretSetting.turretKey == newTurret.key)
+          {
+            turretSetting.Unlocked(Vehicle, false);
+          }
+        }
+      }
+    }
+    CacheBoundaries();
+  }
+
+  public bool RemoveTurret(string key)
+  {
+    for (int i = turrets.Count - 1; i >= 0; i--)
+    {
+      VehicleTurret turret = turrets[i];
+      if (turret.key == key)
+      {
+        return RemoveTurret(turret);
+      }
+    }
+    return false;
+  }
+
+  public bool RemoveTurret(VehicleTurret turret)
+  {
+    turret.TryClearChamber();
+    if (turretQuotas.TryGetValue(turret, out int quota))
+    {
+      // Move turret quota to simple list for storage,
+      // may pull config later if turret is re-added
+      backupQuotas.Add(new BackupTurretQuota()
+      {
+        key = turret.key,
+        upgradeKey = turret.upgradeKey,
+        config = quota,
+      });
+      turretQuotas.Remove(turret);
+    }
+    turret.OnDestroy();
+    bool removed = turrets.Remove(turret);
+    if (!turret.NoGraphic && turret.attachedTo is null)
+      Vehicle.DrawTracker.RemoveRenderer(turret);
+    if (Vehicle.Spawned)
+      RecacheGizmos();
+    return removed;
   }
 
   public void RevalidateTurrets()
   {
-    turretQueue ??= [];
     ResolveAllTurretChildren();
     RecacheDeployment();
     RecacheTurretPermissions();
-    InitTurrets();
   }
 
   private void ResolveAllTurretChildren()
@@ -939,18 +916,14 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
     base.PostSpawnSetup(respawningAfterLoad);
     try
     {
-      if (!Vehicle.Initialized)
-      {
-        RevalidateTurrets();
-      }
+      RevalidateTurrets();
+      RecacheTurretComponents();
 
       foreach (VehicleTurret turret in turrets)
       {
         turret.PostSpawnSetup(respawningAfterLoad);
       }
 
-      RecacheTurretPermissions();
-      RecacheTurretComponents();
       CacheBoundaries();
       if (!respawningAfterLoad)
       {
@@ -979,9 +952,15 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable, IParallelRenderer
       LookMode.Value, ref tmpListTurrets, ref tmpListTurretQuota);
     Scribe_Collections.Look(ref backupQuotas, nameof(backupQuotas), LookMode.Deep);
 
-    turrets ??= new List<VehicleTurret>();
-    turretQuotas ??= new Dictionary<VehicleTurret, int>();
-    backupQuotas ??= new List<BackupTurretQuota>();
+    turrets ??= [];
+    turretQueue ??= [];
+    turretQuotas ??= [];
+    backupQuotas ??= [];
+
+    if (Scribe.mode == LoadSaveMode.LoadingVars)
+    {
+      InitTurrets();
+    }
   }
 
   public class TurretData : IExposable

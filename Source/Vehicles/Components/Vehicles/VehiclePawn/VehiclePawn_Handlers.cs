@@ -173,16 +173,19 @@ public partial class VehiclePawn
   {
     role.ResolveReferences(VehicleDef);
     handlers.Add(new VehicleRoleHandler(this, role));
+    ResetRenderStatus();
   }
 
   public void RemoveRole(VehicleRole role)
   {
-    DisembarkAll(); //Temporary measure to avoid the destruction of all pawns within the role being removed
+    // Temporary measure to avoid the destruction of all pawns within the role being removed
+    DisembarkAll();
     for (int i = handlers.Count - 1; i >= 0; i--)
     {
       VehicleRoleHandler handler = handlers[i];
       if (handler.role.key == role.key)
       {
+        DrawTracker.RemoveRenderer(handler);
         handlers.RemoveAt(i);
       }
     }
@@ -190,12 +193,14 @@ public partial class VehiclePawn
 
   public void RemoveRole(string roleKey)
   {
-    DisembarkAll(); //Temporary measure to avoid the destruction of all pawns within the role being removed
+    // Temporary measure to avoid the destruction of all pawns within the role being removed
+    DisembarkAll();
     for (int i = handlers.Count - 1; i >= 0; i--)
     {
       VehicleRoleHandler handler = handlers[i];
       if (handler.role.key == roleKey)
       {
+        DrawTracker.RemoveRenderer(handler);
         handlers.RemoveAt(i);
       }
     }
@@ -388,20 +393,23 @@ public partial class VehiclePawn
 
   public void RemovePawn(Pawn pawn)
   {
-    for (int i = 0; i < handlers.Count; i++)
+    foreach (VehicleRoleHandler handler in handlers)
     {
-      VehicleRoleHandler handler = handlers[i];
-      if (handler.thingOwner.Remove(pawn))
-      {
-        EventRegistry[VehicleEventDefOf.PawnRemoved].ExecuteEvents();
-        if (Spawned)
-        {
-          Map.GetCachedMapComponent<VehicleReservationManager>().ReleaseAllClaimedBy(pawn);
-        }
-
-        return;
-      }
+      if (TryRemovePawn(pawn, handler))
+        break;
     }
+  }
+
+  public bool TryRemovePawn(Pawn pawn, VehicleRoleHandler handler)
+  {
+    if (handler.thingOwner.Remove(pawn))
+    {
+      EventRegistry[VehicleEventDefOf.PawnRemoved].ExecuteEvents();
+      if (Spawned)
+        Map.GetCachedMapComponent<VehicleReservationManager>().ReleaseAllClaimedBy(pawn);
+      return true;
+    }
+    return false;
   }
 
   public void DisembarkPawn(Pawn pawn)
@@ -527,42 +535,42 @@ public partial class VehiclePawn
             TrySatisfyRest(handler, pawn, need as Need_Rest);
           }
 
-          break;
+        break;
         case Need_Food _:
           if (!CaravanNightRestUtility.RestingNowAt(tile))
           {
             TrySatisfyFood(handler, pawn, need as Need_Food);
           }
 
-          break;
+        break;
         case Need_Chemical _:
           if (!CaravanNightRestUtility.RestingNowAt(tile))
           {
             TrySatisfyChemicalNeed(handler, pawn, need as Need_Chemical);
           }
 
-          break;
+        break;
         case Need_Joy _:
           if (!CaravanNightRestUtility.RestingNowAt(tile))
           {
             TrySatisfyJoyNeed(handler, pawn, need as Need_Joy);
           }
 
-          break;
+        break;
         case Need_Comfort _:
           if (handler != null)
           {
             need.CurLevel = handler.role.Comfort; //TODO - add comfort factor for roles
           }
 
-          break;
+        break;
         case Need_Outdoors _:
           if (handler == null || handler.role.Exposed)
           {
             need.NeedInterval();
           }
 
-          break;
+        break;
       }
     }
 

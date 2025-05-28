@@ -21,7 +21,7 @@ public class PatternDef : Def, IMaterialCacheTarget
 
   private bool IsDefault => this == PatternDefOf.Default;
 
-  public virtual RGBShaderTypeDef ShaderTypeDef => RGBShaderTypeDefOf.CutoutComplexPattern;
+  public virtual ShaderTypeDef ShaderTypeDef => VehicleShaderTypeDefOf.CutoutComplexPattern;
 
   public int MaterialCount => 4;
 

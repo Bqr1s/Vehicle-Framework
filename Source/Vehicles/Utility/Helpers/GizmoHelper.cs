@@ -22,7 +22,7 @@ namespace Vehicles
       {
         defaultLabel = "CommandTrade".Translate(),
         defaultDesc = "CommandTradeDesc".Translate(),
-        icon = VehicleTex.TradeCommandTex,
+        icon = TexData.TradeCommandTex,
         action = delegate()
         {
           if (Find.WorldObjects.SettlementAt(aerialVehicle.Tile) is

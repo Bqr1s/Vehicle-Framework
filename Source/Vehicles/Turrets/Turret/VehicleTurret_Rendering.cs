@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using RimWorld;
 using SmashTools;
+using SmashTools.Animations;
 using SmashTools.Performance;
 using SmashTools.Rendering;
 using UnityEngine;
@@ -11,6 +12,7 @@ using UnityEngine.Assertions;
 using Vehicles.Rendering;
 using Verse;
 using Verse.Sound;
+using Transform = SmashTools.Rendering.Transform;
 
 namespace Vehicles;
 
@@ -33,63 +35,86 @@ public partial class VehicleTurret
   /* ----------------- */
 
   [Unsaved]
-  protected PreRenderResults results;
+  private PreRenderResults results;
 
   [Unsaved]
-  protected List<PreRenderResults> subGraphicResults;
+  private List<PreRenderResults> subGraphicResults = [];
 
   // Cache all root draw pos on spawn
   [Unsaved]
-  protected Vector3 rootDrawPos_North;
+  private Vector3 rootDrawPos_North;
 
   [Unsaved]
-  protected Vector3 rootDrawPos_East;
+  private Vector3 rootDrawPos_East;
 
   [Unsaved]
-  protected Vector3 rootDrawPos_South;
+  private Vector3 rootDrawPos_South;
 
   [Unsaved]
-  protected Vector3 rootDrawPos_West;
+  private Vector3 rootDrawPos_West;
 
   [Unsaved]
-  protected Vector3 rootDrawPos_NorthEast;
+  private Vector3 rootDrawPos_NorthEast;
 
   [Unsaved]
-  protected Vector3 rootDrawPos_SouthEast;
+  private Vector3 rootDrawPos_SouthEast;
 
   [Unsaved]
-  protected Vector3 rootDrawPos_SouthWest;
+  private Vector3 rootDrawPos_SouthWest;
 
   [Unsaved]
-  protected Vector3 rootDrawPos_NorthWest;
+  private Vector3 rootDrawPos_NorthWest;
 
   public Texture2D currentFireIcon;
-  protected Texture2D gizmoIcon;
-  protected Texture2D mainMaskTex;
+  private Texture2D gizmoIcon;
+  private Texture2D mainMaskTex;
 
   [Unsaved]
-  protected Texture2D cachedTexture;
+  private Texture2D cachedTexture;
 
   [Unsaved]
-  protected Material cachedMaterial;
+  private Material cachedMaterial;
 
   [Unsaved]
-  protected Graphic_Turret cachedGraphic;
+  private Graphic_Turret cachedGraphic;
 
   [Unsaved]
-  protected GraphicDataRGB cachedGraphicData;
+  private GraphicDataRGB cachedGraphicData;
 
   [Unsaved]
-  protected List<TurretDrawData> turretGraphics;
+  private List<TurretDrawData> turretGraphics;
 
   [Unsaved]
-  protected RotatingList<Texture2D> overheatIcons;
+  private RotatingList<Texture2D> overheatIcons;
+
+  [TweakField]
+  [AnimationProperty(Name = "Transform")]
+  private Transform transform = new();
+
+  [Unsaved]
+  private bool selfDirty;
+
+  bool IParallelRenderer.IsDirty
+  {
+    get { return selfDirty; }
+    set
+    {
+      selfDirty = value;
+      // Propagate dirty flag upward so top parent can initiate an EnsuredInitialized DrawPhase
+      // that gets called back down to the child turret that needs dirtying.
+      attachedTo?.SetDirty();
+    }
+  }
 
   public bool GizmoHighlighted { get; set; }
 
   public MaterialPropertyBlock PropertyBlock { get; private set; }
 
   public static MaterialPropertyBlock TargeterPropertyBlock { get; private set; }
+
+  // Need recursive parent check for nested turret attachment
+  public bool ShouldDraw => (component is null || component.MeetsRequirements) &&
+    (attachedTo is null || attachedTo.ShouldDraw);
 
   public int MaterialCount => 1;
 
@@ -98,6 +123,8 @@ public partial class VehicleTurret
   public bool NoGraphic => def.graphicData is null;
 
   public float DrawLayerOffset => drawLayer * (Altitudes.AltInc / GraphicDataLayered.SubLayerCount);
+
+  public Transform Transform => transform;
 
   public PatternDef PatternDef
   {
@@ -142,7 +169,7 @@ public partial class VehicleTurret
     {
       if (overheatIcons.NullOrEmpty())
       {
-        overheatIcons = VehicleTex.FireIcons.ToRotatingList();
+        overheatIcons = TexData.FireIcons.ToRotatingList();
       }
       return overheatIcons;
     }
@@ -257,7 +284,8 @@ public partial class VehicleTurret
     }
   }
 
-  public virtual void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData)
+  public virtual void DynamicDrawPhaseAt(DrawPhase phase, in TransformData transformData,
+    bool forceDraw = false)
   {
     if (NoGraphic)
       return;
@@ -265,57 +293,87 @@ public partial class VehicleTurret
     switch (phase)
     {
       case DrawPhase.EnsureInitialized:
-        if (!def.graphics.NullOrEmpty())
-          subGraphicResults = [];
         // Ensure meshes are created and cached
         for (int i = 0; i < 4; i++)
           _ = Graphic.MeshAt(new Rot4(i));
-      break;
-      case DrawPhase.ParallelPreDraw:
-        results = ParallelPreRenderResults(in transformData, TurretRotation);
-        if (subGraphicResults != null)
+
+        if (!childTurrets.NullOrEmpty())
         {
-          AddSubGraphicParallelPreRenderResults(in transformData, subGraphicResults);
+          foreach (VehicleTurret turret in childTurrets)
+            turret.DynamicDrawPhaseAt(phase, in transformData, forceDraw: forceDraw);
         }
       break;
+      case DrawPhase.ParallelPreDraw:
+        ParallelPreRenderResultsRecursive(in transformData, TurretRotation, 0,
+          forceDraw: forceDraw);
+      break;
       case DrawPhase.Draw:
-        // TODO - Check if we'll be rendering turrets with dynamic rotations, otherwise we'll
-        // need to change this to be more flexible for unspawned vehicle rendering.
         if (!results.valid)
-          results = ParallelPreRenderResults(in transformData,
-            transformData.orientation.AsAngle + defaultAngleRotated);
+        {
+          Assert.IsTrue(subGraphicResults.Count == 0);
+          float fixedRotation = defaultAngleRotated + transformData.orientation.AsAngle;
+          ParallelPreRenderResultsRecursive(in transformData, fixedRotation, 0,
+            forceDraw: forceDraw);
+        }
         Draw();
         results = default;
-        subGraphicResults?.Clear();
+        subGraphicResults.Clear();
       break;
       default:
         throw new NotImplementedException(nameof(DrawPhase));
     }
   }
 
-  protected virtual PreRenderResults ParallelPreRenderResults(
-    ref readonly TransformData transformData, float turretRotation, bool addRecoil = true)
+  private void ParallelPreRenderResultsRecursive(ref readonly TransformData transformData,
+    float rotation, float parentRotation, bool forceDraw = false)
   {
+    results = ParallelPreRenderResults(in transformData, rotation, parentRotation,
+      forceDraw: forceDraw);
+    AddSubGraphicParallelPreRenderResults(in transformData, subGraphicResults, rotation,
+      parentRotation);
+
+    // Recursively draws child turrets with parent render results
+    if (!childTurrets.NullOrEmpty())
+    {
+      foreach (VehicleTurret turret in childTurrets)
+      {
+        turret.ParallelPreRenderResultsRecursive(in transformData,
+          turret.TurretRotation,
+          rotation,
+          forceDraw: forceDraw);
+      }
+    }
+  }
+
+  protected virtual PreRenderResults ParallelPreRenderResults(
+    ref readonly TransformData transformData, float rotation, float parentRotation,
+    bool forceDraw = false)
+  {
+    if (!ShouldDraw && !forceDraw)
+    {
+      // Skip rendering if health percent is below set amount for rendering
+      return new PreRenderResults { valid = true, draw = false };
+    }
+
     PreRenderResults render = new()
     {
       valid = true,
-      draw = true
+      draw = true,
     };
+
     // This is more or less the same implementation as Graphic_Rgb::ParallelGetPreRenderResults
     // The fixed North orientation, turret rotation, and additional offsetting makes it more
-    // trouble than its worth to try and fetch then modify.
-    Vector3 rootPos = transformData.position + TurretDrawLocFor(transformData.orientation);
-    if (addRecoil)
+    // trouble than its worth to try and fetch then modify. May want to refactor in the future.
+    float turretRotation =
+      transformData.rotation + rotation;
+    float pivotRotation = transformData.rotation + parentRotation;
+    //Vector3 rootPos = transformData.position +
+    //  TurretDrawLocFor(transformData.orientation, pivotRotation);
+    Vector3 rootPos =
+      transformData.position + DrawPosition(transformData.orientation, pivotRotation);
+    if (vehicle is { Spawned: true } && recoilTracker is { Recoil: > 0f })
     {
-      if (recoilTracker is { Recoil: > 0f })
-      {
-        rootPos += Vector3.zero.PointFromAngle(recoilTracker.Recoil, recoilTracker.Angle);
-      }
-      if (attachedTo?.recoilTracker.Recoil > 0f)
-      {
-        rootPos += Vector3.zero.PointFromAngle(attachedTo.recoilTracker.Recoil,
-          attachedTo.recoilTracker.Angle);
-      }
+      rootPos += Vector3.zero.PointFromAngle(recoilTracker.Recoil, recoilTracker.Angle);
     }
     render.position = rootPos;
     if (vehicle is { Spawned: true } && def.graphicData.altLayerSpawned is { } altLayerSpawned)
@@ -330,9 +388,18 @@ public partial class VehicleTurret
   }
 
   protected virtual void AddSubGraphicParallelPreRenderResults(
-    ref readonly TransformData transformData, List<PreRenderResults> outList)
+    ref readonly TransformData transformData, List<PreRenderResults> outList, float rotation,
+    float parentRotation)
   {
-    outList.Clear();
+    if (results is { valid: true, draw: false })
+    {
+      // Rendering will be skipped if base pre-render results has draw = false. No point in
+      // evaluating further, the main turret body and all subgraphics will not be drawn.
+      return;
+    }
+    if (TurretGraphics.NullOrEmpty())
+      return;
+
     for (int i = 0; i < TurretGraphics.Count; i++)
     {
       PreRenderResults render = new()
@@ -368,7 +435,13 @@ public partial class VehicleTurret
         render.position.y = altLayerSpawned.AltitudeFor();
         render.position.y += Graphic.DrawOffset(Rot4.North).y;
       }
-      render.quaternion = TurretRotation.ToQuat();
+      if (vehicle.Transform is not null)
+      {
+        Transform vehicleTransform = vehicle.Transform;
+        render.position += vehicleTransform.position;
+        rotation += vehicleTransform.rotation;
+      }
+      render.quaternion = rotation.ToQuat();
       render.mesh = turretDrawData.graphic.MeshAt(transformData.orientation);
       render.material = turretDrawData.graphic.MatAt(Rot4.North);
 
@@ -376,19 +449,112 @@ public partial class VehicleTurret
     }
   }
 
-  public Vector3 TurretDrawLocFor(Rot8 rot, bool fullLoc = true)
+  protected virtual void Draw()
   {
-    float locationRotation = 0f;
-    if (fullLoc && attachedTo != null)
+    if (!results.draw)
+      return;
+
+    Graphics.DrawMesh(results.mesh, results.position, results.quaternion, results.material, 0);
+
+    if (subGraphicResults != null)
     {
-      locationRotation = TurretRotationFor(rot, attachedTo.TurretRotation);
+      foreach (PreRenderResults renderResults in subGraphicResults)
+      {
+        Graphics.DrawMesh(renderResults.mesh, renderResults.position, renderResults.quaternion,
+          renderResults.material, 0);
+      }
     }
 
-    Vector2 turretLoc = VehicleGraphics.TurretDrawOffset(rot, renderProperties, locationRotation,
-      fullLoc ? attachedTo : null);
+    if (!childTurrets.NullOrEmpty())
+    {
+      foreach (VehicleTurret childTurret in childTurrets)
+        childTurret.Draw();
+    }
+
+    if (vehicle.Spawned)
+    {
+      DrawTargeter();
+      DrawAimPie();
+    }
+  }
+
+  public Vector3 DrawPosition(Rot8 rot)
+  {
+    Rot8 offsetRot = rot;
+    if (attachedTo != null)
+      offsetRot = Rot8.North;
+    Vector3 graphicOffset = Graphic?.DrawOffset(offsetRot) ?? Vector3.zero;
+    Vector2 propsOffset = renderProperties.OffsetFor(offsetRot);
+    Vector2 offset = new(graphicOffset.x + propsOffset.x, graphicOffset.z + propsOffset.y);
+
+    float rotation = InheritedRotation(this);
+    offset = offset.RotatePointClockwise(rotation);
+
+    if (attachedTo != null)
+    {
+      Vector3 parentOffset = attachedTo.DrawPosition(rot);
+      offset.x += parentOffset.x;
+      offset.y += parentOffset.z;
+    }
+    return new Vector3(offset.x, graphicOffset.y + DrawLayerOffset, offset.y);
+
+    static float InheritedRotation(VehicleTurret turret)
+    {
+      float rotation = turret.vehicle?.Transform.rotation ?? 0;
+      VehicleTurret parent = turret.attachedTo;
+      while (parent != null)
+      {
+        rotation += parent.transform.rotation;
+        parent = parent.attachedTo;
+      }
+      return rotation;
+    }
+  }
+
+  private Vector3 DrawPosition(Rot8 rot, float rotation)
+  {
+    Rot8 offsetRot = rot;
+    if (attachedTo != null)
+      offsetRot = Rot8.North;
+    Vector3 graphicOffset = Graphic?.DrawOffset(offsetRot) ?? Vector3.zero;
+    Vector2 propsOffset = renderProperties.OffsetFor(offsetRot);
+    Vector2 offset = new(graphicOffset.x + propsOffset.x, graphicOffset.z + propsOffset.y);
+
+    offset = offset.RotatePointClockwise(rotation);
+
+    if (attachedTo != null)
+    {
+      Vector3 parentOffset = attachedTo.DrawPosition(rot);
+      offset.x += parentOffset.x;
+      offset.y += parentOffset.z;
+    }
+    return new Vector3(offset.x, graphicOffset.y + DrawLayerOffset, offset.y);
+  }
+
+  public Vector3 TurretDrawLocFor(Rot8 rot)
+  {
+    float extraRotation =
+      attachedTo != null ? TurretRotationFor(rot, attachedTo.TurretRotation) : 0;
+    return TurretDrawLocFor(rot, extraRotation);
+  }
+
+  public Vector3 TurretDrawLocFor(Rot8 rot, float rotation)
+  {
+    Vector2 turretLoc = RotatedDrawOffset(rot, rotation);
     Vector3 graphicOffset = Graphic?.DrawOffset(rot) ?? Vector3.zero;
     return new Vector3(graphicOffset.x + turretLoc.x, graphicOffset.y + DrawLayerOffset,
       graphicOffset.z + turretLoc.y);
+  }
+
+  /// <summary>
+  /// Calculate VehicleTurret draw offset
+  /// </summary>
+  private Vector2 RotatedDrawOffset(Rot8 rot, float extraRotation)
+  {
+    Vector2 offset = renderProperties.OffsetFor(rot);
+    if (!Mathf.Approximately(extraRotation, 0))
+      offset = Ext_Math.RotatePointClockwise(offset.x, offset.y, extraRotation);
+    return offset;
   }
 
   public Rect ScaleUIRectFor(VehicleDef vehicleDef, Rect rect, Rot8 rot, float iconScale = 1)
@@ -452,29 +618,9 @@ public partial class VehicleTurret
     }
   }
 
-  protected virtual void Draw()
-  {
-    Graphics.DrawMesh(results.mesh, results.position, results.quaternion, results.material, 0);
-
-    if (subGraphicResults != null)
-    {
-      foreach (PreRenderResults renderResults in subGraphicResults)
-      {
-        Graphics.DrawMesh(renderResults.mesh, renderResults.position, renderResults.quaternion,
-          renderResults.material, 0);
-      }
-    }
-
-    if (vehicle.Spawned)
-    {
-      DrawTargeter();
-      DrawAimPie();
-    }
-  }
-
   protected virtual void DrawTargeter()
   {
-    // TODO - clean up 
+    // TODO - clean up
     TargeterPropertyBlock ??= new MaterialPropertyBlock();
     if (GizmoHighlighted || TurretTargeter.Turret == this)
     {
@@ -579,10 +725,10 @@ public partial class VehicleTurret
     {
       cachedGraphic = GenerateGraphicData(this, this, def.graphicData, patternData,
         ref cachedGraphicData);
+      cachedMaterial = null;
       if (!def.graphics.NullOrEmpty())
-      {
         SetLayerGraphics(patternData);
-      }
+      this.SetDirty();
     }
 
     if (cachedMaterial is null || forceRegen)
@@ -601,7 +747,6 @@ public partial class VehicleTurret
         turretGraphics.Add(new TurretDrawData(this, renderData));
       }
     }
-
     for (int i = 0; i < def.graphics.Count; i++)
     {
       VehicleTurretRenderData renderData = def.graphics[i];
@@ -664,38 +809,34 @@ public partial class VehicleTurret
         Vector3 offset = moteProps.offset.RotatedBy(TurretRotation);
         moteLoc += new Vector3(offset.x, altitudeLayer + offset.y, offset.z);
         Mote mote = (Mote)ThingMaker.MakeThing(moteProps.moteDef);
-        mote.exactPosition = moteLoc;
-        mote.exactRotation = moteProps.exactRotation.RandomInRange;
         mote.instanceColor = moteProps.color;
         mote.rotationRate = moteProps.rotationRate;
         mote.Scale = moteProps.scale;
-        if (mote is MoteThrown thrownMote)
-        {
-          float thrownAngle = TurretRotation + moteProps.angleThrown.RandomInRange;
-          if (thrownMote is MoteThrownExpand expandMote)
-          {
-            if (expandMote is MoteThrownSlowToSpeed accelMote)
-            {
-              accelMote.SetDecelerationRate(moteProps.deceleration.RandomInRange,
-                moteProps.fixedAcceleration, thrownAngle);
-            }
-
-            expandMote.growthRate = moteProps.growthRate.RandomInRange;
-          }
-
-          thrownMote.SetVelocity(thrownAngle, moteProps.speedThrown.RandomInRange);
-        }
-
-        if (mote is MoteCannonPlume cannonMote)
-        {
-          cannonMote.cyclesLeft = moteProps.cycles;
-          cannonMote.animationType = moteProps.animationType;
-          cannonMote.angle = TurretRotation;
-        }
-
         mote.def = moteProps.moteDef;
-        mote.PostMake();
         GenSpawn.Spawn(mote, moteLoc.ToIntVec3(), vehicle.Map);
+        mote.exactPosition = moteLoc;
+        mote.exactRotation = moteProps.exactRotation.RandomInRange;
+        switch (mote)
+        {
+          case MoteThrown thrownMote:
+            float thrownAngle = TurretRotation + moteProps.angleThrown.RandomInRange;
+            if (thrownMote is MoteThrownExpand expandMote)
+            {
+              if (expandMote is MoteThrownSlowToSpeed accelMote)
+              {
+                accelMote.SetDecelerationRate(moteProps.deceleration.RandomInRange,
+                  moteProps.fixedAcceleration, thrownAngle);
+              }
+              expandMote.growthRate = moteProps.growthRate.RandomInRange;
+            }
+            thrownMote.SetVelocity(thrownAngle, moteProps.speedThrown.RandomInRange);
+          break;
+          case MoteCannonPlume plumeMote:
+            plumeMote.cyclesLeft = moteProps.cycles;
+            plumeMote.animationType = moteProps.animationType;
+            plumeMote.exactRotation = TurretRotation;
+          break;
+        }
       }
       catch (Exception ex)
       {
@@ -706,20 +847,30 @@ public partial class VehicleTurret
   }
 
   /// <summary>
-  /// Caches VehicleTurret draw location based on <see cref="renderProperties"/>, <see cref="attachedTo"/> draw loc is not cached, as rotating can alter the final draw location
+  /// Caches VehicleTurret draw location based on <see cref="renderProperties"/>, <see cref="attachedTo"/>
+  /// draw loc is not cached, as rotating can alter the final draw location.
   /// </summary>
   public void RecacheRootDrawPos()
   {
     if (GraphicData != null)
     {
-      rootDrawPos_North = TurretDrawLocFor(Rot8.North, fullLoc: false);
-      rootDrawPos_East = TurretDrawLocFor(Rot8.East, fullLoc: false);
-      rootDrawPos_South = TurretDrawLocFor(Rot8.South, fullLoc: false);
-      rootDrawPos_West = TurretDrawLocFor(Rot8.West, fullLoc: false);
-      rootDrawPos_NorthEast = TurretDrawLocFor(Rot8.NorthEast, fullLoc: false);
-      rootDrawPos_SouthEast = TurretDrawLocFor(Rot8.SouthEast, fullLoc: false);
-      rootDrawPos_SouthWest = TurretDrawLocFor(Rot8.SouthWest, fullLoc: false);
-      rootDrawPos_NorthWest = TurretDrawLocFor(Rot8.NorthWest, fullLoc: false);
+      rootDrawPos_North = RootOffset(this, Rot8.North);
+      rootDrawPos_East = RootOffset(this, Rot8.East);
+      rootDrawPos_South = RootOffset(this, Rot8.South);
+      rootDrawPos_West = RootOffset(this, Rot8.West);
+      rootDrawPos_NorthEast = RootOffset(this, Rot8.NorthEast);
+      rootDrawPos_SouthEast = RootOffset(this, Rot8.SouthEast);
+      rootDrawPos_SouthWest = RootOffset(this, Rot8.SouthWest);
+      rootDrawPos_NorthWest = RootOffset(this, Rot8.NorthWest);
+    }
+    return;
+
+    static Vector3 RootOffset(VehicleTurret turret, Rot8 rot)
+    {
+      Vector2 turretLoc = turret.renderProperties.OffsetFor(rot);
+      Vector3 graphicOffset = turret.Graphic?.DrawOffset(rot) ?? Vector3.zero;
+      return new Vector3(graphicOffset.x + turretLoc.x, graphicOffset.y + turret.DrawLayerOffset,
+        graphicOffset.z + turretLoc.y);
     }
   }
 

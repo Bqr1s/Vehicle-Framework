@@ -7,6 +7,7 @@ using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Animations;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Vehicles.Rendering;
 using Verse;
 using Verse.AI;
@@ -22,11 +23,11 @@ namespace Vehicles;
 [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public partial class VehiclePawn
 {
-  [Unsaved]
-  [AnimationProperty]
+  [AnimationProperty, TweakField]
   private VehicleDrawTracker drawTracker;
 
   public PatternData patternData;
+
   private RetextureDef retextureDef;
 
   // -45 is left, 45 is right : relative to Rot4 direction
@@ -34,6 +35,7 @@ public partial class VehiclePawn
   private bool reverse;
 
   // Transform relative to DrawPos, excluding tweener offset
+  [TweakField]
   [AnimationProperty(Name = "Transform")]
   private readonly Transform transform = new();
 
@@ -45,8 +47,6 @@ public partial class VehiclePawn
   private bool crashLanded;
 
   public float CachedAngle { get; set; }
-
-  internal List<VehicleRoleHandler> HandlersWithPawnRenderer { get; set; } = [];
 
   public bool NorthSouthRotation => VehicleGraphic.EastDiagonalRotated &&
     (FullRotation == Rot8.NorthEast ||
@@ -74,6 +74,8 @@ public partial class VehiclePawn
   AnimationManager IAnimator.Manager => animator;
 
   string IAnimationObject.ObjectId => nameof(VehiclePawn);
+
+  public Transform Transform => transform;
 
   public bool CrashLanded
   {
@@ -112,13 +114,10 @@ public partial class VehiclePawn
     }
     set
     {
-      if (value == angle) return;
-      if (Reverse)
-      {
-        angle *= -1; // Flips across axis (negative = NE & SW, positive = NW & SE)
-      }
-
-      angle = value;
+      if (Mathf.Approximately(value, angle))
+        return;
+      // Flips across axis (negative = NE & SW, positive = NW & SE)
+      angle = Reverse ? -value : value;
     }
   }
 
@@ -161,8 +160,7 @@ public partial class VehiclePawn
     get { return reverse; }
     set
     {
-      if (reverse == value) return;
-
+      vehiclePather.StopDead();
       reverse = value;
     }
   }
@@ -265,7 +263,8 @@ public partial class VehiclePawn
       value = value.Opposite;
     }
 
-    if (rotationInt == value) return;
+    if (rotationInt == value)
+      return;
 
     Rot4 oldRot = Rotation;
 
@@ -352,10 +351,11 @@ public partial class VehiclePawn
 
   public override void DynamicDrawPhaseAt(DrawPhase phase, Vector3 drawLoc, bool flip = false)
   {
-    if (phase == DrawPhase.Draw && this.AnimationLocked())
+    if (this.AnimationLocked())
       return;
 
-    DrawTracker.DynamicDrawPhaseAt(phase, drawLoc, FullRotation, transform.rotation);
+    DrawTracker.DynamicDrawPhaseAt(phase, transform.position + drawLoc, FullRotation,
+      transform.rotation);
 
     if (phase == DrawPhase.Draw)
     {
@@ -389,8 +389,13 @@ public partial class VehiclePawn
 
   public void ResetRenderStatus()
   {
-    HandlersWithPawnRenderer.Clear();
-    HandlersWithPawnRenderer.AddRange(handlers.Where(h => h.role.PawnRenderer != null));
+    foreach (VehicleRoleHandler handler in handlers)
+      DrawTracker.RemoveRenderer(handler);
+    foreach (VehicleRoleHandler handler in handlers)
+    {
+      if (handler.role.PawnRenderer is not null)
+        DrawTracker.AddRenderer(handler);
+    }
   }
 
   public override void Notify_ColorChanged()
@@ -446,13 +451,22 @@ public partial class VehiclePawn
        .Remove(this); // Clear cached graphic to pick up potential retexture changes
       graphicData.Init(this);
       newGraphic = graphicData.Graphic as Graphic_Vehicle;
+      Assert.IsNotNull(newGraphic);
       RGBMaterialPool.SetProperties(this, patternData, newGraphic.TexAt, newGraphic.MaskAt);
     }
     else
     {
       // Triggers vanilla Init call for normal material caching
       newGraphic = ((GraphicData)graphicData).Graphic as Graphic_Vehicle;
+      Assert.IsNotNull(newGraphic);
     }
+
+    // Ensure meshes are cached beforehand, without needing to call this in EnsureInitialized event
+    // for IParallelRenderer implementation.
+    for (int i = 0; i < 8; i++)
+      _ = newGraphic.MeshAtFull(new Rot8(i));
+
+    // TODO - generate combined mesh here and/or build list of things that should be batch rendered
 
     return newGraphic;
   }
@@ -570,7 +584,8 @@ public partial class VehiclePawn
       yield return new Command_Action
       {
         defaultLabel = $"Gear: {(Reverse ? "Reverse" : "Drive")}",
-        action = delegate() { Reverse = !Reverse; }
+        hotKey = KeyBindingDefOf_Vehicles.VF_Command_ReverseVehicle,
+        action = delegate { Reverse = !Reverse; }
       };
       yield return new Command_Action
       {
@@ -764,11 +779,11 @@ public partial class VehiclePawn
 
     if (this.GetLord()?.LordJob is LordJob_FormAndSendVehicles formCaravanLordJob)
     {
-      Command_Action forceCaravanLeave = new Command_Action
+      Command_Action forceCaravanLeave = new()
       {
         defaultLabel = "VF_ForceLeaveCaravan".Translate(),
         defaultDesc = "VF_ForceLeaveCaravanDesc".Translate(),
-        icon = VehicleTex.CaravanIcon,
+        icon = TexData.CaravanIcon,
         activateSound = SoundDefOf.Tick_Low,
         action = delegate()
         {
@@ -779,7 +794,7 @@ public partial class VehiclePawn
       };
       yield return forceCaravanLeave;
 
-      Command_Action cancelCaravan = new Command_Action
+      Command_Action cancelCaravan = new()
       {
         defaultLabel = "CommandCancelFormingCaravan".Translate(),
         defaultDesc = "CommandCancelFormingCaravanDesc".Translate(),
@@ -849,20 +864,15 @@ public partial class VehiclePawn
       yield return new Command_Action
       {
         defaultLabel = "Explode Component",
-        action = delegate()
+        action = delegate
         {
-          var options = new List<FloatMenuOption>();
+          List<FloatMenuOption> options = [];
           foreach (VehicleComponent component in statHandler.components)
           {
-            if (component.props.GetReactor<Reactor_Explosive>() is Reactor_Explosive
-              reactorExplosive)
+            if (component.props.GetReactor<Reactor_Explosive>() is { } reactorExplosive)
             {
               options.Add(new FloatMenuOption(component.props.label,
-                delegate()
-                {
-                  reactorExplosive.Explode(this, component,
-                    new DamageInfo(DamageDefOf.Bomb, component.health * 0.5f));
-                }));
+                delegate { reactorExplosive.SpawnExploder(this, component); }));
             }
           }
 
@@ -1166,7 +1176,7 @@ public partial class VehiclePawn
       usedWidth += rect.width;
       {
         TooltipHandler.TipRegionByKey(rect, "VF_RenameVehicleTooltip");
-        if (Widgets.ButtonImage(rect, VehicleTex.Rename))
+        if (Widgets.ButtonImage(rect, TexData.Rename))
         {
           Rename();
         }

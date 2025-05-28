@@ -43,7 +43,6 @@ public class VehicleDrawProperties
   public AnimationController controller;
 
   [Unsaved]
-  [TweakField]
   public readonly List<GraphicOverlay> overlays = [];
 
   public void PostDefDatabase(VehicleDef vehicleDef)

@@ -61,8 +61,11 @@ namespace Vehicles
     protected override void Tick()
     {
       vehicle.CompVehicleLauncher.launchProtocol.Tick();
-      vehicle.Tick_TEMP();
-      // Manually tick handlers since vehicle is despawned but pawns aren't world pawns (so they aren't ticking from WorldPawns)
+      vehicle.DoTick();
+      // Manually tick handlers since vehicle is despawned but pawns aren't world pawns
+      // so they aren't ticking from WorldPawns.
+      // TODO - we might be able to just have BaseTickOptimized call TickHandlers regardless
+      // of spawn status. But that assumes passengers are never world pawns.
       vehicle.TickHandlers();
     }
 
