@@ -20,7 +20,6 @@ public static class VehicleHarmonyOnMod
       postfix: new HarmonyMethod(typeof(VehicleHarmonyOnMod),
         nameof(GraphicInit)));
 
-
     // Debugging Only 
     //harmony.Patch(original: AccessTools.Method(typeof(XmlInheritance), nameof(XmlInheritance.TryRegister)),
     //	postfix: new HarmonyMethod(typeof(VehicleHarmonyOnMod),

@@ -38,9 +38,9 @@ public struct BlitRequest
     BlitRequest request = new(vehicleDef);
     request.blitTargets.Add(vehicleDef);
     if (vehicle.GetCachedComp<CompVehicleTurrets>() is { } compTurrets &&
-      !compTurrets.turrets.NullOrEmpty())
+      !compTurrets.Turrets.NullOrEmpty())
     {
-      request.blitTargets.AddRange(compTurrets.turrets);
+      request.blitTargets.AddRange(compTurrets.Turrets);
     }
     if (!vehicle.DrawTracker.overlayRenderer.AllOverlaysListForReading.NullOrEmpty())
     {

@@ -54,7 +54,7 @@ namespace Vehicles
       float cannonsNum = 0f;
       if (Vehicle.TryGetComp<CompVehicleTurrets>() != null)
       {
-        foreach (VehicleTurret turret in Vehicle.CompVehicleTurrets.turrets)
+        foreach (VehicleTurret turret in Vehicle.CompVehicleTurrets.Turrets)
         {
           cannonsNum += turret.loadedAmmo is null ?
             0f :

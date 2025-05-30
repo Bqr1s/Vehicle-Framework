@@ -110,7 +110,7 @@ public static class VehicleGraphics
         {
           foreach (RenderData turretRenderData in RetrieveAllTurretSettingsGraphicsProperties(
             rect, vehicleDef, rotDrawn,
-            vehicle.CompVehicleTurrets.turrets.OrderBy(t => t.drawLayer), pattern,
+            vehicle.CompVehicleTurrets.Turrets.OrderBy(t => t.drawLayer), pattern,
             excludeTurrets: excludeTurrets))
           {
             overlayRenderer.Add(turretRenderData);

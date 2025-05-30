@@ -135,7 +135,7 @@ internal class UnitTest_AnimDynamicMethod
 
       property.SetProperty(animator, 0);
       float setValue = property.GetProperty(animator);
-      Expect.ApproximatelyEqual(setValue, 0f, $"SetValue {type.Name}.{name}");
+      Expect.AreApproximatelyEqual(setValue, 0f, $"SetValue {type.Name}.{name}");
     }
   }
 
