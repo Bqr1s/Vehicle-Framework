@@ -25,7 +25,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
   private List<BackupTurretQuota> backupQuotas = [];
 
   [TweakField]
-  public List<VehicleTurret> turrets = [];
+  private List<VehicleTurret> turrets = [];
 
   [Unsaved]
   private readonly List<VehicleTurret> tickers = [];
@@ -55,6 +55,8 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
   private bool ShouldStopTicking => tickers.Count == 0;
 
   public CompProperties_VehicleTurrets Props => (CompProperties_VehicleTurrets)props;
+
+  public IReadOnlyList<VehicleTurret> Turrets => turrets;
 
   public IEnumerable<(ThingDef thingDef, float count)> Refunds
   {

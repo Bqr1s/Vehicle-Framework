@@ -211,7 +211,7 @@ namespace Vehicles
       if (vehicle.CompVehicleTurrets != null)
       {
         Rand.PushState();
-        foreach (VehicleTurret cannon in vehicle.CompVehicleTurrets.turrets)
+        foreach (VehicleTurret cannon in vehicle.CompVehicleTurrets.Turrets)
         {
           if (cannon.def.ammunition != null)
           {

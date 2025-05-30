@@ -127,6 +127,6 @@ internal class UnitTest_KuhnMunkres
     float cost = 0;
     for (int i = 0; i < actual.Length; i++)
       cost += costMatrix[i, actual[i]];
-    Expect.ApproximatelyEqual(cost, expectedCost);
+    Expect.AreApproximatelyEqual(cost, expectedCost);
   }
 }

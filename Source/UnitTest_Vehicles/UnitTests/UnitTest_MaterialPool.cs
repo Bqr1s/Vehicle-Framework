@@ -1,4 +1,5 @@
 ﻿using DevTools.UnitTesting;
+using SmashTools;
 using UnityEngine.Assertions;
 using Verse;
 
@@ -27,10 +28,10 @@ internal sealed class UnitTest_MaterialPool : UnitTest_MapTest
       // material allocations will be tracked alongside main body graphic. We can still check
       // allocations before calling VehicleGraphic since they won't be cached until the first
       // VehicleGraphic invocation.
-      if (vehicle.CompVehicleTurrets != null && !vehicle.CompVehicleTurrets.turrets.NullOrEmpty())
+      if (vehicle.CompVehicleTurrets != null && !vehicle.CompVehicleTurrets.Turrets.NullOrEmpty())
       {
         int cacheTargetsPreForceRegen = vehicleMats.CacheTargets;
-        foreach (VehicleTurret turret in vehicle.CompVehicleTurrets.turrets)
+        foreach (VehicleTurret turret in vehicle.CompVehicleTurrets.Turrets)
         {
           // Turret graphic is created in ctor, we need to force regenerate to
           // log results in MaterialPoolWatcher and track material lifetime.

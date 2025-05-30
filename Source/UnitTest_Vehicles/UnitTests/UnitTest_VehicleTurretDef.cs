@@ -38,11 +38,11 @@ internal sealed class UnitTest_VehicleTurretDef : UnitTest_VehicleDefTest
           // Clamped to lower bound
           Expect.Throws<ArgumentOutOfRangeException>(
             delegate { _ = fireMode.GetHitChanceFactor(-1); }, "Distance < 0");
-          Expect.ApproximatelyEqual(fireMode.GetHitChanceFactor(0), fireMode.accuracyTouch,
+          Expect.AreApproximatelyEqual(fireMode.GetHitChanceFactor(0), fireMode.accuracyTouch,
             "Accuracy 0");
 
           // Touch
-          Expect.ApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceTouch),
+          Expect.AreApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceTouch),
             fireMode.accuracyTouch, "Accuracy Touch");
           ExpectedAccuracy(fireMode, FireMode.DistanceTouch, FireMode.DistanceShort,
             fireMode.accuracyTouch, fireMode.accuracyShort, 0.25f, "Accuracy Touch > Short 25%");
@@ -54,7 +54,7 @@ internal sealed class UnitTest_VehicleTurretDef : UnitTest_VehicleDefTest
             fireMode.accuracyTouch, fireMode.accuracyShort, 1, "Accuracy Touch > Short 100%");
 
           // Short
-          Expect.ApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceShort),
+          Expect.AreApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceShort),
             fireMode.accuracyShort, "Accuracy Short");
           ExpectedAccuracy(fireMode, FireMode.DistanceShort, FireMode.DistanceMedium,
             fireMode.accuracyShort, fireMode.accuracyMedium, 0.25f, "Accuracy Short > Medium 25%");
@@ -66,7 +66,7 @@ internal sealed class UnitTest_VehicleTurretDef : UnitTest_VehicleDefTest
             fireMode.accuracyShort, fireMode.accuracyMedium, 1, "Accuracy Short > Medium 100%");
 
           // Medium
-          Expect.ApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceMedium),
+          Expect.AreApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceMedium),
             fireMode.accuracyMedium, "Accuracy Medium");
           ExpectedAccuracy(fireMode, FireMode.DistanceMedium, FireMode.DistanceLong,
             fireMode.accuracyMedium, fireMode.accuracyLong, 0.25f, "Accuracy Medium > Long 25%");
@@ -78,10 +78,10 @@ internal sealed class UnitTest_VehicleTurretDef : UnitTest_VehicleDefTest
             fireMode.accuracyMedium, fireMode.accuracyLong, 1, "Accuracy Medium > Long 100%");
 
           // Long
-          Expect.ApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceLong),
+          Expect.AreApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceLong),
             fireMode.accuracyLong, "Accuracy Long");
           // Clamped to upper bound
-          Expect.ApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceLong + 1),
+          Expect.AreApproximatelyEqual(fireMode.GetHitChanceFactor(FireMode.DistanceLong + 1),
             fireMode.accuracyLong, "Accuracy Long +1");
         }
       }
@@ -93,7 +93,8 @@ internal sealed class UnitTest_VehicleTurretDef : UnitTest_VehicleDefTest
     {
       float distance = Mathf.Lerp(min, max, t);
       float expected = Mathf.Lerp(minAccuracy, maxAccuracy, t);
-      Expect.ApproximatelyEqual(fireMode.GetHitChanceFactor(distance), expected, message: message);
+      Expect.AreApproximatelyEqual(fireMode.GetHitChanceFactor(distance), expected,
+        message: message);
     }
   }
 }

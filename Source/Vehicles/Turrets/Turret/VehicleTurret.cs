@@ -271,7 +271,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
         }
         else
         {
-          groupTurrets = vehicle.CompVehicleTurrets.turrets.Where(t => t.groupKey == groupKey)
+          groupTurrets = vehicle.CompVehicleTurrets.Turrets.Where(t => t.groupKey == groupKey)
            .ToList();
         }
       }
@@ -336,7 +336,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
       if (!IsTargetable && attachedTo is null)
         return defaultAngleRotated + vehicle.FullRotation.AsAngle;
 
-      ValidateLockStatus();
+      UpdateRotationLock();
 
       transform.rotation = transform.rotation.ClampAndWrap(0, 360);
       if (angleRestricted != Vector2.zero)
@@ -1306,7 +1306,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     burstsTillWarmup = CurrentFireMode.burstsTillWarmup;
   }
 
-  protected void ValidateLockStatus()
+  public void UpdateRotationLock()
   {
     if (vehicle != null)
     {

@@ -670,9 +670,9 @@ public class ITab_Vehicle_Upgrades : ITab
       if (!renderTurrets.NullOrEmpty())
         requestAfter.blitTargets.AddRange(renderTurrets);
       if (Vehicle.GetCachedComp<CompVehicleTurrets>() is { } compTurrets &&
-        !compTurrets.turrets.NullOrEmpty())
+        !compTurrets.Turrets.NullOrEmpty())
       {
-        requestAfter.blitTargets.AddRange(compTurrets.turrets.Where(turret =>
+        requestAfter.blitTargets.AddRange(compTurrets.Turrets.Where(turret =>
           excludeTurrets is null || !excludeTurrets.Contains(turret.key)));
       }
       bufferAfter ??= VehicleGui.CreateRenderTextureBuffer(vehicleNewRect, requestAfter);

@@ -11,6 +11,6 @@ public class ThinkNode_ConditionalHasTurret : ThinkNode_Conditional
     VehiclePawn vehicle = pawn as VehiclePawn;
     // Should never reach this conditional if pawn is not a vehicle
     Assert.IsNotNull(vehicle);
-    return vehicle.CompVehicleTurrets != null && vehicle.CompVehicleTurrets.turrets.Count > 0;
+    return vehicle.CompVehicleTurrets != null && vehicle.CompVehicleTurrets.Turrets.Count > 0;
   }
 }

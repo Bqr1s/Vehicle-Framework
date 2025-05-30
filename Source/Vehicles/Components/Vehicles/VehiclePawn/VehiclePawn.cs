@@ -189,7 +189,7 @@ namespace Vehicles
         CompVehicleTurrets turretComp = CompVehicleTurrets;
         if (turretComp != null)
         {
-          foreach (VehicleTurret turret in turretComp.turrets)
+          foreach (VehicleTurret turret in turretComp.Turrets)
           {
             turret.autoTargeting = true;
             turret.AutoTarget = true;

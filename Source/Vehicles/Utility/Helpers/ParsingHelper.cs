@@ -1,10 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Xml;
-using System.Collections.Generic;
-using Verse;
 using SmashTools;
 using SmashTools.Xml;
+using Verse;
 
 namespace Vehicles;
 
@@ -14,20 +14,12 @@ public static class ParsingHelper
   /// <summary>
   /// VehicleDef, HashSet of fields
   /// </summary>
-  public static readonly Dictionary<string, HashSet<FieldInfo>> lockedFields =
-    new Dictionary<string, HashSet<FieldInfo>>();
-
-  /// <summary>
-  /// VehicleDef, XmlNodes
-  /// </summary>
-  public static readonly Dictionary<string, HashSet<string>> overriddenVehicleNodes =
-    new Dictionary<string, HashSet<string>>();
+  public static readonly Dictionary<string, HashSet<FieldInfo>> lockedFields = [];
 
   /// <summary>
   /// VehicleDef, (fieldName, defaultValue)
   /// </summary>
-  public static readonly Dictionary<string, Dictionary<string, string>> setDefaultValues =
-    new Dictionary<string, Dictionary<string, string>>();
+  public static readonly Dictionary<string, Dictionary<string, string>> setDefaultValues = [];
 
   static ParsingHelper()
   {
@@ -35,25 +27,20 @@ public static class ParsingHelper
     RegisterAttributes();
   }
 
-  internal static void RegisterParsers()
+  private static void RegisterParsers()
   {
-    ParseHelper.Parsers<VehicleJobLimitations>.Register(
-      new Func<string, VehicleJobLimitations>(VehicleJobLimitations.FromString));
-    ParseHelper.Parsers<CompVehicleLauncher.DeploymentTimer>.Register(
-      new Func<string, CompVehicleLauncher.DeploymentTimer>(CompVehicleLauncher.DeploymentTimer
-       .FromString));
-    ParseHelper.Parsers<VehicleTurretRender.RotationalOffset>.Register(
-      new Func<string, VehicleTurretRender.RotationalOffset>(VehicleTurretRender.RotationalOffset
-       .FromString));
+    ParseHelper.Parsers<VehicleJobLimitations>.Register(VehicleJobLimitations.FromString);
+    ParseHelper.Parsers<CompVehicleLauncher.DeploymentTimer>.Register(CompVehicleLauncher
+     .DeploymentTimer.FromString);
     ParseHelper.Parsers<Pair<VehicleEventDef, VehicleEventDef>>.Register(
-      new Func<string, Pair<VehicleEventDef, VehicleEventDef>>(VehicleEventDefPairFromString));
+      VehicleEventDefPairFromString);
   }
 
   private static Pair<VehicleEventDef, VehicleEventDef> VehicleEventDefPairFromString(
     string entry)
   {
-    entry = entry.TrimStart(new char[] { '(' }).TrimEnd(new char[] { ')' });
-    string[] data = entry.Split(new char[] { ',' });
+    entry = entry.TrimStart(['(']).TrimEnd([')']);
+    string[] data = entry.Split([',']);
 
     try
     {
@@ -69,7 +56,7 @@ public static class ParsingHelper
     }
   }
 
-  internal static void RegisterAttributes()
+  private static void RegisterAttributes()
   {
     XmlParseHelper.RegisterAttribute("LockSetting", CheckFieldLocked);
     XmlParseHelper.RegisterAttribute("AssignDefaults", AssignDefaults);
@@ -145,7 +132,7 @@ public static class ParsingHelper
       return;
     }
     int pathCost = 1;
-    if (node.Attributes["PathCost"] is XmlAttribute pathCostAttribute)
+    if (node.Attributes?["PathCost"] is { } pathCostAttribute)
     {
       if (!int.TryParse(pathCostAttribute.Value, out pathCost))
       {
@@ -153,7 +140,8 @@ public static class ParsingHelper
         pathCost = 1;
       }
     }
-    if (!PathingHelper.allTerrainCostsByTag.TryGetValue(defName, out var terrainDict))
+    if (!PathingHelper.allTerrainCostsByTag.TryGetValue(defName,
+      out Dictionary<string, int> terrainDict))
     {
       terrainDict = new Dictionary<string, int>();
       PathingHelper.allTerrainCostsByTag[defName] = terrainDict;
@@ -169,25 +157,12 @@ public static class ParsingHelper
       SmashLog.Error($"Could not find <xml>defName</xml> node for {node.Name}.");
       return;
     }
-    if (!PathingHelper.allTerrainCostsByTag.TryGetValue(defName, out var terrainDict))
+    if (!PathingHelper.allTerrainCostsByTag.TryGetValue(defName,
+      out Dictionary<string, int> terrainDict))
     {
       terrainDict = new Dictionary<string, int>();
       PathingHelper.allTerrainCostsByTag[defName] = terrainDict;
     }
     terrainDict[value] = VehiclePathGrid.ImpassableCost;
-  }
-
-  private static void MarkAsOverride(XmlNode node, string value, FieldInfo field)
-  {
-    if (value.EqualsIgnoreCase("true"))
-    {
-      string defName = XmlParseHelper.BackSearchDefName(node);
-      if (string.IsNullOrEmpty(defName))
-      {
-        SmashLog.Error($"Could not find <xml>defName</xml> node for {node.Name}.");
-        return;
-      }
-      overriddenVehicleNodes.AddOrInsert(defName, node.Name);
-    }
   }
 }

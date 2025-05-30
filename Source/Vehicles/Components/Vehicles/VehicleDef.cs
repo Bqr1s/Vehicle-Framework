@@ -547,7 +547,7 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     if (CompPropsVehicleTurrets != null)
     {
       List<VehicleTurret> turrets =
-        vehicle?.CompVehicleTurrets.turrets ?? CompPropsVehicleTurrets.turrets;
+        (List<VehicleTurret>)vehicle?.CompVehicleTurrets.Turrets ?? CompPropsVehicleTurrets.turrets;
       if (!turrets.NullOrEmpty())
       {
         for (int i = 0; i < turrets.Count; i++)
