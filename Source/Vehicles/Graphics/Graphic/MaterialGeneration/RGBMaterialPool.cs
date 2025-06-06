@@ -23,6 +23,9 @@ public static class RGBMaterialPool
 
   public static int TotalMaterials => cache.Values.Sum(mats => mats.Length);
 
+  // For testing only
+  internal static List<IMaterialCacheTarget> AllCacheTargets => cache.Keys.ToList();
+
   public static bool TargetCached(IMaterialCacheTarget target)
   {
     return cache.ContainsKey(target);
@@ -62,9 +65,7 @@ public static class RGBMaterialPool
     List<ShaderParameter> shaderParameters = null)
   {
     if (cache.ContainsKey(target) || patternDef == null)
-    {
       return;
-    }
 
     Material[] materials = new Material[target.MaterialCount];
     for (int i = 0; i < materials.Length; i++)

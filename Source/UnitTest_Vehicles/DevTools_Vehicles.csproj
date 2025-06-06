@@ -1,124 +1,114 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{EA833AE8-18BE-4802-A7E9-ABBB48DEA7A3}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Vehicles</RootNamespace>
-    <AssemblyName>DevTools_Vehicles</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
-    <LangVersion>preview</LangVersion>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>portable</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>..\..\1.6\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;UNITY_ASSERTIONS;</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <LangVersion>preview</LangVersion>
-    <NoWarn>CS0649</NoWarn>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>..\..\1.6\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;UNITY_ASSERTIONS;</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <LangVersion>preview</LangVersion>
-    <NoWarn>CS0649</NoWarn>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Benchmark|AnyCPU'">
-    <OutputPath>..\..\1.6\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;RELEASE;UNITY_ASSERTIONS;DEV_TOOLS;</DefineConstants>
-    <Optimize>true</Optimize>
-    <NoWarn>CS0649</NoWarn>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <LangVersion>preview</LangVersion>
-    <ErrorReport>prompt</ErrorReport>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="0Harmony, Version=2.3.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\Vehicles\packages\Lib.Harmony.2.3.3\lib\net48\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="DevTools">
-      <HintPath>..\..\1.6\Assemblies\DevTools.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="SmashTools">
-      <HintPath>..\..\1.6\Assemblies\SmashTools.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Vehicles">
-      <HintPath>..\..\1.6\Assemblies\Vehicles.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Benchmarking\Benchmark_AllRegions.cs" />
-    <Compile Include="Benchmarking\Benchmark_AllRegions_Yielded.cs" />
-    <Compile Include="Benchmarking\Benchmark_MapGrid.cs" />
-    <Compile Include="Benchmarking\Benchmark_PathGridGeneration.cs" />
-    <Compile Include="Benchmarking\Benchmark_RegionGridGeneration.cs" />
-    <Compile Include="StartupConfig.cs" />
-    <Compile Include="StartupActions\PerformanceTesting.cs" />
-    <Compile Include="StartupActions\RaidTesting.cs" />
-    <Compile Include="StartupActions\UITesting.cs" />
-    <Compile Include="StartupActions\WorldTesting.cs" />
-    <Compile Include="UnitTests\MaterialPoolWatcher.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="UnitTests\TestGroup.cs" />
-    <Compile Include="UnitTests\UnitTest_AerialVehicle.cs" />
-    <Compile Include="UnitTests\UnitTest_CoverGrid.cs" />
-    <Compile Include="UnitTests\UnitTest_DeferredGeneration.cs" />
-    <Compile Include="UnitTests\UnitTest_GasGrid.cs" />
-    <Compile Include="UnitTests\UnitTest_GridOwners.cs" />
-    <Compile Include="UnitTests\UnitTest_HotReload.cs" />
-    <Compile Include="UnitTests\UnitTest_MapDeinit.cs" />
-    <Compile Include="UnitTests\UnitTest_MapTest.cs" />
-    <Compile Include="UnitTests\UnitTest_MaterialPool.cs" />
-    <Compile Include="UnitTests\UnitTest_MaterialPoolDefs.cs" />
-    <Compile Include="UnitTests\UnitTest_PathGrid.cs" />
-    <Compile Include="UnitTests\UnitTest_PositionManager.cs" />
-    <Compile Include="UnitTests\UnitTest_Regions.cs" />
-    <Compile Include="UnitTests\UnitTest_SpawnPlacement.cs" />
-    <Compile Include="UnitTests\UnitTest_StashedVehicle.cs" />
-    <Compile Include="UnitTests\UnitTest_TerrainGrid.cs" />
-    <Compile Include="UnitTests\UnitTest_ThingGrid.cs" />
-    <Compile Include="UnitTests\UnitTest_VehicleDefTest.cs" />
-    <Compile Include="UnitTests\UnitTest_VehicleTurret.cs" />
-    <Compile Include="UnitTests\UnitTest_VehicleHandler.cs" />
-    <Compile Include="UnitTests\UnitTest_VehicleTest.cs" />
-    <Compile Include="UnitTests\UnitTest_VehicleTurretDef.cs" />
-    <Compile Include="UnitTests\UnitTest_WorldReachability.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <Authors>Smash Phil</Authors>
+
+        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+        <Configurations>Debug;Release;Unstable;UnitTest;Benchmark;</Configurations>
+        <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+        <ProjectGuid>{EA833AE8-18BE-4802-A7E9-ABBB48DEA7A3}</ProjectGuid>
+        <OutputType>Library</OutputType>
+        <AppDesignerFolder>Properties</AppDesignerFolder>
+        <RootNamespace>Vehicles</RootNamespace>
+        <AssemblyName>DevTools_Vehicles</AssemblyName>
+        <TargetFramework>net48</TargetFramework>
+        <FileAlignment>512</FileAlignment>
+        <Deterministic>true</Deterministic>
+        <LangVersion>preview</LangVersion>
+        <OutDir>..\..\1.6\Assemblies\</OutDir>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>portable</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+        <DefineConstants>TRACE;DEBUG;UNITY_ASSERTIONS;</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <LangVersion>preview</LangVersion>
+        <NoWarn>CS0649</NoWarn>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+        <DebugType>pdbonly</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+        <DefineConstants>TRACE;UNITY_ASSERTIONS;</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <LangVersion>preview</LangVersion>
+        <NoWarn>CS0649</NoWarn>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unstable|AnyCPU' ">
+        <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+        <Optimize>true</Optimize>
+        <DefineConstants>TRACE;UNSTABLE;</DefineConstants>
+        <DebugType>portable</DebugType>
+        <LangVersion>8.0</LangVersion>
+        <ErrorReport>prompt</ErrorReport>
+        <NoWarn>CS0649</NoWarn>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'UnitTest|AnyCPU'">
+        <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+        <DebugSymbols>true</DebugSymbols>
+        <DefineConstants>TRACE;DEBUG;UNITY_ASSERTIONS;</DefineConstants>
+        <NoWarn>CS0649</NoWarn>
+        <DebugType>portable</DebugType>
+        <LangVersion>preview</LangVersion>
+        <ErrorReport>prompt</ErrorReport>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Benchmark|AnyCPU'">
+        <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+        <DefineConstants>TRACE;RELEASE;UNITY_ASSERTIONS;DEV_TOOLS;</DefineConstants>
+        <Optimize>true</Optimize>
+        <NoWarn>CS0649</NoWarn>
+        <DebugType>portable</DebugType>
+        <LangVersion>preview</LangVersion>
+        <ErrorReport>prompt</ErrorReport>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Lib.Harmony" Version="2.3.3" ExcludeAssets="runtime" />
+        <Reference Include="Assembly-CSharp">
+            <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="mscorlib">
+            <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\mscorlib.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="DevTools">
+            <HintPath>..\..\1.6\Assemblies\DevTools.dll</HintPath>
+        </Reference>
+        <Reference Include="SmashTools">
+            <HintPath>..\..\1.6\Assemblies\SmashTools.dll</HintPath>
+        </Reference>
+        <Reference Include="Vehicles">
+            <HintPath>..\..\1.6\Assemblies\Vehicles.dll</HintPath>
+        </Reference>
+        <Reference Include="System">
+            <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\System.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="System.Xml">
+            <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\System.Xml.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="System.Xml.Linq">
+            <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\System.Xml.Linq.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine">
+            <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\UnityEngine.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Properties\" />
+    </ItemGroup>
 </Project>

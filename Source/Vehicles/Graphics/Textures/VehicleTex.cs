@@ -147,7 +147,7 @@ public static class VehicleTex
         string iconFilePath = vehicleDef.properties.iconTexPath;
         if (iconFilePath.NullOrEmpty())
         {
-          switch (vehicleDef.vehicleType)
+          switch (vehicleDef.type)
           {
             case VehicleType.Land:
               iconFilePath = DefaultVehicleIconTexPath;

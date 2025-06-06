@@ -7,11 +7,19 @@ namespace Vehicles.UnitTesting;
 [UnitTest(TestType.MainMenu)]
 internal sealed class UnitTest_MaterialPoolDefs : UnitTest_VehicleDefTest
 {
+  private const string HotReloadSuffix = "_HotReloadedThrowaway";
+
   [Test]
   private void VehicleDefs()
   {
     foreach (VehicleDef vehicleDef in vehicleDefs)
     {
+      // Skip tests for hot reload's transient defs. They will have entries in cache for vehicle defs
+      // but not for turrets and overlays. This is a side effect of Ludeon's implementation for hot
+      // reloading and their lack of event handles for suppressing material caching in VehicleDef.
+      if (vehicleDef.defName.EndsWith(HotReloadSuffix))
+        continue;
+
       using Test.Group group = new(vehicleDef.defName);
 
       if (vehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
@@ -111,7 +119,6 @@ internal sealed class UnitTest_MaterialPoolDefs : UnitTest_VehicleDefTest
     int count = 0;
     foreach (VehicleDef vehicleDef in vehicleDefs)
     {
-      using Test.Group group = new(vehicleDef.defName);
       // Base Vehicle
       if (vehicleDef.graphicData.shaderType.Shader.SupportsRGBMaskTex())
         count += vehicleDef.MaterialCount;

@@ -46,8 +46,7 @@ public static class VehicleHarmony
 
     Log.Message($"<color=orange>{LogLabel}</color> version {VehicleMMD.ModVersion}");
 
-    Harmony.PatchAll();
-
+    //Harmony.PatchAll();
     RunAllPatches();
 
     Utilities.InvokeWithLogging(ResolveAllReferences);
@@ -70,8 +69,6 @@ public static class VehicleHarmony
 
     Utilities.InvokeWithLogging(RegisterTweakFieldsInEditor);
     Utilities.InvokeWithLogging(PatternDef.GenerateMaterials);
-
-    Utilities.InvokeWithLogging(RegisterVehicleAreas);
 
     DebugProperties.Init();
   }
@@ -245,11 +242,5 @@ public static class VehicleHarmony
     EditWindow_TweakFields.RegisterField(
       AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetWest)),
       string.Empty, string.Empty, UISettingsType.FloatBox);
-  }
-
-  private static void RegisterVehicleAreas()
-  {
-    Ext_Map.RegisterArea<Area_Road>();
-    Ext_Map.RegisterArea<Area_RoadAvoidal>();
   }
 }

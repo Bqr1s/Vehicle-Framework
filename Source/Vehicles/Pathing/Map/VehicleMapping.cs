@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
-using SmashTools.Debugging;
 using SmashTools.Performance;
 using UnityEngine.Assertions;
 using Verse;
@@ -156,7 +155,7 @@ public sealed class VehicleMapping : MapComponent
     switch (deferment)
     {
       case GridDeferment.Lazy:
-        break;
+      break;
       case GridDeferment.Deferred:
         if (grids.HasFlag(GridSelection.PathGrids))
         {
@@ -168,12 +167,12 @@ public sealed class VehicleMapping : MapComponent
           deferredGridGeneration.GenerateAllRegionGrids();
         }
 
-        break;
+      break;
       case GridDeferment.Forced:
         Debug.Message("Forcing grid generation.");
         GeneratePathGrids();
         GenerateRegionsParallel();
-        break;
+      break;
       default:
         throw new NotImplementedException();
     }
@@ -327,19 +326,19 @@ public sealed class VehicleMapping : MapComponent
         {
           case FlashGridType.CoverGrid:
             FlashCoverGrid();
-            break;
+          break;
           case FlashGridType.GasGrid:
             FlashGasGrid();
-            break;
+          break;
           case FlashGridType.PositionManager:
             FlashClaimants();
-            break;
+          break;
           case FlashGridType.ThingGrid:
             FlashThingGrid();
-            break;
+          break;
           default:
             Log.ErrorOnce($"Not Implemented: {flashGridType}", flashGridType.GetHashCode());
-            break;
+          break;
         }
       }
     }

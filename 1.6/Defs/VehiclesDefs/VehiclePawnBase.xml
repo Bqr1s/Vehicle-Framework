@@ -33,9 +33,9 @@
 				<statDef>MoveSpeed</statDef>
 				
 				<eventDefs>
-					<li>DamageTaken</li>
-					<li>Repaired</li>
+					<li>HealthChanged</li>
 					<li>Spawned</li>
+          <li>CargoAdded</li>
 				</eventDefs>
 			</li>
 			<li>
@@ -58,8 +58,7 @@
 				<statDef>FlightSpeed</statDef>
 				
 				<eventDefs>
-					<li>DamageTaken</li>
-					<li>Repaired</li>
+					<li>HealthChanged</li>
 					<li>Spawned</li>
 				</eventDefs>
 			</li>

@@ -22,6 +22,14 @@ internal sealed class UnitTest_GridOwners : UnitTest_MapTest
     return PathingHelper.ShouldCreateRegions(vehicleDef);
   }
 
+  [TearDown]
+  private void RegenerateAllGrids()
+  {
+    VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+    mapping.deferredGridGeneration.DoPassExpectClear();
+    mapping.RegenerateGrids(deferment: VehicleMapping.GridDeferment.Forced);
+  }
+
   [Test]
   private void Map()
   {
@@ -86,13 +94,5 @@ internal sealed class UnitTest_GridOwners : UnitTest_MapTest
       Expect.IsFalse(pathData.VehiclePathGrid.Enabled, "PathGrid Released");
       Expect.IsTrue(mapping.GridOwners.IsOwner(piggyDef), "Final Ownership Retained");
     }
-  }
-
-  [TearDown]
-  private void RegenerateAllGrids()
-  {
-    VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-    mapping.deferredGridGeneration.DoPassExpectClear();
-    mapping.RegenerateGrids(deferment: VehicleMapping.GridDeferment.Forced);
   }
 }

@@ -531,17 +531,6 @@ public partial class VehicleTurret
     return new Vector3(offset.x, graphicOffset.y + DrawLayerOffset, offset.y);
   }
 
-  /// <summary>
-  /// Calculate VehicleTurret draw offset
-  /// </summary>
-  private Vector2 RotatedDrawOffset(Rot8 rot, float extraRotation)
-  {
-    Vector2 offset = renderProperties.OffsetFor(rot);
-    if (!Mathf.Approximately(extraRotation, 0))
-      offset = Ext_Math.RotatePointClockwise(offset.x, offset.y, extraRotation);
-    return offset;
-  }
-
   public Rect ScaleUIRectFor(VehicleDef vehicleDef, Rect rect, Rot8 rot, float iconScale = 1)
   {
     GraphicDataRGB data = def.graphicData;

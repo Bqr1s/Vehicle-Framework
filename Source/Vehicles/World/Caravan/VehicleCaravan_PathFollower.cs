@@ -207,7 +207,7 @@ namespace Vehicles
     private bool TryRecoverFromUnwalkablePosition()
     {
       if (caravan.VehiclesListForReading.All(vehicle =>
-        vehicle.VehicleDef.vehicleType == VehicleType.Air))
+        vehicle.VehicleDef.type == VehicleType.Air))
       {
         return false;
       }

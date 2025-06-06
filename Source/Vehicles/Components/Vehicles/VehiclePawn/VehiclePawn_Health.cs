@@ -27,9 +27,7 @@ namespace Vehicles
 
     internal VehicleComponent HighlightedComponent { get; set; }
 
-    public VehiclePermissions MovementPermissions => SettingsCache.TryGetValue(VehicleDef,
-      typeof(VehicleDef), nameof(VehicleDef.vehicleMovementPermissions),
-      VehicleDef.vehicleMovementPermissions);
+    public VehiclePermissions MovementPermissions { get; private set; }
 
     public bool CanMove => GetStatValue(VehicleStatDefOf.MoveSpeed) > 0.1f &&
       MovementPermissions > VehiclePermissions.NotAllowed &&
@@ -63,6 +61,25 @@ namespace Vehicles
     {
       //Cached in VehicleStatHandler, can fetch fresh calculation from VehicleStatDef.Worker if necessary, or mark statDef dirty in cache before retrieving
       return statHandler.GetStatValue(statDef);
+    }
+
+    private void RecacheMovementPermissions()
+    {
+      if (Mathf.Approximately(VehicleDef.GetStatValueAbstract(VehicleStatDefOf.MoveSpeed), 0))
+      {
+        MovementPermissions = VehiclePermissions.NotAllowed;
+        return;
+      }
+
+      foreach (VehicleRoleHandler handler in handlers)
+      {
+        if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement))
+        {
+          MovementPermissions = VehiclePermissions.DriverNeeded;
+          return;
+        }
+      }
+      MovementPermissions = VehiclePermissions.NoDriverNeeded;
     }
 
     public IEnumerable<IntVec3> InhabitedCells(int expandedBy = 0)
@@ -334,28 +351,28 @@ namespace Vehicles
               effecterDef = VehicleDef.BodyType.deflectionEffect;
             }
           }
-            break;
+          break;
           case VehicleComponent.Penetration.Diminished:
           {
             effecterDef = VehicleDef.BodyType.diminishedEffect;
           }
-            break;
+          break;
           case VehicleComponent.Penetration.NonPenetrated:
           {
             effecterDef = VehicleDef.BodyType.nonPenetrationEffect;
           }
-            break;
+          break;
           ///Penetration and unhandled cases default to <see cref="FleshTypeDef.damageEffecter"/>
           case VehicleComponent.Penetration.Penetrated:
           {
             effecterDef = VehicleDef.BodyType.damageEffecter;
           }
-            break;
+          break;
           case VehicleComponent.Penetration.Electrified:
           {
             effecterDef = VehicleDef.BodyType.electrifiedEffect;
           }
-            break;
+          break;
           default:
             throw new NotImplementedException("Unhandled Penetration result.");
         }
@@ -457,19 +474,19 @@ namespace Vehicles
           {
             return stuffCategoryDef.destroySoundSmall;
           }
-          break;
+        break;
         case BuildingSizeCategory.Medium:
           if (!stuffCategoryDef.destroySoundMedium.NullOrUndefined())
           {
             return stuffCategoryDef.destroySoundMedium;
           }
-          break;
+        break;
         case BuildingSizeCategory.Large:
           if (!stuffCategoryDef.destroySoundLarge.NullOrUndefined())
           {
             return stuffCategoryDef.destroySoundLarge;
           }
-          break;
+        break;
       }
       return null;
     }

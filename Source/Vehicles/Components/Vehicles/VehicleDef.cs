@@ -39,14 +39,18 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     UISettingsType = UISettingsType.SliderEnum)]
   [ActionOnSettingsInput(typeof(VehicleHarmony),
     nameof(GridOwners.RecacheMoveableVehicleDefs))]
-  public VehiclePermissions vehicleMovementPermissions = VehiclePermissions.DriverNeeded;
+  [LoadAlias("vehicleMovementPermissions")]
+  private VehiclePermissions movementPermissions = VehiclePermissions.DriverNeeded;
 
   [PostToSettings(Label = "VF_CanCaravan", Translate = true, Tooltip = "VF_CanCaravanTooltip",
     UISettingsType = UISettingsType.Checkbox)]
   public bool canCaravan = true;
 
+  //[LoadAlias("vehicleCategory")]
   public VehicleCategory vehicleCategory;
-  public VehicleType vehicleType = VehicleType.Land;
+
+  [LoadAlias("vehicleType")]
+  public VehicleType type = VehicleType.Land;
 
   [PostToSettings(Label = "VF_NavigationType", Translate = true,
     Tooltip = "VF_NavigationTypeTooltip", UISettingsType = UISettingsType.SliderEnum)]
@@ -137,7 +141,7 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     {
       resolvedLoadCargoTexture ??=
         ContentFinder<Texture2D>.Get(drawProperties.loadCargoTexPath, false)
-        ?? VehicleTex.PackCargoIcon[(uint)vehicleType];
+        ?? VehicleTex.PackCargoIcon[(uint)type];
       return resolvedLoadCargoTexture;
     }
   }
@@ -151,7 +155,7 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     {
       resolvedCancelCargoTexture ??=
         ContentFinder<Texture2D>.Get(drawProperties.cancelCargoTexPath, false)
-        ?? VehicleTex.CancelPackCargoIcon[(uint)vehicleType];
+        ?? VehicleTex.CancelPackCargoIcon[(uint)type];
       return resolvedCancelCargoTexture;
     }
   }
@@ -183,7 +187,6 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
           }
         }
       }
-
       return true;
     }
   }
@@ -221,6 +224,8 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     properties ??= new VehicleProperties();
     properties.ResolveReferences(this);
 
+    npcProperties ??= new VehicleNPCProperties();
+
     int padding = Mathf.CeilToInt(Mathf.Min(size.x, size.z) / 2f);
     int result = Mathf.Clamp(padding - 1, 0, 100);
     SizePadding = result;
@@ -249,38 +254,43 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
   public override void PostLoad()
   {
     base.graphicData = graphicData;
-    LongEventHandler.ExecuteWhenFinished(delegate
-    {
-      PropertyBlock = new MaterialPropertyBlock();
-      graphicData.shaderType ??= ShaderTypeDefOf.Cutout;
-      if (!VehicleMod.settings.main.useCustomShaders)
-      {
-        graphicData.shaderType =
-          graphicData.shaderType.Shader.SupportsRGBMaskTex(ignoreSettings: true) ?
-            ShaderTypeDefOf.CutoutComplex :
-            graphicData.shaderType;
-      }
 
-      if (graphicData.shaderType.Shader.SupportsRGBMaskTex())
-      {
-        RGBMaterialPool.CacheMaterialsFor(this);
-        graphicData.Init(this);
-        PatternData patternData =
-          VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(defName,
-            new PatternData(graphicData));
-        patternData.ExposeDataPostDefDatabase();
-        RGBMaterialPool.SetProperties(this, patternData, graphicData.Graphic.TexAt,
-          graphicData.Graphic.MaskAt);
-      }
-      else
-      {
-        _ = graphicData.Graphic;
-      }
-    });
+    LongEventHandler.ExecuteWhenFinished(VerifyGraphicData);
 
     base.PostLoad();
+  }
 
-    npcProperties ??= new VehicleNPCProperties();
+  private void VerifyGraphicData()
+  {
+    PropertyBlock = new MaterialPropertyBlock();
+
+    if (graphicData is null)
+      return;
+
+    graphicData.shaderType ??= ShaderTypeDefOf.Cutout;
+    if (!VehicleMod.settings.main.useCustomShaders)
+    {
+      graphicData.shaderType =
+        graphicData.shaderType.Shader.SupportsRGBMaskTex(ignoreSettings: true) ?
+          ShaderTypeDefOf.CutoutComplex :
+          graphicData.shaderType;
+    }
+
+    if (graphicData.shaderType.Shader.SupportsRGBMaskTex())
+    {
+      RGBMaterialPool.CacheMaterialsFor(this);
+      graphicData.Init(this);
+      PatternData patternData =
+        VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(defName,
+          new PatternData(graphicData));
+      patternData.ExposeDataPostDefDatabase();
+      RGBMaterialPool.SetProperties(this, patternData, graphicData.Graphic.TexAt,
+        graphicData.Graphic.MaskAt);
+    }
+    else
+    {
+      _ = graphicData.Graphic;
+    }
   }
 
   /// <summary>
@@ -290,7 +300,8 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
   {
     properties.PostDefDatabase(this);
     drawProperties.PostDefDatabase(this);
-    graphicData.pattern ??= PatternDefOf.Default;
+    if (graphicData != null)
+      graphicData.pattern ??= PatternDefOf.Default;
   }
 
   private void CacheCompProperties()
@@ -611,11 +622,10 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
     foreach (VehicleStatModifier statModifier in vehicleStats)
     {
       if (statModifier.statDef == VehicleStatDefOf.MoveSpeed &&
-        vehicleMovementPermissions == VehiclePermissions.NotAllowed)
+        properties.roles.NotNullAndAny(role => role.HandlingTypes.HasFlag(HandlingType.Movement)))
       {
         continue;
       }
-
       yield return statModifier.statDef;
     }
 

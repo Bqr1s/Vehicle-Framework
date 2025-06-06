@@ -43,9 +43,7 @@ namespace Vehicles
 
     public static bool ShouldCreateRegions(VehicleDef vehicleDef)
     {
-      return SettingsCache.TryGetValue(vehicleDef, typeof(VehicleDef),
-          nameof(vehicleDef.vehicleMovementPermissions), vehicleDef.vehicleMovementPermissions) >
-        VehiclePermissions.NotAllowed;
+      return !Mathf.Approximately(vehicleDef.GetStatValueAbstract(VehicleStatDefOf.MoveSpeed), 0);
     }
 
 #region Raiders

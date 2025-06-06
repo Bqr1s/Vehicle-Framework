@@ -26,7 +26,7 @@ internal sealed class UnitTest_AerialVehicle : UnitTest_VehicleTest
 
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
     {
-      if (vehicleDef.vehicleType != VehicleType.Air) continue;
+      if (vehicleDef.type != VehicleType.Air) continue;
       if (!vehicleDef.properties.roles.NotNullAndAny(role => role.SlotsToOperate > 0)) continue;
 
       VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);

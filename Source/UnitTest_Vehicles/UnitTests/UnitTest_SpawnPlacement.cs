@@ -14,8 +14,8 @@ internal sealed class UnitTest_SpawnPlacement : UnitTest_MapTest
   [Test]
   private void PlacementDrift()
   {
-    DeferredGridGeneration gridGen = map?.GetCachedMapComponent<VehicleMapping>()
-    ?.deferredGridGeneration;
+    DeferredGridGeneration gridGen =
+      map.GetCachedMapComponent<VehicleMapping>().deferredGridGeneration;
     Assert.IsNotNull(gridGen);
     using DeferredGridGeneration.PassDisabler pd = new(gridGen);
 
@@ -84,13 +84,13 @@ internal sealed class UnitTest_SpawnPlacement : UnitTest_MapTest
             cell.x += 1;
           if (vehicle.VehicleDef.Size.z % 2 == 0)
             cell.z += 1;
-          break;
+        break;
         case 3:
           if (vehicle.VehicleDef.Size.x % 2 == 0)
             cell.z -= 1;
           if (vehicle.VehicleDef.Size.z % 2 == 0)
             cell.x += 1;
-          break;
+        break;
       }
       return cell;
     }

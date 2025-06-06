@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
@@ -31,16 +32,6 @@ public partial class VehiclePawn
 
   /* -------------------------------------- */
 
-  public IOrderedEnumerable<VehicleRoleHandler> HandlersOrdered
-  {
-    get
-    {
-      return handlers
-       .OrderBy(handler => handler.role.HandlingTypes.HasFlag(HandlingType.Movement))
-       .ThenBy(handler => handler.role.HandlingTypes.HasFlag(HandlingType.Turret));
-    }
-  }
-
   public int PawnCountToOperate
   {
     get
@@ -66,18 +57,27 @@ public partial class VehiclePawn
   {
     get
     {
-      if (MovementPermissions == VehiclePermissions.NoDriverNeeded)
-        return true;
-
-      foreach (VehicleRoleHandler handler in handlers)
+      switch (MovementPermissions)
       {
-        if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement) &&
-          !handler.RoleFulfilled)
-        {
+        case VehiclePermissions.NoDriverNeeded:
+          return true;
+        case VehiclePermissions.NotAllowed:
           return false;
+        case VehiclePermissions.DriverNeeded:
+        {
+          foreach (VehicleRoleHandler handler in handlers)
+          {
+            if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement) &&
+              !handler.RoleFulfilled)
+            {
+              return false;
+            }
+          }
+          return true;
         }
+        default:
+          throw new NotImplementedException(nameof(VehiclePermissions));
       }
-      return true;
     }
   }
 
@@ -136,6 +136,7 @@ public partial class VehiclePawn
     PawnsByHandlingType.ClearValueLists();
     OccupiedHandlers.Clear();
     AllPawnsAboard.Clear();
+
     foreach (VehicleRoleHandler handler in handlers)
     {
       if (handler.thingOwner.Any)
@@ -173,6 +174,7 @@ public partial class VehiclePawn
   {
     role.ResolveReferences(VehicleDef);
     handlers.Add(new VehicleRoleHandler(this, role));
+    handlers.Sort();
     ResetRenderStatus();
   }
 
@@ -249,16 +251,15 @@ public partial class VehiclePawn
   public VehicleRoleHandler NextAvailableHandler(HandlingType? handlingTypeFlag = null,
     bool priorityHandlers = false)
   {
-    foreach (VehicleRoleHandler handler in HandlersOrdered)
+    foreach (VehicleRoleHandler handler in handlers)
     {
-      if (priorityHandlers && handler.role.HandlingTypes == HandlingType.None) continue;
+      if (priorityHandlers && handler.role.HandlingTypes == HandlingType.None)
+        continue;
       if (handlingTypeFlag != null &&
         !handler.role.HandlingTypes.HasFlag(handlingTypeFlag)) continue;
 
       if (handler.AreSlotsAvailableAndReservable)
-      {
         return handler;
-      }
     }
 
     return null;
@@ -314,9 +315,10 @@ public partial class VehiclePawn
 
   public bool TryAddPawn(Pawn pawn)
   {
-    if (handlers.NullOrEmpty()) return false;
+    if (handlers.NullOrEmpty())
+      return false;
 
-    foreach (VehicleRoleHandler handler in HandlersOrdered)
+    foreach (VehicleRoleHandler handler in handlers)
     {
       if (TryAddPawn(pawn, handler))
       {

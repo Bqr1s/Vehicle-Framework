@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using DevTools.UnitTesting;
+using Verse;
 
 namespace Vehicles.UnitTesting;
 
@@ -16,7 +17,7 @@ internal class UnitTest_VehicleDefTest
   protected void GenerateVehicles()
   {
     vehicleDefs.Clear();
-    foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
+    foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
     {
       if (!ShouldTest(vehicleDef))
         continue;

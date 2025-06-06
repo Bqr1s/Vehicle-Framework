@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
@@ -74,6 +75,7 @@ namespace Vehicles
       }
       CacheCompRenderers();
       RecacheComponents();
+      RecacheMovementPermissions();
     }
 
     public override void PostMapInit()
@@ -88,7 +90,7 @@ namespace Vehicles
       ageTracker.AgeBiologicalTicks = 0;
       ageTracker.AgeChronologicalTicks = 0;
       ageTracker.BirthAbsTicks = 0;
-      health.Reset();
+      //health.Reset();
       statHandler.InitializeComponents();
 
       if (Faction != Faction.OfPlayer && VehicleDef.npcProperties != null)
@@ -114,6 +116,101 @@ namespace Vehicles
           {
             inventory.innerContainer.TryAdd(thing);
           }
+        }
+      }
+    }
+
+    public void RegisterEvents()
+    {
+      if (EventRegistry != null && EventRegistry.Initialized())
+        return; //Disallow re-registering events
+
+      this.FillEvents_Def();
+
+      this.AddEvent(VehicleEventDefOf.CargoAdded, statHandler.MarkAllDirty);
+      this.AddEvent(VehicleEventDefOf.CargoRemoved, statHandler.MarkAllDirty);
+      this.AddEvent(VehicleEventDefOf.PawnEntered, RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnExited, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnRemoved, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnChangedSeats, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnKilled, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnCapacitiesDirty, vehiclePather.RecalculatePermissions);
+      this.AddEvent(VehicleEventDefOf.IgnitionOff, vehiclePather.RecalculatePermissions);
+      this.AddEvent(VehicleEventDefOf.HealthChanged, vehiclePather.RecalculatePermissions);
+      this.AddEvent(VehicleEventDefOf.DamageTaken, statHandler.MarkAllDirty, Notify_TookDamage);
+      this.AddEvent(VehicleEventDefOf.Repaired, statHandler.MarkAllDirty);
+      this.AddEvent(VehicleEventDefOf.OutOfFuel, delegate
+      {
+        if (Spawned)
+        {
+          vehiclePather.PatherFailed();
+          ignition.Drafted = false;
+        }
+      });
+      this.AddEvent(VehicleEventDefOf.UpgradeCompleted, ResetRenderStatus,
+        RecacheMovementPermissions);
+      this.AddEvent(VehicleEventDefOf.UpgradeRefundCompleted, ResetRenderStatus,
+        RecacheMovementPermissions);
+      if (!VehicleDef.events.NullOrEmpty())
+      {
+        foreach ((VehicleEventDef vehicleEventDef, List<DynamicDelegate<VehiclePawn>> methods) in
+          VehicleDef.events)
+        {
+          if (!methods.NullOrEmpty())
+          {
+            foreach (DynamicDelegate<VehiclePawn> method in methods)
+            {
+              this.AddEvent(vehicleEventDef, () => method.Invoke(null, this));
+            }
+          }
+        }
+      }
+
+      if (!VehicleDef.statEvents.NullOrEmpty())
+      {
+        foreach (StatCache.EventLister eventLister in VehicleDef.statEvents)
+        {
+          foreach (VehicleEventDef eventDef in eventLister.eventDefs)
+          {
+            this.AddEvent(eventDef,
+              () => statHandler.MarkStatDirty(eventLister.statDef));
+          }
+        }
+      }
+
+      //One Shots
+      if (!VehicleDef.soundOneShotsOnEvent.NullOrEmpty())
+      {
+        foreach (VehicleSoundEventEntry<VehicleEventDef> soundEventEntry in VehicleDef
+         .soundOneShotsOnEvent)
+        {
+          this.AddEvent(soundEventEntry.key, () => this.PlayOneShotOnVehicle(soundEventEntry),
+            soundEventEntry.removalKey);
+        }
+      }
+
+      //Sustainers
+      if (!VehicleDef.soundSustainersOnEvent.NullOrEmpty())
+      {
+        foreach (VehicleSustainerEventEntry<VehicleEventDef> soundEventEntry in VehicleDef
+         .soundSustainersOnEvent)
+        {
+          this.AddEvent(soundEventEntry.start, () => this.StartSustainerOnVehicle(soundEventEntry),
+            soundEventEntry.removalKey);
+          this.AddEvent(soundEventEntry.stop, () => this.StopSustainerOnVehicle(soundEventEntry),
+            soundEventEntry.removalKey);
+        }
+      }
+
+      foreach (ThingComp comp in AllComps)
+      {
+        if (comp is VehicleComp vehicleComp)
+        {
+          vehicleComp.EventRegistration();
         }
       }
     }
@@ -198,6 +295,7 @@ namespace Vehicles
       }
 
       RecachePawnCount();
+      RecacheMovementPermissions();
 
       foreach (Pawn pawn in AllPawnsAboard)
       {

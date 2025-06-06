@@ -52,7 +52,7 @@ public class WorldGridOwners : GridOwnerList<WorldGridOwners.PathConfig>
     }
 
     bool IPathConfig.UsesRegions =>
-      vehicleDef.vehicleMovementPermissions > VehiclePermissions.NotAllowed;
+      !Mathf.Approximately(vehicleDef.GetStatValueAbstract(VehicleStatDefOf.MoveSpeed), 0);
 
     bool IPathConfig.MatchesReachability(IPathConfig other)
     {

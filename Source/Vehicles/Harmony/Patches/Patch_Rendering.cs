@@ -123,15 +123,19 @@ namespace Vehicles
     /// <param name="colonist"></param>
     public static void DrawIconsVehicles(Rect rect, Pawn colonist)
     {
-      if (colonist.Dead || !(colonist.ParentHolder is VehicleRoleHandler handler))
-      {
+      if (colonist.Dead || colonist.ParentHolder is not VehicleRoleHandler handler)
         return;
-      }
-      float num = 20f * Find.ColonistBar.Scale;
-      Vector2 vector = new Vector2(rect.xMax - num - 1f, rect.yMax - num - 1f);
 
-      Rect rect2 = new Rect(vector.x, vector.y, num, num);
-      GUI.DrawTexture(rect2, VehicleTex.CachedTextureIcons[handler.vehicle.VehicleDef]);
+      // Transient vehicles won't have icons cached
+      if (!VehicleTex.CachedTextureIcons.TryGetValue(handler.vehicle.VehicleDef,
+          out Texture2D icon) || !icon)
+        return;
+
+      float num = 20f * Find.ColonistBar.Scale;
+      Vector2 vector = new(rect.xMax - num - 1f, rect.yMax - num - 1f);
+
+      Rect rect2 = new(vector.x, vector.y, num, num);
+      GUI.DrawTexture(rect2, icon);
       TooltipHandler.TipRegion(rect2,
         "VF_ActivityIconOnBoardShip".Translate(handler.vehicle.Label));
       vector.x += num;

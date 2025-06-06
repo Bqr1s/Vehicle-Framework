@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using SmashTools;
 using UnityEngine;
 using Verse;
 
@@ -54,7 +53,7 @@ public class MapGridOwners : GridOwnerList<MapGridOwners.PathConfig>
     }
 
     bool IPathConfig.UsesRegions =>
-      vehicleDef.vehicleMovementPermissions > VehiclePermissions.NotAllowed;
+      !Mathf.Approximately(vehicleDef.GetStatValueAbstract(VehicleStatDefOf.MoveSpeed), 0);
 
     bool IPathConfig.MatchesReachability(IPathConfig other)
     {

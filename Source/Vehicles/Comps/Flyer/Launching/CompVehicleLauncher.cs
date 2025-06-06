@@ -196,9 +196,7 @@ namespace Vehicles
         }
       }
 
-      if (SettingsCache.TryGetValue(Vehicle.VehicleDef, typeof(VehicleDef),
-          nameof(VehicleDef.vehicleMovementPermissions),
-          Vehicle.VehicleDef.vehicleMovementPermissions) > VehiclePermissions.NotAllowed)
+      if (Vehicle.MovementPermissions > VehiclePermissions.NotAllowed)
       {
         if (!Vehicle.CanMoveFinal)
         {
