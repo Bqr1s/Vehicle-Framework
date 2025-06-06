@@ -20,6 +20,7 @@ internal class GeneratorVehicleSkyfallerIncoming : IVehicleDefGenerator<ThingDef
       new ThingDef() :
       DefDatabase<ThingDef>.GetNamed(defName, false) ?? new ThingDef();
     skyfallerIncomingImpliedDef.defName = defName;
+    skyfallerIncomingImpliedDef.modContentPack = vehicleDef.modContentPack;
     skyfallerIncomingImpliedDef.label = $"{vehicleDef.defName}Incoming";
     skyfallerIncomingImpliedDef.thingClass = typeof(VehicleSkyfaller_Arriving);
     skyfallerIncomingImpliedDef.category = ThingCategory.Ethereal;

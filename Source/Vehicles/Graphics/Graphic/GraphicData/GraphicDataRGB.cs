@@ -71,7 +71,8 @@ public class GraphicDataRGB : GraphicDataLayered
       cachedRGBGraphic = null;
       return;
     }
-    pattern ??= PatternDefOf.Default; //Ensure 1 last check that pattern isn't null
+    // Failsafe to ensure pattern isn't null
+    pattern ??= PatternDefOf.Default;
     ShaderTypeDef shaderTypeDef =
       pattern is SkinDef ? VehicleShaderTypeDefOf.CutoutComplexSkin : shaderType;
     if (shaderTypeDef == null)

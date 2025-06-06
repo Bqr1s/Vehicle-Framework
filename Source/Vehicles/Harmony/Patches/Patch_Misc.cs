@@ -1,6 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
@@ -11,8 +9,6 @@ namespace Vehicles;
 
 internal class Patch_Misc : IPatchCategory
 {
-  public const float IconBarDim = 30;
-
   public void PatchMethods()
   {
     VehicleHarmony.Patch(
@@ -40,9 +36,6 @@ internal class Patch_Misc : IPatchCategory
       original: AccessTools.PropertyGetter(typeof(TickManager), nameof(TickManager.CurTimeSpeed)),
       postfix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(ForcePauseFromVehicles)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Dialog_ManageAreas), "DoAreaRow"),
-      transpiler: new HarmonyMethod(typeof(Patch_Misc),
-        nameof(VehicleAreaRowTranspiler)));
 
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(PawnCapacitiesHandler),
@@ -117,41 +110,6 @@ internal class Patch_Misc : IPatchCategory
     if (LandingTargeter.Instance.ForcedTargeting || StrafeTargeter.Instance.ForcedTargeting)
     {
       __result = TimeSpeed.Paused;
-    }
-  }
-
-  private static IEnumerable<CodeInstruction> VehicleAreaRowTranspiler(
-    IEnumerable<CodeInstruction> instructions)
-  {
-    List<CodeInstruction> instructionList = instructions.ToList();
-
-    for (int i = 0; i < instructionList.Count; i++)
-    {
-      CodeInstruction instruction = instructionList[i];
-
-      if (instruction.Calls(AccessTools.Method(typeof(WidgetRow), nameof(WidgetRow.Icon))))
-      {
-        yield return instruction; //WidgetRow.Icon
-        i += 2; //Skip Pop
-        instruction = instructionList[i];
-        yield return new CodeInstruction(opcode: OpCodes.Ldarg_2);
-        yield return new CodeInstruction(opcode: OpCodes.Call,
-          operand: AccessTools.Method(typeof(Patch_Misc), nameof(ChangeAreaColor)));
-      }
-      yield return instruction;
-    }
-  }
-
-  private static void ChangeAreaColor(Rect rect, Area area)
-  {
-    if (area is Area_Allowed && Widgets.ButtonInvisible(rect))
-    {
-      Find.WindowStack.Add(new Dialog_ColorWheel(area.Color, delegate(Color color)
-      {
-        AccessTools.Field(typeof(Area_Allowed), "colorInt").SetValue(area, color);
-        AccessTools.Field(typeof(Area), "colorTextureInt").SetValue(area, null);
-        AccessTools.Field(typeof(Area), "drawer").SetValue(area, null);
-      }));
     }
   }
 

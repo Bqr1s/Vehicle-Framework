@@ -219,108 +219,7 @@ namespace Vehicles
       return cell;
     }
 
-    public static void RegenerateEvents(this VehiclePawn vehicle)
-    {
-      vehicle.RegisterEvents();
-    }
-
-    public static void RegisterEvents(this VehiclePawn vehicle)
-    {
-      if (vehicle.EventRegistry != null && vehicle.EventRegistry.Initialized())
-      {
-        return; //Disallow re-registering events
-      }
-
-      vehicle.FillEvents_Def();
-
-      vehicle.AddEvent(VehicleEventDefOf.CargoAdded, vehicle.statHandler.MarkAllDirty);
-      vehicle.AddEvent(VehicleEventDefOf.CargoRemoved, vehicle.statHandler.MarkAllDirty);
-      vehicle.AddEvent(VehicleEventDefOf.PawnEntered, vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnExited, vehicle.vehiclePather.RecalculatePermissions,
-        vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnRemoved, vehicle.vehiclePather.RecalculatePermissions,
-        vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnChangedSeats,
-        vehicle.vehiclePather.RecalculatePermissions, vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnKilled, vehicle.vehiclePather.RecalculatePermissions,
-        vehicle.RecachePawnCount);
-      vehicle.AddEvent(VehicleEventDefOf.PawnCapacitiesDirty,
-        vehicle.vehiclePather.RecalculatePermissions);
-      vehicle.AddEvent(VehicleEventDefOf.IgnitionOff, vehicle.vehiclePather.RecalculatePermissions);
-      vehicle.AddEvent(VehicleEventDefOf.HealthChanged,
-        vehicle.vehiclePather.RecalculatePermissions);
-      vehicle.AddEvent(VehicleEventDefOf.DamageTaken, vehicle.statHandler.MarkAllDirty,
-        vehicle.Notify_TookDamage);
-      vehicle.AddEvent(VehicleEventDefOf.Repaired, vehicle.statHandler.MarkAllDirty);
-      vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, delegate
-      {
-        if (vehicle.Spawned)
-        {
-          vehicle.vehiclePather.PatherFailed();
-          vehicle.ignition.Drafted = false;
-        }
-      });
-      vehicle.AddEvent(VehicleEventDefOf.UpgradeCompleted, vehicle.ResetRenderStatus);
-      vehicle.AddEvent(VehicleEventDefOf.UpgradeRefundCompleted, vehicle.ResetRenderStatus);
-      if (!vehicle.VehicleDef.events.NullOrEmpty())
-      {
-        foreach ((VehicleEventDef vehicleEventDef, List<DynamicDelegate<VehiclePawn>> methods) in
-          vehicle.VehicleDef.events)
-        {
-          if (!methods.NullOrEmpty())
-          {
-            foreach (DynamicDelegate<VehiclePawn> method in methods)
-            {
-              vehicle.AddEvent(vehicleEventDef, () => method.Invoke(null, vehicle));
-            }
-          }
-        }
-      }
-
-      if (!vehicle.VehicleDef.statEvents.NullOrEmpty())
-      {
-        foreach (StatCache.EventLister eventLister in vehicle.VehicleDef.statEvents)
-        {
-          foreach (VehicleEventDef eventDef in eventLister.eventDefs)
-          {
-            vehicle.AddEvent(eventDef,
-              () => vehicle.statHandler.MarkStatDirty(eventLister.statDef));
-          }
-        }
-      }
-
-      //One Shots
-      if (!vehicle.VehicleDef.soundOneShotsOnEvent.NullOrEmpty())
-      {
-        foreach (var soundEventEntry in vehicle.VehicleDef.soundOneShotsOnEvent)
-        {
-          vehicle.AddEvent(soundEventEntry.key, () => PlayOneShot(vehicle, soundEventEntry),
-            soundEventEntry.removalKey);
-        }
-      }
-
-      //Sustainers
-      if (!vehicle.VehicleDef.soundSustainersOnEvent.NullOrEmpty())
-      {
-        foreach (var soundEventEntry in vehicle.VehicleDef.soundSustainersOnEvent)
-        {
-          vehicle.AddEvent(soundEventEntry.start, () => StartSustainer(vehicle, soundEventEntry),
-            soundEventEntry.removalKey);
-          vehicle.AddEvent(soundEventEntry.stop, () => StopSustainer(vehicle, soundEventEntry),
-            soundEventEntry.removalKey);
-        }
-      }
-
-      foreach (ThingComp comp in vehicle.AllComps)
-      {
-        if (comp is VehicleComp vehicleComp)
-        {
-          vehicleComp.EventRegistration();
-        }
-      }
-    }
-
-    public static void PlayOneShot<T>(VehiclePawn vehicle,
+    public static void PlayOneShotOnVehicle<T>(this VehiclePawn vehicle,
       VehicleSoundEventEntry<T> soundEventEntry)
     {
       if (vehicle.Spawned)
@@ -329,7 +228,7 @@ namespace Vehicles
       }
     }
 
-    public static void StartSustainer<T>(VehiclePawn vehicle,
+    public static void StartSustainerOnVehicle<T>(this VehiclePawn vehicle,
       VehicleSustainerEventEntry<T> soundEventEntry)
     {
       if (vehicle.Spawned)
@@ -342,7 +241,7 @@ namespace Vehicles
       }
     }
 
-    public static void StopSustainer<T>(VehiclePawn vehicle,
+    public static void StopSustainerOnVehicle<T>(this VehiclePawn vehicle,
       VehicleSustainerEventEntry<T> soundEventEntry)
     {
       vehicle.sustainers.EndAll(soundEventEntry.value);
@@ -550,7 +449,7 @@ namespace Vehicles
     /// <param name="thing"></param>
     public static bool IsBoat(this Thing thing)
     {
-      return thing is VehiclePawn vehicle && vehicle.VehicleDef.vehicleType == VehicleType.Sea;
+      return thing is VehiclePawn vehicle && vehicle.VehicleDef.type == VehicleType.Sea;
     }
 
     /// <summary>
@@ -558,7 +457,7 @@ namespace Vehicles
     /// </summary>
     public static bool IsBoat(this ThingDef thingDef)
     {
-      return thingDef is VehicleDef { vehicleType: VehicleType.Sea };
+      return thingDef is VehicleDef { type: VehicleType.Sea };
     }
 
     /// <summary>

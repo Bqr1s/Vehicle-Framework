@@ -19,6 +19,14 @@ internal sealed class UnitTest_DeferredGeneration : UnitTest_MapTest
     return PathingHelper.ShouldCreateRegions(vehicleDef);
   }
 
+  [TearDown]
+  private void RegenerateAllGrids()
+  {
+    VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+    mapping.deferredGridGeneration.DoPassExpectClear();
+    mapping.RegenerateGrids(deferment: VehicleMapping.GridDeferment.Forced);
+  }
+
   [Test]
   private void TestVehicle()
   {
@@ -92,14 +100,6 @@ internal sealed class UnitTest_DeferredGeneration : UnitTest_MapTest
       // Unblock dedicated thread
       mres.Set();
     }
-  }
-
-  [TearDown]
-  private void RegenerateAllGrids()
-  {
-    VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-    mapping.deferredGridGeneration.DoPassExpectClear();
-    mapping.RegenerateGrids(deferment: VehicleMapping.GridDeferment.Forced);
   }
 
   private static void WaitForSignal(ManualResetEventSlim mre)

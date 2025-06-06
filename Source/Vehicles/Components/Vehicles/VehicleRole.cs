@@ -9,27 +9,27 @@ namespace Vehicles;
 /// <summary>
 /// Container of data related to a 'seat' in a vehicle
 /// </summary>
-[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+[PublicAPI]
 public class VehicleRole : ITweakFields
 {
   public string key;
   public string label = "[MissingLabel]";
 
   // Operating
-  private HandlingType handlingTypes = HandlingType.None;
-  private int slots;
-  private int slotsToOperate;
-  private float comfort = 0.5f;
-  private List<string> turretIds;
+  public HandlingType handlingTypes = HandlingType.None;
+  public int slots;
+  public int slotsToOperate;
+  public float comfort = 0.5f;
+  public List<string> turretIds;
 
   // Damaging
-  private ComponentHitbox hitbox = new();
-  private bool exposed;
-  private float chanceToHit = 0.3f;
+  public ComponentHitbox hitbox = new();
+  public bool exposed;
+  public float chanceToHit = 0.3f;
 
   // Rendering
   [TweakField]
-  private PawnOverlayRenderer pawnRenderer;
+  public PawnOverlayRenderer pawnRenderer;
 
   private readonly List<RoleUpgrade> upgrades = [];
 

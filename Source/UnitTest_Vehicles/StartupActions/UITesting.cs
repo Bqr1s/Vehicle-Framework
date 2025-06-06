@@ -23,7 +23,7 @@ namespace Vehicles
       {
         Prefs.DevMode = true;
         CameraJumper.TryHideWorld();
-        Section_Debug.RegionDebugMenu();
+        SectionDebug.RegionDebugMenu();
       });
     }
 

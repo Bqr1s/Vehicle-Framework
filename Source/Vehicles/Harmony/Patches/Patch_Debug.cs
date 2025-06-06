@@ -43,32 +43,10 @@ namespace Vehicles
       }
 
       //VehicleHarmony.Patch(
-      //  original: AccessTools.Method(typeof(FloatMenuMakerMap), "GetProviderOptions"),
-      //  postfix: new HarmonyMethod(typeof(Patch_Debug),
-      //    nameof(TestPostfix)));
-      //VehicleHarmony.Patch(
-      //  original: AccessTools.Method(typeof(PawnRenderTree), nameof(PawnRenderTree.SetDirty)),
-      //  postfix: new HarmonyMethod(typeof(Debugging),
-      //    nameof(TestPostfix)));
-      //VehicleHarmony.Patch(
-      //  original: AccessTools.Method(typeof(SilhouetteUtility),
-      //    nameof(SilhouetteUtility.NotifyGraphicDirty)),
-      //  postfix: new HarmonyMethod(typeof(Debugging),
-      //    nameof(TestPostfix)));
-      //VehicleHarmony.Patch(
-      //  original: AccessTools.Method(typeof(PawnOverlayDrawer),
-      //    nameof(PawnOverlayDrawer.ClearCache)),
-      //  postfix: new HarmonyMethod(typeof(Debugging),
-      //    nameof(TestPostfix)));
-      //VehicleHarmony.Patch(
-      //  original: AccessTools.Method(typeof(PortraitsCache), nameof(PortraitsCache.SetDirty)),
-      //  postfix: new HarmonyMethod(typeof(Debugging),
-      //    nameof(TestPostfix)));
-      //VehicleHarmony.Patch(
-      //  original: AccessTools.Method(typeof(GlobalTextureAtlasManager),
-      //    nameof(GlobalTextureAtlasManager.TryMarkPawnFrameSetDirty)),
-      //  postfix: new HarmonyMethod(typeof(Debugging),
-      //    nameof(TestPostfix)));
+      //  original: AccessTools.Method(typeof(StaticConstructorOnStartupUtility),
+      //    nameof(StaticConstructorOnStartupUtility.ReportProbablyMissingAttributes)),
+      //  prefix: new HarmonyMethod(typeof(Patch_Debug),
+      //    nameof(TestPrefix)));
       //VehicleHarmony.Patch(
       //  original: AccessTools.Method(typeof(WorldPathGrid),
       //    nameof(WorldPathGrid.RecalculateAllPerceivedPathCosts)),
@@ -88,11 +66,10 @@ namespace Vehicles
       //	nameof(TestModPatch)));
     }
 
-    private static void TestPrefix(MethodBase __originalMethod)
+    private static void TestPrefix()
     {
       try
       {
-        Log.Message($"Calling {__originalMethod?.Name}");
       }
       catch (Exception ex)
       {

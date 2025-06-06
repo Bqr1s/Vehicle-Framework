@@ -3,6 +3,7 @@ using Verse;
 using Verse.AI;
 using RimWorld;
 using SmashTools;
+using UnityEngine;
 
 namespace Vehicles
 {
@@ -88,9 +89,15 @@ namespace Vehicles
         vehicle.vehicleAI = new VehicleAI(vehicle);
         vehicle.statHandler = new VehicleStatHandler(vehicle);
         vehicle.sharedJob = new SharedJob();
-        PatternData defaultPatternData =
-          VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(vehicle.VehicleDef.defName,
-            vehicle.VehicleDef.graphicData);
+
+        if (!VehicleMod.settings.vehicles.defaultGraphics.TryGetValue(vehicle.VehicleDef.defName,
+          out PatternData defaultPatternData))
+        {
+          defaultPatternData = vehicle.VehicleDef.graphicData != null ?
+            new PatternData(vehicle.VehicleDef.graphicData) :
+            new PatternData(Color.white, Color.white, Color.white,
+              PatternDefOf.Default, Vector2.zero, 0);
+        }
         vehicle.patternData = new PatternData(defaultPatternData);
         if (vehicle.Stuff != null)
         {

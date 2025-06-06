@@ -30,29 +30,34 @@ namespace Vehicles
     public static void DestroyArea(CellRect rect, Map map, TerrainDef replaceTerrain = null)
     {
       Thing.allowDestroyNonDestroyable = true;
-      rect.ClipInsideMap(map);
-      foreach (IntVec3 cell in rect)
+      try
       {
-        map.roofGrid.SetRoof(cell, null);
-      }
-
-      foreach (IntVec3 cell in rect)
-      {
-        foreach (Thing thing in cell.GetThingList(map).ToList())
-        {
-          thing.Destroy();
-        }
-      }
-
-      if (replaceTerrain != null)
-      {
+        rect.ClipInsideMap(map);
         foreach (IntVec3 cell in rect)
         {
-          map.terrainGrid.SetTerrain(cell, replaceTerrain);
+          map.roofGrid.SetRoof(cell, null);
+        }
+
+        foreach (IntVec3 cell in rect)
+        {
+          foreach (Thing thing in cell.GetThingList(map).ToList())
+          {
+            thing.Destroy();
+          }
+        }
+
+        if (replaceTerrain != null)
+        {
+          foreach (IntVec3 cell in rect)
+          {
+            map.terrainGrid.SetTerrain(cell, replaceTerrain);
+          }
         }
       }
-
-      Thing.allowDestroyNonDestroyable = false;
+      finally
+      {
+        Thing.allowDestroyNonDestroyable = false;
+      }
     }
 
     /// <summary>

@@ -10,7 +10,7 @@ internal sealed class UnitTest_ThingGrid : UnitTest_MapTest
 {
   protected override bool ShouldTest(VehicleDef vehicleDef)
   {
-    return vehicleDef.vehicleType == VehicleType.Land &&
+    return vehicleDef.type == VehicleType.Land &&
       VehiclePathGrid.PassableTerrainCost(vehicleDef, TerrainDefOf.Concrete, out _);
   }
 

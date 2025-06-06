@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using RimWorld;
@@ -15,14 +16,14 @@ namespace Vehicles
   /// </summary>
   [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
   public class VehicleRoleHandler : IExposable, ILoadReferenceable, IThingHolderPawnOverlayer,
-                                    IParallelRenderer
+                                    IParallelRenderer, IComparable<VehicleRoleHandler>
   {
     /// <summary>
     /// innerContainer for role instance
     /// </summary>
     public ThingOwner<Pawn> thingOwner;
 
-    private /* readonly */ string roleKey;
+    private string roleKey;
     public VehicleRole role;
 
     public int uniqueID = -1;
@@ -231,6 +232,28 @@ namespace Vehicles
             label = $"{roleKey} (INVALID)",
           };
         }
+      }
+    }
+
+    int IComparable<VehicleRoleHandler>.CompareTo(VehicleRoleHandler other)
+    {
+      if (other is null)
+        return -1;
+
+      int lhsPriority = GetPriority(role.HandlingTypes);
+      int rhsPriority = GetPriority(other.role.HandlingTypes);
+
+      // Descending order, higher priority comes first
+      return rhsPriority.CompareTo(lhsPriority);
+
+      static int GetPriority(HandlingType type)
+      {
+        int priority = 0;
+        if (type.HasFlag(HandlingType.Movement))
+          priority += 10;
+        if (type.HasFlag(HandlingType.Turret))
+          priority += 1;
+        return priority;
       }
     }
   }

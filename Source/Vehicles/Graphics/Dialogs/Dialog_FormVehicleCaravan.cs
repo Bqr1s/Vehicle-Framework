@@ -556,9 +556,9 @@ namespace Vehicles
            .SelectMany(v => (v as VehiclePawn).AllPawnsAboard).ToList();
 
           if (pawnsFromTransferables.NotNullAndAny(v =>
-              v is VehiclePawn vehicle && vehicle.VehicleDef.vehicleType == VehicleType.Sea)
+              v is VehiclePawn vehicle && vehicle.VehicleDef.type == VehicleType.Sea)
             && pawnsFromTransferables.NotNullAndAny(v =>
-              v is VehiclePawn vehicle && vehicle.VehicleDef.vehicleType == VehicleType.Land))
+              v is VehiclePawn vehicle && vehicle.VehicleDef.type == VehicleType.Land))
           {
             Messages.Message("VF_LandAndSeaRoutePlannerRestriction".Translate(),
               MessageTypeDefOf.RejectInput);
@@ -1113,28 +1113,28 @@ namespace Vehicles
                   if (!map.terrainGrid.TerrainAt(new IntVec3(iV2.x, iV2.y, iV2.z - j)).IsWater)
                     goto IL_0;
                 }
-                break;
+              break;
               case 1:
                 for (int j = 0; j < halfSize; j++)
                 {
                   if (!map.terrainGrid.TerrainAt(new IntVec3(iV2.x - j, iV2.y, iV2.z)).IsWater)
                     goto IL_0;
                 }
-                break;
+              break;
               case 2:
                 for (int j = 0; j < halfSize; j++)
                 {
                   if (!map.terrainGrid.TerrainAt(new IntVec3(iV2.x, iV2.y, iV2.z + j)).IsWater)
                     goto IL_0;
                 }
-                break;
+              break;
               case 3:
                 for (int j = 0; j < halfSize; j++)
                 {
                   if (!map.terrainGrid.TerrainAt(new IntVec3(iV2.x + j, iV2.y, iV2.z)).IsWater)
                     goto IL_0;
                 }
-                break;
+              break;
             }
             spot = iV2;
             return spot.IsValid;

@@ -118,16 +118,16 @@ public class VehicleMod : Mod
 
   private static void InitializeSections()
   {
-    settings.main ??= new Section_Main();
+    settings.main ??= new SectionMain();
     settings.main.Initialize();
 
-    settings.vehicles ??= new Section_Vehicles();
+    settings.vehicles ??= new SectionVehicles();
     settings.vehicles.Initialize();
 
-    settings.upgrades ??= new Section_Upgrade();
+    settings.upgrades ??= new SectionUpgrades();
     settings.upgrades.Initialize();
 
-    settings.debug ??= new Section_Debug();
+    settings.debug ??= new SectionDebug();
     settings.debug.Initialize();
   }
 

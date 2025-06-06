@@ -1077,7 +1077,7 @@ public partial class VehiclePawn
       return true;
     }
 
-    switch (this.VehicleDef.vehicleType)
+    switch (this.VehicleDef.type)
     {
       case VehicleType.Air:
         if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardAirVehicle, selPawn))
@@ -1168,7 +1168,9 @@ public partial class VehiclePawn
 
   public virtual float DoInspectPaneButtons(float x)
   {
-    Rect rect = new Rect(x, 0f, Patch_Misc.IconBarDim, Patch_Misc.IconBarDim);
+    const float IconSize = 30;
+
+    Rect rect = new(x, 0f, IconSize, IconSize);
     float usedWidth = 0;
     if (Nameable)
     {

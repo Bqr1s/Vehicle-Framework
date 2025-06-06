@@ -187,7 +187,8 @@ public class TimedExplosion : IExposable, IParallelRenderer
 
   private void NotifyPawnsOfExplosion()
   {
-    if (!data.notifyNearbyPawns) return;
+    if (!data.notifyNearbyPawns)
+      return;
 
     for (int index1 = 0; index1 < PawnNotifyCellCount; ++index1)
     {
@@ -210,7 +211,6 @@ public class TimedExplosion : IExposable, IParallelRenderer
         }
       }
     }
-
     return;
 
     bool CanNotifyPawn(Pawn pawn)

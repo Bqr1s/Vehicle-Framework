@@ -15,10 +15,10 @@ namespace Vehicles
     public bool showAllCargoItems;
     public bool promptVehicleCollision;
 
-    public Section_Main main = new Section_Main();
-    public Section_Vehicles vehicles = new Section_Vehicles();
-    public Section_Upgrade upgrades = new Section_Upgrade();
-    public Section_Debug debug = new Section_Debug();
+    public SectionMain main = new SectionMain();
+    public SectionVehicles vehicles = new SectionVehicles();
+    public SectionUpgrades upgrades = new SectionUpgrades();
+    public SectionDebug debug = new SectionDebug();
 
     //Color Palettes
     public ColorStorage colorStorage = new ColorStorage();

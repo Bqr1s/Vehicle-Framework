@@ -21,6 +21,7 @@ internal class GeneratorVehicleSkyfallerCrashing : IVehicleDefGenerator<ThingDef
       new ThingDef() :
       DefDatabase<ThingDef>.GetNamed(defName, false) ?? new ThingDef();
     skyfallerCrashingImpliedDef.defName = defName;
+    skyfallerCrashingImpliedDef.modContentPack = vehicleDef.modContentPack;
     skyfallerCrashingImpliedDef.label = $"{vehicleDef.defName}Crashing";
     skyfallerCrashingImpliedDef.thingClass = typeof(VehicleSkyfaller_Crashing);
     skyfallerCrashingImpliedDef.category = ThingCategory.Ethereal;

@@ -12,48 +12,48 @@ using Verse.Sound;
 
 namespace Vehicles;
 
-internal class Gizmos : IPatchCategory
+internal class Patch_Gizmos : IPatchCategory
 {
   public void PatchMethods()
   {
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(Settlement), nameof(Settlement.GetCaravanGizmos)),
       prefix: null,
-      postfix: new HarmonyMethod(typeof(Gizmos),
+      postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(NoAttackSettlementWhenDocked)));
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(Settlement), nameof(Settlement.GetGizmos)),
       prefix: null,
-      postfix: new HarmonyMethod(typeof(Gizmos),
+      postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(AddVehicleCaravanGizmoPassthrough)));
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(FormCaravanComp), nameof(FormCaravanComp.GetGizmos)),
       prefix: null,
-      postfix: new HarmonyMethod(typeof(Gizmos),
+      postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(AddVehicleGizmosPassthrough)));
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(CaravanFormingUtility),
         nameof(CaravanFormingUtility.GetGizmos)), prefix: null,
-      postfix: new HarmonyMethod(typeof(Gizmos),
+      postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(GizmosForVehicleCaravans)));
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(Designator_Build), nameof(Designator_Build.GizmoOnGUI)),
-      prefix: new HarmonyMethod(typeof(Gizmos),
+      prefix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(VehicleMaterialOnBuildGizmo)));
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(BuildCopyCommandUtility),
         nameof(BuildCopyCommandUtility.BuildCopyCommand)),
-      prefix: new HarmonyMethod(typeof(Gizmos),
+      prefix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(VehicleMaterialOnCopyBuildGizmo)));
     VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.GetGizmos)),
       prefix: null,
-      postfix: new HarmonyMethod(typeof(Gizmos),
+      postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(ThingTransferToVehicleGizmo)));
 
     VehicleHarmony.Patch(
       original: AccessTools.Method(typeof(Dialog_InfoCard),
         nameof(Dialog_InfoCard.DoWindowContents)),
-      prefix: new HarmonyMethod(typeof(Gizmos),
+      prefix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(VehicleInfoCardOverride)));
   }
 

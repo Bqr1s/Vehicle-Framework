@@ -20,6 +20,7 @@ internal class GeneratorVehicleSkyfallerLeaving : IVehicleDefGenerator<ThingDef>
       new ThingDef() :
       DefDatabase<ThingDef>.GetNamed(defName, false) ?? new ThingDef();
     skyfallerLeavingImpliedDef.defName = defName;
+    skyfallerLeavingImpliedDef.modContentPack = vehicleDef.modContentPack;
     skyfallerLeavingImpliedDef.label = $"{vehicleDef.defName}Leaving";
     skyfallerLeavingImpliedDef.thingClass = typeof(VehicleSkyfaller_Leaving);
     skyfallerLeavingImpliedDef.category = ThingCategory.Ethereal;

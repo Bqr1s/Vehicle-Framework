@@ -138,7 +138,7 @@ namespace Vehicles
     {
       IntVec3 root;
       Rot4 rot = Rot4.Random;
-      if (vehicleDef.vehicleType == VehicleType.Sea)
+      if (vehicleDef.type == VehicleType.Sea)
       {
         rot = CalculateEdgeToSpawnBoatOn(map);
       }

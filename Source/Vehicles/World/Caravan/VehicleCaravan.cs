@@ -49,7 +49,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
   public bool CanDismount => true;
 
   public bool AerialVehicle =>
-    vehicles.FirstOrDefault()?.VehicleDef.vehicleType == VehicleType.Air;
+    vehicles.FirstOrDefault()?.VehicleDef.type == VehicleType.Air;
 
   public IEnumerable<VehiclePawn> Vehicles => vehicles;
 

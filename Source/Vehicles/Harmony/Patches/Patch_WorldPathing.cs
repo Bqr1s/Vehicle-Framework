@@ -57,7 +57,7 @@ namespace Vehicles
         foreach (VehiclePawn vehicle in vehicleCaravan.VehiclesListForReading)
         {
           if (!WorldVehiclePathGrid.Instance.Passable(tile, vehicle.VehicleDef) ||
-            vehicle.VehicleDef.vehicleType == VehicleType.Air)
+            vehicle.VehicleDef.type == VehicleType.Air)
           {
             return false;
           }

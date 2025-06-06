@@ -23,7 +23,7 @@ internal sealed class UnitTest_StashedVehicle : UnitTest_VehicleTest
 
     VehicleDef vehicleDef =
       DefDatabase<VehicleDef>.AllDefsListForReading.RandomOrDefault(def =>
-        def.vehicleType == VehicleType.Land);
+        def.type == VehicleType.Land);
     Assert.IsNotNull(vehicleDef);
 
     VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);

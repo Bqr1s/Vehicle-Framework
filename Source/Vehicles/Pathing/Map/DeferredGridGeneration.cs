@@ -216,8 +216,12 @@ public class DeferredGridGeneration
   private void GenerateRegionGridFor(VehicleDef vehicleDef)
   {
     VehicleDef ownerDef = mapping.GridOwners.GetOwner(vehicleDef);
-    VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
 
+    // Region grid has already been initialized
+    if (!mapping[vehicleDef].Suspended)
+      return;
+
+    VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
     pathData.VehicleRegionAndRoomUpdater.Init();
     pathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
   }

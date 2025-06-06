@@ -30,7 +30,7 @@ namespace Vehicles
       forcePause = true;
       availableVehicles = Find.Maps.Select(m => m.mapPawns).SelectMany(v =>
           v.AllPawnsSpawned.Where(p =>
-            p is VehiclePawn vehicle && vehicle.VehicleDef.vehicleType != VehicleType.Air))
+            p is VehiclePawn vehicle && vehicle.VehicleDef.type != VehicleType.Air))
        .Cast<VehiclePawn>().ToList();
       availableVehicleDefs = DefDatabase<VehicleDef>.AllDefsListForReading;
     }
@@ -193,8 +193,8 @@ namespace Vehicles
 
       if (Widgets.ButtonText(rect2, "VF_StartVehicleRoutePlanner".Translate()))
       {
-        if (storedVehicleDefs.NotNullAndAny(v => v.vehicleType == VehicleType.Sea) &&
-          storedVehicleDefs.NotNullAndAny(v => v.vehicleType == VehicleType.Land))
+        if (storedVehicleDefs.NotNullAndAny(v => v.type == VehicleType.Sea) &&
+          storedVehicleDefs.NotNullAndAny(v => v.type == VehicleType.Land))
         {
           Messages.Message("VF_LandAndSeaRoutePlannerRestriction".Translate(),
             MessageTypeDefOf.RejectInput);
