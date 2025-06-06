@@ -1,0 +1,26 @@
+{
+  "profiles": {
+    "Debug": {
+      "commandName": "Executable",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "Unstable": {
+      "commandName": "Executable"
+    },
+    "Release": {
+      "commandName": "Executable"
+    },
+    "UnitTest": {
+      "commandName": "Executable",
+      "commandLineArgs": "--pid \"SmashPhil.VehicleFramework\" --where \"Type == MainMenu\"",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "UnitTest"
+      }
+    },
+    "Benchmark": {
+      "commandName": "Executable"
+    }
+  }
+}
