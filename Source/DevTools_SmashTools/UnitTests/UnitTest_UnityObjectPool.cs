@@ -8,7 +8,8 @@ using Verse;
 namespace SmashTools.UnitTesting;
 
 [UnitTest(TestType.MainMenu)]
-[TestDescription("Unity object pool for objects used within the same context.")]
+[TestDescription(
+  "Unity object pool for objects used within the same context.")]
 internal class UnitTest_UnityObjectPool
 {
   private readonly List<GameObject> objectsToDestroy = [];

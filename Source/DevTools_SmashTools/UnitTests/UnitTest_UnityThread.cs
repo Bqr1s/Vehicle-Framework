@@ -3,7 +3,8 @@ using Verse;
 
 namespace SmashTools.UnitTesting;
 
-[UnitTest(TestType.Disabled)]
+[Disabled]
+[UnitTest(TestType.MainMenu)]
 [TestDescription("Synchronization util class for posting actions to the main thread.")]
 internal class UnitTest_UnityThread
 {

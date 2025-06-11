@@ -510,12 +510,13 @@ namespace Vehicles
     /// <returns><c>null</c> if pawn is not currently inside a VehicleCaravan</returns>
     public static VehicleCaravan GetVehicleCaravan(this Pawn pawn)
     {
-      if (pawn.ParentHolder is VehicleRoleHandler handler)
+      IThingHolder current = pawn.ParentHolder;
+      while (current is VehicleRoleHandler handler)
       {
-        return handler.vehicle.GetVehicleCaravan();
+        Assert.AreNotEqual(current, handler.vehicle.ParentHolder);
+        current = handler.vehicle.ParentHolder;
       }
-
-      return pawn.ParentHolder as VehicleCaravan;
+      return current as VehicleCaravan;
     }
 
     /// <summary>

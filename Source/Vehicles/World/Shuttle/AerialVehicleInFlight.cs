@@ -6,6 +6,7 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Vehicles.Rendering;
 using Verse;
 
@@ -145,7 +146,7 @@ namespace Vehicles
     {
       get
       {
-        if (material == null)
+        if (!material)
         {
           material = MaterialPool.MatFrom(VehicleTex.CachedTextureIconPaths.TryGetValue(
               vehicle.VehicleDef,
@@ -579,11 +580,14 @@ namespace Vehicles
     public override void Destroy()
     {
       base.Destroy();
-      if (innerContainer is { Any: true })
+
+      // This should only occur if we're full destroying an aerial vehicle w/ the vehicle
+      // reference still attached.
+      if (vehicle is { Destroyed: false })
       {
-        // Remove any lingering vehicles. This should only occur if we're full destroying an aerial
-        // vehicle w/ the vehicle references still attached.
-        innerContainer.ClearAndDestroyContents();
+        Assert.IsTrue(innerContainer is { Any: true });
+        vehicle.DestroyVehicleAndPawns();
+        innerContainer.Clear();
       }
     }
 

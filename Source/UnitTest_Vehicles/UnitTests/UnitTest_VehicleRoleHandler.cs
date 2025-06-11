@@ -3,11 +3,13 @@ using RimWorld;
 using SmashTools;
 using UnityEngine.Assertions;
 using Verse;
+using DescriptionAttribute = DevTools.UnitTesting.TestDescriptionAttribute;
 
 namespace Vehicles.UnitTesting;
 
 [UnitTest(TestType.Playing)]
-internal sealed class UnitTest_VehicleHandler : UnitTest_MapTest
+[Description("VehicleRoleHandler behavior and all logic surrounding board and disembark.")]
+internal sealed class UnitTest_VehicleRoleHandler : UnitTest_MapTest
 {
   protected override bool ShouldTest(VehicleDef vehicleDef)
   {

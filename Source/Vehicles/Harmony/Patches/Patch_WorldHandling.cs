@@ -20,11 +20,11 @@ namespace Vehicles
         prefix: null,
         postfix: new HarmonyMethod(typeof(Patch_WorldHandling),
           nameof(SituationBoardedVehicle)));
-      VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(WorldPawns),
-          nameof(WorldPawns.RemoveAndDiscardPawnViaGC)),
-        prefix: new HarmonyMethod(typeof(Patch_WorldHandling),
-          nameof(DoNotRemoveVehicleObjects)));
+      //VehicleHarmony.Patch(
+      //  original: AccessTools.Method(typeof(WorldPawns),
+      //    nameof(WorldPawns.RemoveAndDiscardPawnViaGC)),
+      //  prefix: new HarmonyMethod(typeof(Patch_WorldHandling),
+      //    nameof(DoNotRemoveVehicleObjects)));
       VehicleHarmony.Patch(original: AccessTools.Method(typeof(WorldObjectsHolder), "AddToCache"),
         postfix: new HarmonyMethod(typeof(Patch_WorldHandling),
           nameof(AddVehicleObjectToCache)));

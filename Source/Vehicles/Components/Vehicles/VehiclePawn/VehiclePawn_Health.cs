@@ -12,6 +12,7 @@ using Verse.Sound;
 using Verse.AI;
 using Verse.AI.Group;
 using SmashTools;
+using UnityEngine.Assertions;
 
 namespace Vehicles
 {
@@ -170,17 +171,14 @@ namespace Vehicles
 
     public override void DeSpawn(DestroyMode mode = DestroyMode.Vanish)
     {
-      if (vehiclePather != null)
-      {
-        vehiclePather.StopDead();
-      }
+      vehiclePather.StopDead();
       Map.GetCachedMapComponent<VehiclePositionManager>().ReleaseClaimed(this);
       VehicleReservationManager reservationManager =
         Map.GetCachedMapComponent<VehicleReservationManager>();
       reservationManager.ClearReservedFor(this);
       reservationManager.RemoveAllListerFor(this);
-      cargoToLoad
-       .Clear(); //Clear cargo when leaving map, otherwise pawns may attempt to access those items from another map
+      // Clear cargo list when leaving map, otherwise pawns may attempt to access those items from another map
+      cargoToLoad.Clear();
       Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleDespawned(this);
       EventRegistry[VehicleEventDefOf.Despawned].ExecuteEvents();
       base.DeSpawn(mode);
@@ -189,12 +187,14 @@ namespace Vehicles
 
     public override void Destroy(DestroyMode mode = DestroyMode.Vanish)
     {
-      if (Spawned)
-      {
+      // Transfer all pawns to map or world by removing them from vehicles or else
+      // they'll be lost forever.
+      if (AllPawnsAboard.Count > 0)
         DisembarkAll();
-      }
       sustainers.EndAll();
-      //Null check in the event that this vehicle is a world pawn but not in any AerialVehicleInFlight, VehicleCaravan, or spawned on map
+
+      // Null check in the event that this vehicle is a world pawn but not in any
+      // AerialVehicleInFlight, VehicleCaravan, or spawned on map
       EventRegistry?[VehicleEventDefOf.Destroyed].ExecuteEvents();
 
       RGBMaterialPool.Release(this);
@@ -212,6 +212,12 @@ namespace Vehicles
       }
 
       base.Destroy(mode);
+
+      if (Find.WorldPawns.Contains(this))
+      {
+        Find.WorldPawns.RemoveAndDiscardPawnViaGC(this);
+        Assert.IsFalse(Find.WorldPawns.Contains(this));
+      }
     }
 
     public virtual void DestroyPawns(DestroyMode mode = DestroyMode.Vanish)
@@ -236,6 +242,8 @@ namespace Vehicles
     public virtual void DestroyVehicleAndPawns(DestroyMode mode = DestroyMode.Vanish)
     {
       DestroyPawns(mode);
+      // Only destroy vehicle after all contained pawns have been dealt with, otherwise they will
+      // try to be disembarked first to save them from permanent deletion.
       Destroy(mode);
     }
 

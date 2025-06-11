@@ -2,37 +2,40 @@
 using DevTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
-using SmashTools;
 using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles.UnitTesting;
 
 [UnitTest(TestType.Playing)]
+[TestCategory(VehicleTestCategories.WorldPawnGC)]
 internal sealed class UnitTest_StashedVehicle : UnitTest_VehicleTest
 {
-  [Test]
-  private void Recovery()
+  private static VehiclePawn GetTransientVehicleWithPawns(out Pawn colonist, out Pawn animal)
   {
-    CameraJumper.TryShowWorld();
-    Assert.IsTrue(WorldRendererUtility.WorldRendered);
-    Map map = Find.CurrentMap;
-    Assert.IsNotNull(map);
-    World world = Find.World;
-    Assert.IsNotNull(world);
-
     VehicleDef vehicleDef =
-      DefDatabase<VehicleDef>.AllDefsListForReading.RandomOrDefault(def =>
-        def.type == VehicleType.Land);
-    Assert.IsNotNull(vehicleDef);
+      TestDefGenerator.CreateTransientVehicleDef("VehicleDef_StashedVehicle");
+    vehicleDef.properties.roles =
+    [
+      new VehicleRole
+      {
+        key = "Passenger",
+        slots = 1
+      },
+      new VehicleRole
+      {
+        key = "Driver",
+        slots = 1,
+        slotsToOperate = 1,
 
+        handlingTypes = HandlingType.Movement
+      }
+    ];
     VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);
-    Assert.IsNotNull(vehicle);
-
-    Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
+    colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
     Assert.IsNotNull(colonist);
     Assert.IsTrue(colonist.Faction == Faction.OfPlayer);
-    Pawn animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Alphabeaver, Faction.OfPlayer);
+    animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Alphabeaver, Faction.OfPlayer);
     Assert.IsNotNull(animal);
     Assert.IsTrue(animal.Faction == Faction.OfPlayer);
 
@@ -44,6 +47,19 @@ internal sealed class UnitTest_StashedVehicle : UnitTest_VehicleTest
         canMergeWithExistingStacks: false));
     Assert.IsFalse(vehicle.Destroyed);
     Assert.IsFalse(vehicle.Discarded);
+    return vehicle;
+  }
+
+  [Test]
+  private void Recovery()
+  {
+    Map map = Find.CurrentMap;
+    Assert.IsNotNull(map);
+    World world = Find.World;
+    Assert.IsNotNull(world);
+
+    VehiclePawn vehicle = GetTransientVehicleWithPawns(out Pawn colonist, out Pawn animal);
+    Assert.IsNotNull(vehicle);
 
     VehicleCaravan vehicleCaravan =
       CaravanHelper.MakeVehicleCaravan([vehicle], Faction.OfPlayer, map.Tile, true);
@@ -59,9 +75,59 @@ internal sealed class UnitTest_StashedVehicle : UnitTest_VehicleTest
     Expect.IsEmpty(vehicle.AllPawnsAboard, "Vehicle DisembarkAll");
     Expect.IsFalse(vehicle.inventory.innerContainer.Contains(animal), "Animal Not Itemized");
 
+    VehicleCaravan mergedVehicleCaravan = stashedVehicle.Notify_CaravanArrived(caravan);
+    Assert.IsNotNull(mergedVehicleCaravan);
+    Expect.IsTrue(caravan.Destroyed, "Caravan Destroyed");
+    Expect.IsTrue(stashedVehicle.Destroyed, "StashedVehicle Destroyed");
+    Expect.IsTrue(mergedVehicleCaravan.ContainsPawn(vehicle), "Vehicle Merged Into Caravan");
+
+    mergedVehicleCaravan.Destroy();
+    Assert.IsTrue(mergedVehicleCaravan.Destroyed);
+  }
+
+  [Test]
+  private void WorldPawnGC()
+  {
+    Map map = Find.CurrentMap;
+    Assert.IsNotNull(map);
+    World world = Find.World;
+    Assert.IsNotNull(world);
+
+    VehiclePawn vehicle = GetTransientVehicleWithPawns(out _, out _);
+    Assert.IsNotNull(vehicle);
+
+    VehicleCaravan vehicleCaravan =
+      CaravanHelper.MakeVehicleCaravan([vehicle], Faction.OfPlayer, map.Tile, true);
+    vehicleCaravan.Tile = map.Tile;
+
+    StashedVehicle stashedVehicle = StashedVehicle.Create(vehicleCaravan, out Caravan caravan);
+
+    Expect.IsTrue(stashedVehicle.Vehicles.Contains(vehicle), "Vehicle Stashed");
+
     Find.WorldPawns.gc.CancelGCPass();
     _ = Find.WorldPawns.gc.PawnGCPass();
 
+    // Ensure vehicle is not destroyed by GC in stashed vehicle WorldObject
+    Expect.IsFalse(vehicle.Destroyed, "Vehicle GC Destroyed");
+    Expect.IsFalse(vehicle.Discarded, "Vehicle GC Discarded");
+
+    // Sanity check with vanilla caravan and any lingering pawn references that could lead
+    // to unintended pawn destruction from GC
+    foreach (Pawn pawn in caravan.PawnsListForReading)
+    {
+      Expect.IsFalse(pawn.Destroyed, "Passenger GC Destroyed");
+      Expect.IsFalse(pawn.Discarded, "Passenger GC Discarded");
+    }
+
+    VehicleCaravan mergedVehicleCaravan = stashedVehicle.Notify_CaravanArrived(caravan);
+    Assert.IsNotNull(mergedVehicleCaravan);
+    Assert.IsTrue(mergedVehicleCaravan.ContainsPawn(vehicle), "Vehicle Merged Into Caravan");
+
+    Find.WorldPawns.gc.CancelGCPass();
+    _ = Find.WorldPawns.gc.PawnGCPass();
+
+    // Reclaiming stashed vehicle and transforming to VehicleCaravan should still not invoke cleanup
+    // from WorldPawnGC.
     Expect.IsFalse(vehicle.Destroyed, "Vehicle GC Destroyed");
     Expect.IsFalse(vehicle.Discarded, "Vehicle GC Discarded");
 
@@ -71,27 +137,9 @@ internal sealed class UnitTest_StashedVehicle : UnitTest_VehicleTest
       Expect.IsFalse(pawn.Discarded, "Passenger GC Discarded");
     }
 
-    VehicleCaravan mergedVehicleCaravan = stashedVehicle.Notify_CaravanArrived(caravan);
-    Assert.IsNotNull(mergedVehicleCaravan);
-    Expect.IsTrue(caravan.Destroyed, "Caravan Destroyed");
-    Expect.IsTrue(stashedVehicle.Destroyed, "StashedVehicle Destroyed");
-    Expect.IsTrue(mergedVehicleCaravan.ContainsPawn(vehicle), "Vehicle Merged Into Caravan");
-
-    Find.WorldPawns.gc.CancelGCPass();
-    _ = Find.WorldPawns.gc.PawnGCPass();
-
-    Expect.IsFalse(vehicle.Destroyed, "Vehicle GC Destroyed");
-    Expect.IsFalse(vehicle.Discarded, "Vehicle GC Discarded");
-
-    foreach (Pawn pawn in mergedVehicleCaravan.PawnsListForReading)
-    {
-      Expect.IsFalse(pawn.Destroyed, "Passenger GC Destroyed");
-      Expect.IsFalse(pawn.Discarded, "Passenger GC Discarded");
-    }
-
     mergedVehicleCaravan.Destroy();
-    Assert.IsTrue(mergedVehicleCaravan.Destroyed);
-    Find.WorldPawns.RemoveAndDiscardPawnViaGC(vehicle);
+
+    // Vehicle should already be removed from WorldPawns immediately upon destruction
     Assert.IsFalse(Find.WorldPawns.Contains(vehicle));
   }
 }

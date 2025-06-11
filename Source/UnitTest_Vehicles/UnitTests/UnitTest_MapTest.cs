@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using DevTools.UnitTesting;
+using JetBrains.Annotations;
 using RimWorld;
 using SmashTools;
 using UnityEngine;
@@ -17,7 +18,7 @@ internal abstract class UnitTest_MapTest : UnitTest_VehicleTest
   protected IntVec3 root;
   protected List<VehiclePawn> vehicles = [];
 
-  protected virtual Faction Faction => Faction.OfPlayer;
+  protected static Faction Faction => Faction.OfPlayer;
 
   protected virtual bool ShouldTest(VehicleDef vehicleDef)
   {
@@ -39,8 +40,8 @@ internal abstract class UnitTest_MapTest : UnitTest_VehicleTest
       "No vehicles to test with");
     root = map.Center;
 
-    // All map-based tests should be run synchronously, otherwise 
-    // we would have race conditions when validating grids.
+    // All map-based tests should be run synchronously, otherwise we would have race conditions
+    // when validating grids.
     threadDisabler = new ThreadDisabler();
 
     VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
@@ -76,13 +77,9 @@ internal abstract class UnitTest_MapTest : UnitTest_VehicleTest
     public VehicleTestCase(VehiclePawn vehicle, UnitTest_MapTest test)
     {
       this.vehicle = vehicle;
-      this.group = new Test.Group(vehicle.VehicleDef.defName);
-
       VehicleDef vehicleDef = vehicle.VehicleDef;
-      TerrainDef terrainDef = DefDatabase<TerrainDef>.AllDefsListForReading
-       .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _) &&
-          def.affordances.Contains(vehicleDef.buildDef.terrainAffordanceNeeded));
-      DebugHelper.DestroyArea(test.TestArea(vehicleDef), test.map, terrainDef);
+      this.group = new Test.Group(vehicleDef.defName);
+      TestUtils.PrepareArea(test.map, test.TestArea(vehicleDef), vehicleDef);
     }
 
     void IDisposable.Dispose()
@@ -92,15 +89,13 @@ internal abstract class UnitTest_MapTest : UnitTest_VehicleTest
       // Ensure vehicles are completely cleared from caches to not interfere with other tests.
       if (!vehicle.Destroyed)
         vehicle.DestroyVehicleAndPawns();
-
-      Find.WorldPawns.RemoveAndDiscardPawnViaGC(vehicle);
-      Assert.IsFalse(Find.WorldPawns.Contains(vehicle));
     }
   }
 
   /// <summary>
   /// Test class for validating cells within a vehicle's hitbox.
   /// </summary>
+  [UsedImplicitly(ImplicitUseTargetFlags.Members)]
   protected class HitboxTester<T>
   {
     private readonly VehiclePawn vehicle;

@@ -45,12 +45,12 @@ internal sealed class UnitTest_TerrainGrid : UnitTest_MapTest
       VehiclePathGrid pathGrid = pathData.VehiclePathGrid;
 
       // Terrain cost updates
-      SetArea(in terrainArea, passableTerrain);
+      DebugHelper.DestroyArea(terrainArea, map, replaceTerrain: passableTerrain);
       Expect.IsTrue(AreaCost(vehicleDef, pathGrid, in terrainArea, passableTerrain),
         "PathGrid Updated");
 
       // Terrain becomes impassable
-      SetArea(in terrainArea, impassableTerrain);
+      DebugHelper.DestroyArea(terrainArea, map, replaceTerrain: impassableTerrain);
       Expect.IsTrue(AreaCost(vehicleDef, pathGrid, in terrainArea, impassableTerrain),
         "PathGrid Updated");
       Expect.IsFalse(VehiclePathGrid.PassableTerrainCost(vehicleDef, impassableTerrain, out _),
@@ -63,16 +63,11 @@ internal sealed class UnitTest_TerrainGrid : UnitTest_MapTest
         Expect.IsFalse(regionGrid.AnyInvalidRegions, "No Invalid Regions");
 
         // Impassable terrain removal invalidates regions
-        SetArea(in terrainArea, terrainOrig);
+        DebugHelper.DestroyArea(terrainArea, map, replaceTerrain: terrainOrig);
         Expect.IsTrue(Regions(regionGrid, in testArea, true), "RegionGrid Updated");
         Expect.IsFalse(regionGrid.AnyInvalidRegions, "No Invalid Regions");
       }
     }
-  }
-
-  private void SetArea(ref readonly CellRect cellRect, TerrainDef replaceTerrain = null)
-  {
-    DebugHelper.DestroyArea(cellRect, map, replaceTerrain: replaceTerrain);
   }
 
   private static bool AreaCost(VehicleDef vehicleDef, VehiclePathGrid pathGrid,

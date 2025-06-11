@@ -8,7 +8,7 @@ namespace Vehicles.UnitTesting;
 // NOTE (Phillip) - RimWorld hot reloading changes the hash code of the transient def right at the
 // very end.  For this reason, there will be dead objects lost in the material pool. Fixing this
 // would necessitate a patch after hot reloading, which is too much effort for a feature I do not use.
-[UnitTest(TestType.Disabled)]
+[UnitTest(TestType.Playing), Disabled]
 internal sealed class UnitTest_HotReload
 {
   private const string HotReloadSuffix = "_HotReloadedThrowaway";

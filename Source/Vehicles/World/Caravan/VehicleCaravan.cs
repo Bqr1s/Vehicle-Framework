@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using JetBrains.Annotations;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
 
+[PublicAPI]
 [StaticConstructorOnStartup]
 public class VehicleCaravan : Caravan, IVehicleWorldObject
 {
@@ -34,7 +36,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
   // Vehicles in caravan
   private List<VehiclePawn> vehicles = [];
 
-  public VehicleCaravan() : base()
+  public VehicleCaravan()
   {
     vehiclePather = new VehicleCaravan_PathFollower(this);
     vehicleTweener = new VehicleCaravan_Tweener(this);
@@ -76,14 +78,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
 
   public bool Repairing
   {
-    get
-    {
-      if (vehiclePather.Moving)
-      {
-        return false;
-      }
-      return repairing;
-    }
+    get { return !vehiclePather.Moving && repairing; }
     set { repairing = value; }
   }
 
@@ -91,10 +86,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
   {
     get
     {
-      if (leadVehicle is null)
-      {
-        leadVehicle = PawnsListForReading.FirstOrDefault(v => v is VehiclePawn) as VehiclePawn;
-      }
+      leadVehicle ??= PawnsListForReading.FirstOrDefault(v => v is VehiclePawn) as VehiclePawn;
       return leadVehicle;
     }
   }
@@ -126,7 +118,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     {
       foreach (VehiclePawn vehicle in vehicles)
       {
-        if (vehicle.CompFueledTravel != null && vehicle.CompFueledTravel.Fuel <= 0)
+        if (vehicle.CompFueledTravel is { Fuel: <= 0 })
         {
           return true;
         }
@@ -172,90 +164,13 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     WorldHelper.DrawQuadTangentialToPlanet(DrawPos, 0.7f * averageTileSize, 0.015f, Material);
   }
 
-  public void DrawQuadTangentialToPlanet(Vector3 pos, float size, float altOffset,
-    Material material, bool counterClockwise = false, bool useSkyboxLayer = false,
-    MaterialPropertyBlock propertyBlock = null)
-  {
-    if (material == null)
-    {
-      Log.Warning("Tried to draw quad with null material.");
-      return;
-    }
-    Vector3 normalized = pos.normalized;
-    Vector3 vector;
-
-    Vector2 drawSize = new Vector2(LeadVehicle.VehicleDef.graphicData.drawSize.x,
-      LeadVehicle.VehicleDef.graphicData.drawSize.y);
-
-    if (counterClockwise)
-    {
-      vector = -normalized;
-    }
-    else
-    {
-      vector = normalized;
-    }
-    int smallerSide = drawSize.x < drawSize.y ? -1 : 1;
-    float vehicleSizeX;
-    float vehicleSizeY;
-
-    float ratio;
-
-    if (smallerSide == 1)
-    {
-      ratio = drawSize.x / size;
-
-      vehicleSizeX = size;
-      vehicleSizeY = drawSize.y / ratio;
-    }
-    else
-    {
-      ratio = drawSize.y / size;
-
-      vehicleSizeX = drawSize.x / ratio;
-      vehicleSizeY = size;
-    }
-
-    Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) *
-      Quaternion.Euler(0, -90f, 0);
-    //Swapped X and Y due to using Rot4.West
-    //Vector3 s = new Vector3(vehicleSizeY, 1f, vehicleSizeX); 
-    Vector3 s = new Vector3(size, 1f, size);
-    Matrix4x4 matrix = default;
-    matrix.SetTRS(pos + normalized * altOffset, q, s);
-    int layer = useSkyboxLayer ?
-      WorldCameraManager.WorldSkyboxLayer :
-      WorldCameraManager.WorldLayer;
-    if (propertyBlock != null)
-    {
-      Graphics.DrawMesh(MeshPool.plane10, matrix, material, layer, null, 0, propertyBlock);
-      //Graphics.DrawMesh(MeshPool.plane10, matrix, LeadVehicle.VehicleGraphic.MatAt(Rot4.West, LeadVehicle), layer, null, 0, propertyBlock);
-      return;
-    }
-    Graphics.DrawMesh(MeshPool.plane10, matrix, material, layer);
-    //Graphics.DrawMesh(MeshPool.plane10, matrix, LeadVehicle.VehicleGraphic.MatAt(Rot4.West, LeadVehicle), layer);
-    //if (LeadVehicle.CompCannons != null)
-    //{
-    //    Vector3 cPos = pos;
-
-    //    foreach (VehicleTurret cannon in LeadVehicle.CompCannons.Cannons)
-    //    {
-    //        cPos.y += 0.1f;
-    //        Vector3 s2 = new Vector3(cannon.def.graphicData.drawSize.x / ratio, 1f, cannon.def.graphicData.drawSize.y / ratio);
-    //        Quaternion q2 = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) * Quaternion.Euler(0, cannon.defaultAngleRotated, 0);
-    //        matrix.SetTRS(cPos + normalized * altOffset, q2, s2);
-    //        Graphics.DrawMesh(MeshPool.plane10, matrix, cannon.CannonMaterial, layer);
-    //    }
-    //}
-  }
-
   public override IEnumerable<Gizmo> GetGizmos()
   {
     foreach (Gizmo gizmo in base.GetGizmos())
     {
-      if (gizmo is Command command && command.icon == null)
+      if (gizmo is Command command && !command.icon)
       {
-        continue; //skip all vanilla caravan devmode commands
+        continue; // skip all vanilla caravan devmode commands
       }
       yield return gizmo;
     }
@@ -265,21 +180,21 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
       if (AerialVehicle)
       {
         VehiclePawn vehicle = vehicles.FirstOrDefault();
-        Command_Action launchCommand = new Command_Action()
+        Assert.IsNotNull(vehicle);
+        Command_Action launchCommand = new()
         {
           defaultLabel = "CommandLaunchGroup".Translate(),
           defaultDesc = "CommandLaunchGroupDesc".Translate(),
           icon = TexData.LaunchCommandTex,
           alsoClickIfOtherInGroupClicked = false,
-          action = delegate()
+          action = delegate
           {
             void LaunchAction() => LaunchTargeter.BeginTargeting(vehicle,
-              (GlobalTargetInfo target, float fuelCost) =>
+              (target, fuelCost) =>
                 AerialVehicleLaunchHelper.ChoseTargetOnMap(vehicle, Tile, target, fuelCost), Tile,
               true, TexData.TargeterMouseAttachment, closeWorldTabWhenFinished: false,
               onUpdate: null,
-              extraLabelGetter: (GlobalTargetInfo target, List<FlightNode> path,
-                  float fuelCost) =>
+              extraLabelGetter: (target, path, fuelCost) =>
                 vehicle.CompVehicleLauncher.launchProtocol.TargetingLabelGetter(target, Tile,
                   path, fuelCost));
 
@@ -314,7 +229,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
           icon = TexCommand.PauseCaravan,
           hotKey = KeyBindingDefOf.Misc1,
           isActive = () => vehiclePather.Paused,
-          toggleAction = delegate()
+          toggleAction = delegate
           {
             if (!vehiclePather.Moving)
             {
@@ -335,22 +250,23 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
             icon = VehicleTex.RepairVehicles,
             hotKey = KeyBindingDefOf.Misc2,
             isActive = () => !vehiclePather.Moving && repairing && VehiclesNeedRepairs,
-            toggleAction = delegate() { repairing = !repairing; },
+            toggleAction = delegate { repairing = !repairing; },
           };
         }
 
-        Command_Action disembark = new Command_Action();
-        disembark.icon = VehicleTex.StashVehicle;
-        disembark.defaultLabel = "VF_CommandDisembark".Translate();
-        disembark.defaultDesc = "VF_CommandDisembarkDesc".Translate();
-        disembark.action = delegate() { CaravanHelper.StashVehicles(this); };
+        Command_Action disembark = new()
+        {
+          icon = VehicleTex.StashVehicle,
+          defaultLabel = "VF_CommandDisembark".Translate(),
+          defaultDesc = "VF_CommandDisembarkDesc".Translate(),
+          action = delegate { CaravanHelper.StashVehicles(this); }
+        };
 
         // If tile is impassable, normal caravan won't be able to return
         if (Find.World.Impassable(Tile))
         {
           disembark.Disable("VF_CommandDisembarkImpassableBiome".Translate());
         }
-
         yield return disembark;
       }
       foreach (Gizmo gizmo2 in forage.GetGizmos())
@@ -368,8 +284,11 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
 
     foreach (VehiclePawn vehicle in VehiclesListForReading)
     {
-      foreach (VehicleComp vehicleComp in vehicle.AllComps.Where(comp => comp is VehicleComp))
+      foreach (ThingComp thingComp in vehicle.AllComps)
       {
+        if (thingComp is not VehicleComp vehicleComp)
+          continue;
+
         foreach (Gizmo gizmo in vehicleComp.CompCaravanGizmos())
         {
           yield return gizmo;
@@ -382,7 +301,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
       yield return new Command_Action
       {
         defaultLabel = "Vehicle Dev: Teleport to destination",
-        action = delegate()
+        action = delegate
         {
           Tile = vehiclePather.Destination;
           vehiclePather.StopDead();
@@ -391,7 +310,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
       yield return new Command_Action
       {
         defaultLabel = "Repair all Vehicles",
-        action = delegate()
+        action = delegate
         {
           foreach (VehiclePawn vehicle in VehiclesListForReading)
           {
@@ -411,7 +330,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
   public override void Notify_Merged(List<Caravan> group)
   {
     base.Notify_Merged(group);
-    RecacheVehicles();
+    RecacheVehiclesOrConvertCaravan();
     RecacheStatAverages();
   }
 
@@ -423,15 +342,15 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
         "Caravan member died in an unspawned caravan. Unspawned caravans shouldn't be kept for more than a single frame.");
     }
     if (!PawnsListForReading.NotNullAndAny(x =>
-      x is VehiclePawn vehicle && !vehicle.Dead &&
-      vehicle.AllPawnsAboard.NotNullAndAny((Pawn y) => y != member && IsOwner(y))))
+      x is VehiclePawn { Dead: false } vehicle &&
+      vehicle.AllPawnsAboard.NotNullAndAny(pawn => pawn != member && IsOwner(pawn))))
     {
       RemovePawn(member);
       if (Faction == Faction.OfPlayer)
       {
         Find.LetterStack.ReceiveLetter("LetterLabelAllCaravanColonistsDied".Translate(),
           "LetterAllCaravanColonistsDied".Translate(Name).CapitalizeFirst(),
-          LetterDefOf.NegativeEvent, new GlobalTargetInfo(Tile), null, null);
+          LetterDefOf.NegativeEvent, new GlobalTargetInfo(Tile));
       }
       pawns.Clear();
       Destroy();
@@ -444,6 +363,9 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     RecacheStatAverages();
   }
 
+  /// <summary>
+  /// Recache internal vehicle list for quick reading
+  /// </summary>
   public void RecacheVehicles()
   {
     vehicles = pawns.InnerListForReading.Where(pawn => pawn is VehiclePawn).Cast<VehiclePawn>()
@@ -451,6 +373,14 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     allPawns = [.. pawns.InnerListForReading];
     allPawns.AddRange(vehicles.SelectMany(vehicle => vehicle.AllPawnsAboard));
     leadVehicle = null;
+  }
+
+  /// <summary>
+  /// Recache vehicle list and convert to normal caravan if no vehicles remain
+  /// </summary>
+  public void RecacheVehiclesOrConvertCaravan()
+  {
+    RecacheVehicles();
     ValidateCaravanType();
     RecacheStatAverages();
   }
@@ -481,8 +411,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
   public virtual void PostInit()
   {
     initialized = true;
-    RecacheVehicles();
-    ValidateCaravanType();
+    RecacheVehiclesOrConvertCaravan();
   }
 
   /// <summary>
@@ -493,12 +422,14 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     if (initialized && vehicles.NullOrEmpty())
     {
       Debug.Message(
-        $"VehicleCaravan {this} has no more vehicles. Converting to normal caravan. Pawns={string.Join($", ", pawns.InnerListForReading.Select(pawn => pawn.Label))}");
+        $"VehicleCaravan {this} has no more vehicles. Converting to normal caravan. Pawns={string.Join(", ", pawns.InnerListForReading.Select(pawn => pawn.Label))}");
       List<Pawn> pawnsToTransfer = pawns.InnerListForReading.ToList();
       if (!pawnsToTransfer.NullOrEmpty())
       {
+        // base pawn list must be cleared before this Caravan object is ultimately destroyed,
+        // otherwise their references will persist here and they will still get destroyed.
         RemoveAllPawns();
-        Caravan caravan = CaravanMaker.MakeCaravan(pawnsToTransfer, Faction, Tile, true);
+        _ = CaravanMaker.MakeCaravan(pawnsToTransfer, Faction, Tile, true);
       }
       if (!Destroyed)
       {
@@ -507,21 +438,37 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     }
   }
 
+  public override void Destroy()
+  {
+    foreach (VehiclePawn vehicle in vehicles)
+    {
+      while (vehicle.AllPawnsAboard.Count > 0)
+      {
+        Pawn pawn = vehicle.AllPawnsAboard[0];
+        vehicle.RemovePawn(pawn);
+        Assert.IsFalse(pawn.IsWorldPawn());
+        Find.WorldPawns.PassToWorld(pawn);
+      }
+      vehicle.Destroy();
+    }
+    base.Destroy();
+  }
+
   public override string GetInspectString()
   {
-    StringBuilder stringBuilder = new StringBuilder();
+    StringBuilder stringBuilder = new();
 
     int colonists = 0;
     int animals = 0;
     int prisoners = 0;
     int downed = 0;
     int mentalState = 0;
-    int vehicles = 0;
+    int vehicleCount = 0;
 
-    vehicles++;
+    vehicleCount++;
     foreach (Pawn pawn in PawnsListForReading)
     {
-      if (pawn is VehiclePawn) vehicles++;
+      if (pawn is VehiclePawn) vehicleCount++;
       if (pawn.IsColonist) colonists++;
       if (pawn.RaceProps.Animal) animals++;
       if (pawn.IsPrisoner) prisoners++;
@@ -529,25 +476,19 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
       if (pawn.InMentalState) mentalState++;
     }
 
-    if (vehicles >= 1)
+    if (vehicleCount >= 1)
     {
       vehicleCounts.Clear();
       {
         foreach (VehiclePawn vehicle in VehiclesListForReading)
         {
-          if (vehicleCounts.ContainsKey(vehicle.VehicleDef))
-          {
+          if (!vehicleCounts.TryAdd(vehicle.VehicleDef, 1))
             vehicleCounts[vehicle.VehicleDef]++;
-          }
-          else
-          {
-            vehicleCounts[vehicle.VehicleDef] = 1;
-          }
         }
 
-        foreach ((VehicleDef def, int count) in vehicleCounts)
+        foreach ((VehicleDef vehicleDef, int count) in vehicleCounts)
         {
-          stringBuilder.Append($"{count} {def.LabelCap}, ");
+          stringBuilder.Append($"{count} {vehicleDef.LabelCap}, ");
         }
       }
       vehicleCounts.Clear();
@@ -634,14 +575,9 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     else
     {
       Settlement settlementBase = CaravanVisitUtility.SettlementVisitedNow(this);
-      if (!(settlementBase is null))
-      {
-        stringBuilder.Append("CaravanVisiting".Translate(settlementBase.Label));
-      }
-      else
-      {
-        stringBuilder.Append("CaravanWaiting".Translate());
-      }
+      stringBuilder.Append(settlementBase is not null ?
+        "CaravanVisiting".Translate(settlementBase.Label) :
+        "CaravanWaiting".Translate());
     }
     if (vehiclePather.Moving)
     {
@@ -776,13 +712,13 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     }
   }
 
-  public void LearnSkill(SkillDef skillDef, int mothballTicks)
+  private void LearnSkill(SkillDef skillDef, int mothballTicks)
   {
     foreach (Pawn pawn in PawnsListForReading)
     {
       if (pawn.IsColonistPlayerControlled || pawn.IsColonyMechPlayerControlled)
       {
-        pawn.skills?.Learn(skillDef, 0.08f * mothballTicks, false);
+        pawn.skills?.Learn(skillDef, 0.08f * mothballTicks);
         pawn.records.Increment(RecordDefOf.ThingsRepaired);
       }
     }
@@ -800,7 +736,7 @@ public class VehicleCaravan : Caravan, IVehicleWorldObject
     RecacheVehicles();
     vehicleTweener.ResetTweenedPosToRoot();
 
-    //Necessary check for post load, otherwise registry will be null until spawned on map
+    // Necessary check for post load, otherwise registry will be null until spawned on map
     foreach (VehiclePawn vehicle in vehicles)
     {
       vehicle.RegisterEvents();

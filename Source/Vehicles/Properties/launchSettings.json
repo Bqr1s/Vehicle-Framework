@@ -2,24 +2,26 @@
   "profiles": {
     "Debug": {
       "commandName": "Executable",
-      "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Development"
-      }
+      "executablePath": "..\\..\\..\\..\\..\\RimWorld\\RimWorldWin64.exe",
     },
     "Unstable": {
+      "executablePath": "..\\..\\..\\..\\..\\RimWorld\\RimWorldWin64.exe",
       "commandName": "Executable"
     },
     "Release": {
+      "executablePath": "..\\..\\..\\..\\..\\RimWorld\\RimWorldWin64.exe",
       "commandName": "Executable"
     },
     "UnitTest": {
       "commandName": "Executable",
-      "commandLineArgs": "--pid \"SmashPhil.VehicleFramework\" --where \"Type == MainMenu\"",
+      "executablePath": "..\\..\\..\\..\\..\\RimWorld\\RimWorldWin64.exe",
+      "commandLineArgs": "--pid \"SmashPhil.VehicleFramework\" --test",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "UnitTest"
       }
     },
     "Benchmark": {
+      "executablePath": "..\\..\\..\\..\\..\\RimWorld\\RimWorldWin64.exe",
       "commandName": "Executable"
     }
   }

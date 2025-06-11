@@ -14,7 +14,7 @@ internal class Patch_Areas : IPatchCategory
         nameof(AddVehicleAreas)));
     // Back compatibility for maps that were not saved with these area types
     VehicleHarmony.Patch(original: AccessTools.Method(typeof(Map), nameof(Map.FinalizeInit)),
-      postfix: new HarmonyMethod(typeof(ProjectSetup),
+      postfix: new HarmonyMethod(typeof(Patch_Areas),
         nameof(BackfillVehicleAreas)));
   }
 

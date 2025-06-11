@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using UnityEngine;
 using HarmonyLib;
+using JetBrains.Annotations;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -502,6 +503,7 @@ public static class CaravanHelper
   /// <param name="faction"></param>
   /// <param name="startingTile"></param>
   /// <param name="addToWorldPawnsIfNotAlready"></param>
+  [MustUseReturnValue]
   public static VehicleCaravan MakeVehicleCaravan(IEnumerable<Pawn> pawns, Faction faction,
     int startingTile, bool addToWorldPawnsIfNotAlready)
   {
