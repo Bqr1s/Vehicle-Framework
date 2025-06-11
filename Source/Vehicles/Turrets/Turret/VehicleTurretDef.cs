@@ -427,7 +427,7 @@ public class VehicleTurretDef : Def, ITweakFields
     }
     if (chargePerAmmoCount <= 0)
     {
-      yield return "<field>chargePerAmmoCount</field> must be greater than 1.".ConvertRichText();
+      yield return "<field>chargePerAmmoCount</field> must be greater than 0.".ConvertRichText();
     }
     if (ammunition != null)
     {

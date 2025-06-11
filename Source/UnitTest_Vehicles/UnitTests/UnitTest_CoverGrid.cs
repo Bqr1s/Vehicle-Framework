@@ -39,7 +39,7 @@ internal sealed class UnitTest_CoverGrid : UnitTest_MapTest
       vehicle.Rotation = Rot4.North;
 
       // Validate despawning reverts back to thing before vehicle was spawned
-      vehicle.DeSpawn();
+      vehicle.Destroy();
       Expect.IsTrue(coverTester.All(false), "DeSpawned");
     }
   }

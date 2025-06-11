@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <Config>
-  <maxWarningsAllowed>2</maxWarningsAllowed>
-  <maxErrorsAllowed>0</maxErrorsAllowed>
 
-  
+  <retryOnFailure>true</retryOnFailure>
+  <stopOnFailure>true</stopOnFailure>
+
+  <log>
+    <verboseLogging>true</verboseLogging>
+  </log>
 </Config>

@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
 using System.Linq;
+using System.Reflection;
 using DevTools.UnitTesting;
+using HarmonyLib;
 using RimWorld;
-using UnityEngine;
 using UnityEngine.Assertions;
 using Verse;
 
@@ -156,11 +157,64 @@ internal sealed class UnitTest_VehiclePermissions : UnitTest_VehicleTest
   [Test]
   private void GameOverCondition()
   {
+    // GameEnder only applies after first 300 ticks to allow starter pods to land
+    using MockGameTicks gameTicks = new(500);
+    Game game = Current.Game;
+    Assert.IsNotNull(game);
+    GameEnder gameEnder = game.gameEnder;
+    Assert.IsNotNull(gameEnder);
+    Assert.IsFalse(gameEnder.gameEnding);
+
+    manualVehicle.Spawn();
+    Assert.IsTrue(manualVehicle.vehicle.Spawned);
+
+    // Vehicle spawned with pawns on map
+    using (new GameEnderBlock())
+    {
+      manualVehicle.DisembarkAll();
+      gameEnder.CheckOrUpdateGameOver();
+      Expect.IsFalse(gameEnder.gameEnding);
+    }
+
+    // Vehicle spawned with no pawns in map, has passengers
+    using (new GameEnderBlock())
+    {
+      manualVehicle.BoardAll();
+      gameEnder.CheckOrUpdateGameOver();
+      Expect.IsFalse(gameEnder.gameEnding);
+    }
+
+    // Vehicle spawned with no pawns in map, no passengers
+    using (new GameEnderBlock())
+    {
+      manualVehicle.BoardAll();
+      manualVehicle.vehicle.DeSpawn();
+      Assert.IsFalse(manualVehicle.vehicle.Spawned);
+
+      gameEnder.CheckOrUpdateGameOver();
+      Expect.IsTrue(gameEnder.gameEnding);
+    }
+
+    // Autonomous Vehicle spawned with no pawns in map, no passengers
+    using (new GameEnderBlock())
+    {
+      manualVehicle.BoardAll();
+      manualVehicle.vehicle.DeSpawn();
+      Assert.IsFalse(manualVehicle.vehicle.Spawned);
+
+      gameEnder.CheckOrUpdateGameOver();
+      Expect.IsFalse(gameEnder.gameEnding);
+    }
+
+    // Vehicle in caravan with passengers
+
+    // Aerial vehicle with passengers
   }
 
   [Test]
   private void EventMapHolding()
   {
+    // Autonomous Vehicle in map with no passengers
   }
 
   [TearDown]
@@ -175,53 +229,29 @@ internal sealed class UnitTest_VehiclePermissions : UnitTest_VehicleTest
     immobileVehicle = null;
   }
 
-  private class VehicleGroup
+  private readonly struct GameEnderBlock : IDisposable
   {
-    public readonly VehiclePawn vehicle;
-    public readonly List<Pawn> pawns = [];
+    private static readonly FieldInfo ticksToGameOverField;
 
-    public VehicleGroup(VehiclePawn vehicle)
+    private readonly GameEnder gameEnder;
+
+    static GameEnderBlock()
     {
-      this.vehicle = vehicle;
+      ticksToGameOverField = AccessTools.Field(typeof(GameEnder), "ticksToGameOver");
+      Assert.IsNotNull(ticksToGameOverField);
     }
 
-    public void Spawn()
+    public GameEnderBlock(GameEnder gameEnder)
     {
-      VehicleDef vehicleDef = vehicle.VehicleDef;
-      Map map = Find.CurrentMap;
-      IntVec3 spawnCell = map.Center;
-      int maxSize = Mathf.Max(vehicleDef.Size.x, vehicleDef.Size.z);
-      CellRect testArea = CellRect.CenteredOn(spawnCell, maxSize).ExpandedBy(5);
-
-      TerrainDef terrainDef = DefDatabase<TerrainDef>.AllDefsListForReading
-       .FirstOrDefault(def => VehiclePathGrid.PassableTerrainCost(vehicleDef, def, out _) &&
-          def.affordances.Contains(vehicleDef.buildDef.terrainAffordanceNeeded));
-      DebugHelper.DestroyArea(testArea, map, terrainDef);
-
-      GenSpawn.Spawn(vehicle, spawnCell, map, vehicleDef.defaultPlacingRot);
-      BoardAll();
+      this.gameEnder = gameEnder;
+      gameEnder.gameEnding = false;
+      ticksToGameOverField.SetValue(gameEnder, 0);
     }
 
-    public void BoardOne()
+    void IDisposable.Dispose()
     {
-      Assert.IsTrue(vehicle.TryAddPawn(pawns.First()));
-    }
-
-    public void BoardAll()
-    {
-      foreach (Pawn pawn in pawns)
-      {
-        if (!pawn.IsInVehicle())
-          Assert.IsTrue(vehicle.TryAddPawn(pawn));
-      }
-    }
-
-    public void DisembarkAll()
-    {
-      Assert.IsTrue(vehicle.Spawned);
-      vehicle.DisembarkAll();
-      foreach (Pawn pawn in pawns)
-        Assert.IsTrue(pawn.Spawned);
+      gameEnder.gameEnding = false;
+      ticksToGameOverField.SetValue(gameEnder, 0);
     }
   }
 }

@@ -31,16 +31,19 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
   [NumericBoxValues(MinValue = 0, MaxValue = float.MaxValue)]
   public float combatPower = 100;
 
-  // Editing in ModSettings is handled manually as StatModifier list
-  // won't serialize well to the config file in the existing setup.
-  public List<VehicleStatModifier> vehicleStats;
+  // Editing in ModSettings is handled manually as StatModifier list won't serialize well to the
+  // config file in the existing setup.
+  public List<VehicleStatModifier> vehicleStats = [];
 
-  [PostToSettings(Label = "VF_MovementPermissions", Translate = true,
-    UISettingsType = UISettingsType.SliderEnum)]
-  [ActionOnSettingsInput(typeof(VehicleHarmony),
-    nameof(GridOwners.RecacheMoveableVehicleDefs))]
+  // TODO - remove in 1.6
+  #pragma warning disable CS0414
+  //[PostToSettings(Label = "VF_MovementPermissions", Translate = true,
+  //  UISettingsType = UISettingsType.SliderEnum)]
+  //[ActionOnSettingsInput(typeof(VehicleHarmony),
+  //  nameof(GridOwners.RecacheMoveableVehicleDefs))]
   [LoadAlias("vehicleMovementPermissions")]
   private VehiclePermissions movementPermissions = VehiclePermissions.DriverNeeded;
+  #pragma warning restore CS0414
 
   [PostToSettings(Label = "VF_CanCaravan", Translate = true, Tooltip = "VF_CanCaravanTooltip",
     UISettingsType = UISettingsType.Checkbox)]

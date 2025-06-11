@@ -952,21 +952,19 @@ internal class Patch_CaravanHandling : IPatchCategory
   private static void AddPawnInVehicleCaravan(Caravan __instance)
   {
     if (__instance is VehicleCaravan vehicleCaravan)
-    {
-      vehicleCaravan.RecacheVehicles();
-    }
+      vehicleCaravan.RecacheVehiclesOrConvertCaravan();
   }
 
   private static void RemovePawnInVehicleCaravan(Caravan __instance)
   {
     if (__instance is VehicleCaravan vehicleCaravan)
-      vehicleCaravan.RecacheVehicles();
+      vehicleCaravan.RecacheVehiclesOrConvertCaravan();
   }
 
   private static void ClearAllPawnsInVehicleCaravan(Caravan __instance)
   {
     if (__instance is VehicleCaravan vehicleCaravan)
-      vehicleCaravan.RecacheVehicles();
+      vehicleCaravan.RecacheVehiclesOrConvertCaravan();
   }
 
   public static void IsOwnerOfVehicle(Pawn p, Caravan __instance, ref bool __result)

@@ -521,7 +521,8 @@ namespace Vehicles
       Scribe_Deep.Look(ref arrivalAction, nameof(arrivalAction));
       if (Scribe.mode == LoadSaveMode.PostLoadInit)
       {
-        caravan.RecacheVehicles();
+        // If vehicles failed to load, it may no longer be a valid VehicleCaravan
+        caravan.RecacheVehiclesOrConvertCaravan();
         if (Current.ProgramState != ProgramState.Entry && moving &&
           !StartPath(destTile, arrivalAction, true, false))
         {

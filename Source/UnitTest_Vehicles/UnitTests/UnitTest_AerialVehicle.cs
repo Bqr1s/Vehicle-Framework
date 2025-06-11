@@ -10,6 +10,7 @@ using Verse;
 namespace Vehicles.UnitTesting;
 
 [UnitTest(TestType.Playing)]
+[TestCategory(VehicleTestCategories.WorldPawnGC)]
 internal sealed class UnitTest_AerialVehicle : UnitTest_VehicleTest
 {
   private readonly List<AerialVehicleInFlight> aerialVehicles = [];
@@ -26,8 +27,10 @@ internal sealed class UnitTest_AerialVehicle : UnitTest_VehicleTest
 
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
     {
-      if (vehicleDef.type != VehicleType.Air) continue;
-      if (!vehicleDef.properties.roles.NotNullAndAny(role => role.SlotsToOperate > 0)) continue;
+      if (vehicleDef.type != VehicleType.Air)
+        continue;
+      if (!vehicleDef.properties.roles.NotNullAndAny(role => role.SlotsToOperate > 0))
+        continue;
 
       VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, Faction.OfPlayer);
       AerialVehicleInFlight aerialVehicle = AerialVehicleInFlight.Create(vehicle, map.Tile);
@@ -109,6 +112,9 @@ internal sealed class UnitTest_AerialVehicle : UnitTest_VehicleTest
         "Inventory GC destroyed.");
       Expect.None(vehicle.inventory.innerContainer, thing => thing.Discarded,
         "Inventory GC discarded.");
+
+      aerialVehicle.Destroy();
+      Expect.IsFalse(Find.WorldPawns.Contains(aerialVehicle.vehicle));
     }
     return;
 
@@ -124,12 +130,22 @@ internal sealed class UnitTest_AerialVehicle : UnitTest_VehicleTest
     }
   }
 
-  [TearDown, ExecutionPriority(Priority.AboveNormal)]
-  private void DestroyAll()
+  [TearDown, ExecutionPriority(Priority.Last)]
+  private void RemoveAllVehicleWorldPawns()
   {
     foreach (AerialVehicleInFlight aerialVehicle in aerialVehicles)
     {
-      aerialVehicle.Destroy();
+      Expect.IsFalse(VehicleWorldObjectsHolder.Instance.AerialVehicles.Contains(aerialVehicle));
+    }
+    aerialVehicles.Clear();
+
+    foreach (Pawn pawn in Find.World.worldPawns.AllPawnsAlive)
+    {
+      if (pawn is VehiclePawn vehicle)
+      {
+        Find.WorldPawns.RemoveAndDiscardPawnViaGC(vehicle);
+        Expect.IsFalse(Find.WorldPawns.Contains(vehicle));
+      }
     }
   }
 }

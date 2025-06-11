@@ -113,14 +113,8 @@ public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
     {
       foreach (VehiclePawn vehicle in Vehicles)
       {
-        if (vehicleCounts.ContainsKey(vehicle.VehicleDef))
-        {
+        if (!vehicleCounts.TryAdd(vehicle.VehicleDef, 1))
           vehicleCounts[vehicle.VehicleDef]++;
-        }
-        else
-        {
-          vehicleCounts[vehicle.VehicleDef] = 1;
-        }
       }
 
       foreach ((VehicleDef vehicleDef, int count) in vehicleCounts)
@@ -166,6 +160,11 @@ public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
   public static StashedVehicle Create(VehicleCaravan vehicleCaravan, out Caravan caravan,
     List<TransferableOneWay> transferables = null)
   {
+    const float MinTimeoutDays = 15;
+    const float MaxTimeoutDays = 30;
+    const float MinVehicleSize = 1;
+    const float MaxVehicleSize = 10;
+
     caravan = null;
     if (vehicleCaravan.VehiclesListForReading.NullOrEmpty())
     {
@@ -177,13 +176,14 @@ public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
       (StashedVehicle)WorldObjectMaker.MakeWorldObject(WorldObjectDefOfVehicles.StashedVehicle);
     stashedVehicle.Tile = vehicleCaravan.Tile;
 
-    //Calculate days before removal from map
+    // Calculate days before removal from world map
     VehiclePawn largestVehicle =
       vehicleCaravan.VehiclesListForReading.MaxBy(vehicle => vehicle.VehicleDef.Size.Magnitude);
-    float t = Ext_Math.ReverseInterpolate(largestVehicle.VehicleDef.Size.Magnitude, 1, 10);
-    float timeoutDays =
-      25 * Mathf.Lerp(1.2f, 0.8f, t); //20 to 30 days depending on size of vehicle
-    stashedVehicle.GetComponent<TimeoutComp>().StartTimeout(Mathf.CeilToInt(timeoutDays * 60000));
+    float t = Ext_Math.ReverseInterpolate(largestVehicle.VehicleDef.Size.Magnitude, MinVehicleSize,
+      MaxVehicleSize);
+    float timeoutDays = Mathf.Lerp(MinTimeoutDays, MaxTimeoutDays, t);
+    stashedVehicle.GetComponent<TimeoutComp>()
+     .StartTimeout(Mathf.CeilToInt(timeoutDays * GenDate.TicksPerDay));
 
     List<Pawn> inventoryCandidates = [];
 
@@ -237,10 +237,19 @@ public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
     // Transfer vehicles to stashed vehicle object
     for (int i = vehicleCaravan.pawns.Count - 1; i >= 0; i--)
     {
-      Pawn vehiclePawn = vehicleCaravan.pawns[i];
-      vehicleCaravan.pawns.TryTransferToContainer(vehiclePawn, stashedVehicle.stash,
-        canMergeWithExistingStacks: false);
+      Pawn vehicle = vehicleCaravan.pawns[i];
+      if (!vehicleCaravan.pawns.TryTransferToContainer(vehicle, stashedVehicle.stash,
+        canMergeWithExistingStacks: false))
+      {
+        Trace.Fail($"Unable to transfer {vehicle} to stash. Moving to new caravan instead.");
+        vehicleCaravan.RemovePawn(vehicle);
+        caravan.AddPawn(vehicle, true);
+      }
     }
+    // Ensure cached vehicle list is up-to-date otherwise old references will get destroyed
+    // with the caravan
+    vehicleCaravan.RecacheVehicles();
+
     Find.WorldObjects.Add(stashedVehicle);
     Assert.IsTrue(vehicleCaravan.pawns.Count == 0);
     vehicleCaravan.Destroy();

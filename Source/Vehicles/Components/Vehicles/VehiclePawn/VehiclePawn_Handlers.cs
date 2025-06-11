@@ -416,6 +416,20 @@ public partial class VehiclePawn
 
   public void DisembarkPawn(Pawn pawn)
   {
+    Assert.IsTrue(pawn.ParentHolder is VehicleRoleHandler);
+    // In Caravan
+    if (this.GetVehicleCaravan() is { } caravan)
+    {
+      RemovePawn(pawn);
+      caravan.AddPawn(pawn, true);
+      Assert.IsFalse(pawn.IsWorldPawn());
+      Find.WorldPawns.PassToWorld(pawn);
+      return;
+    }
+
+    Assert.IsTrue(Spawned,
+      $"Trying to disembark pawn from unspawned vehicle that is not in a caravan. {pawn} would be lost forever.");
+    // On Map
     if (!pawn.Spawned)
     {
       CellRect occupiedRect = this.OccupiedRect().ExpandedBy(1);
@@ -434,7 +448,6 @@ public partial class VehiclePawn
         pawn.pather.TryRecoverFromUnwalkablePosition(false);
       }
 
-      Lord lord = this.GetLord();
       if (lord is not null)
       {
         pawn.GetLord()?.Notify_PawnLost(pawn, PawnLostCondition.ForcedToJoinOtherLord);
@@ -452,16 +465,14 @@ public partial class VehiclePawn
 
   public void DisembarkAll()
   {
-    if (this.GetVehicleCaravan() is VehicleCaravan caravan && !Spawned)
+    if (this.GetVehicleCaravan() is { } caravan)
     {
-      List<VehicleRoleHandler> handlerList = handlers;
-      for (int i = 0; i < handlerList.Count; i++)
+      foreach (VehicleRoleHandler handler in handlers)
       {
-        VehicleRoleHandler handler = handlerList[i];
         handler.thingOwner.TryTransferAllToContainer(caravan.pawns, false);
       }
     }
-    else
+    else if (Spawned)
     {
       using (new EventDisabler<VehicleEventDef>(this))
       {
@@ -470,9 +481,21 @@ public partial class VehiclePawn
           DisembarkPawn(AllPawnsAboard[i]);
         }
       }
-
       EventRegistry[VehicleEventDefOf.PawnExited].ExecuteEvents();
       Assert.IsTrue(AllPawnsAboard.Count == 0);
+    }
+    else
+    {
+      // Invalid operation but better to send the pawns to world and let the game decide how to
+      // handle them
+      Log.Warning("Disembarking from vehicle when it is not spawned or in a caravan.");
+      foreach (VehicleRoleHandler handler in handlers)
+      {
+        foreach (Pawn pawn in handler.thingOwner)
+        {
+          Find.WorldPawns.PassToWorld(pawn);
+        }
+      }
     }
   }
 
