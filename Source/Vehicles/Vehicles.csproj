@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Vehicles</RootNamespace>
     <AssemblyName>Vehicles</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <LangVersion>preview</LangVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -22,40 +22,45 @@
     <DebugType>portable</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;RAIDERS;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;RAIDERS;DEV_TOOLS;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <NoWarn>CS0649</NoWarn>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>RELEASE;</DefineConstants>
+    <DefineConstants>TRACE;RELEASE;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <Prefer32Bit>false</Prefer32Bit>
     <NoWarn>CS0649</NoWarn>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unstable|AnyCPU' ">
     <OutputPath>..\..\1.5\Assemblies\</OutputPath>
-    <DefineConstants>TRACE;UNSTABLE;RAIDERS</DefineConstants>
-    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;UNSTABLE;RAIDERS;DEV_TOOLS;</DefineConstants>
+    <Optimize>false</Optimize>
     <NoWarn>CS0649</NoWarn>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <LangVersion>preview</LangVersion>
     <ErrorReport>prompt</ErrorReport>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevTools, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\1.5\Assemblies\DevTools.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SmashTools, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -103,7 +108,9 @@
     <Compile Include="AI\JobDrivers\JobDriver_Deploy.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_DisassembleVehicle.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_GiveItemToVehicle.cs" />
+    <Compile Include="AI\JobDrivers\JobDriver_SabotageVehicle.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_WorkVehicle.cs" />
+    <Compile Include="AI\JobGivers\ThinkNode_ExecuteAction.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_ExitMap.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_ExitMapRandom.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_ExitMapBest.cs" />
@@ -112,11 +119,10 @@
     <Compile Include="AI\JobGivers\NPC\JobGiver_RangedSupport.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_CombatFormation.cs" />
     <Compile Include="AI\JobGivers\NPC\JobGiver_SabotageVehicle.cs" />
-    <Compile Include="AI\JobGivers\NPC\JobGiver_VehicleAI.cs" />
-    <Compile Include="AI\JobGivers\NPC\JobGiver_AIBreachWalls.cs" />
-    <Compile Include="AI\Lords\LordJob_SabotageVehicleAndExit.cs" />
+    <Compile Include="AI\JobGivers\NPC\JobGiver_BreachWalls.cs" />
     <Compile Include="AI\Lords\LordToil_PrepareCaravan_GatherAnimalsForVehicles.cs" />
     <Compile Include="AI\ThinkNode\ThinkNode_ConditionalHasTurret.cs" />
+    <Compile Include="AI\ThinkNode\ThinkNode_ConditionalVehicleState.cs" />
     <Compile Include="AI\ThinkNode\ThinkNode_ConditionalVehicle.cs" />
     <Compile Include="AI\WorkGiver\VehicleWorkGiver.cs" />
     <Compile Include="AI\WorkGiver\WorkGiver_CarryToVehicle.cs" />
@@ -128,6 +134,7 @@
     <Compile Include="Components\Rendering\VehicleTrackMaker.cs" />
     <Compile Include="Components\Rendering\VehicleTweener.cs" />
     <Compile Include="Components\Vehicles\AI\TargetCategory.cs" />
+    <Compile Include="Components\Vehicles\AI\VehicleActions.cs" />
     <Compile Include="Components\Vehicles\Health\Reactors\IndicatorDef.cs" />
     <Compile Include="Components\Vehicles\Health\Reactors\Reactor.cs" />
     <Compile Include="Components\Vehicles\Health\Reactors\Reactor_FuelLeak.cs" />
@@ -211,6 +218,8 @@
     <Compile Include="Graphics\ITab\WITab_AerialVehicle.cs" />
     <Compile Include="Graphics\ITab\WITab_AerialVehicle_Health.cs" />
     <Compile Include="Graphics\ITab\WITab_AerialVehicle_Items.cs" />
+    <Compile Include="Harmony\Benchmarking\Benchmark_RegionGridGeneration.cs" />
+    <Compile Include="Harmony\Benchmarking\Benchmark_PathGridGeneration.cs" />
     <Compile Include="Harmony\ConditionalPatches\AerialVehicleCompatibility.cs" />
     <Compile Include="Harmony\ConditionalPatches\Compatibility_CombatExtended.cs" />
     <Compile Include="Harmony\ConditionalPatches\Compatibility_BulkCarrier.cs" />
@@ -228,24 +237,30 @@
     <Compile Include="Harmony\DebugProperties.cs" />
     <Compile Include="Harmony\PatchCategories\Areas.cs" />
     <Compile Include="Harmony\PatchCategories\DefGenerators\ThingDefGenerator_Buildables.cs" />
-    <Compile Include="Harmony\PatchCategories\NPCAI.cs" />
+    <Compile Include="Harmony\PatchCategories\NpcAi.cs" />
     <Compile Include="Harmony\UnitTesting\MaterialPoolWatcher.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\RaidTesting.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestHotReloadDefs.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMaterialPoolDefs.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMaterialPool.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestTerrainGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestRegions.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMapDeinit.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestPathGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestCoverGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestGasGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestVehicleHandler.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestThingGrid.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestPositionManager.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestStashedVehicle.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestAerialVehicle.cs" />
-    <Compile Include="Harmony\UnitTesting\UnitTestMapTest.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_VehicleTest.cs" />
+    <Compile Include="Utility\Performance\ThreadEnabler.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_GridOwners.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_WorldReachability.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_HotReload.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MaterialPoolDefs.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MaterialPool.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_DeferredGeneration.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_SpawnPlacement.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_TerrainGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_Regions.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MapDeinit.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_PathGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_CoverGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_GasGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_VehicleHandler.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_ThingGrid.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_PositionManager.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_StashedVehicle.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_AerialVehicle.cs" />
+    <Compile Include="Harmony\UnitTesting\UnitTest_MapTest.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\WorldTesting.cs" />
     <Compile Include="Harmony\UnitTesting\StartupActions\UITesting.cs" />
     <Compile Include="Misc\Attributes\ActionOnSettingsInputAttribute.cs" />
@@ -266,23 +281,27 @@
     <Compile Include="Misc\Enums\UI\WorldPathingDebugType.cs" />
     <Compile Include="Misc\Enums\Vehicle\UpgradeType.cs" />
     <Compile Include="Misc\Enums\Vehicle\VehicleEMPSeverity.cs" />
-    <Compile Include="Misc\Enums\Vehicle\VehicleStrategy.cs" />
     <Compile Include="Misc\Enums\Vehicle\VehicleTracksFriendlyFire.cs" />
     <Compile Include="Misc\Interfaces\IDebugLordMeetingPoint.cs" />
     <Compile Include="Misc\Interfaces\IMaterialCacheTarget.cs" />
+    <Compile Include="Misc\Interfaces\IPathConfig.cs" />
     <Compile Include="Misc\Interfaces\ISustainerTarget.cs" />
     <Compile Include="Misc\Interfaces\IVehicleWorldObject.cs" />
-    <Compile Include="Pathing\Map\DeferredRegionGenerator.cs" />
-    <Compile Include="Harmony\UnitTesting\ThreadDisabler.cs" />
+    <Compile Include="Pathing\GridOwnerList.cs" />
+    <Compile Include="Pathing\GridOwners.cs" />
+    <Compile Include="Pathing\Map\DeferredGridGeneration.cs" />
+    <Compile Include="Utility\Performance\ThreadDisabler.cs" />
     <Compile Include="Pathing\RegionGrid\ChunkSet.cs" />
     <Compile Include="Pathing\RegionGrid\ConcurrentListerThings.cs" />
-    <Compile Include="Pathing\RegionGrid\GridOwners.cs" />
+    <Compile Include="Pathing\MapGridOwners.cs" />
     <Compile Include="Pathing\RegionGrid\VehicleRegionManager.cs" />
+    <Compile Include="Pathing\WorldGridOwners.cs" />
     <Compile Include="Turrets\Projectiles\Projectile_Deflected.cs" />
     <Compile Include="Turrets\Turret\Rendering\VehicleTurretRenderData.cs" />
     <Compile Include="Turrets\Turret\TargetLock.cs" />
     <Compile Include="Turrets\Turret\TurretComponentRequirement.cs" />
     <Compile Include="CustomFeatures\Upgrades\UpgradeInProgress.cs" />
+    <Compile Include="Turrets\Turret\VehicleTurret_CombatExtended.cs" />
     <Compile Include="Utility\DesignatorCache.cs" />
     <Compile Include="AI\Incidents\IncidentWorker_ShuttleDowned.cs" />
     <Compile Include="AI\JobDrivers\JobDriver_FollowVehicle.cs" />
@@ -293,10 +312,9 @@
     <Compile Include="AI\JobGivers\JobGiver_FollowVehicle.cs" />
     <Compile Include="AI\JobDrivers\Job_Vehicle.cs" />
     <Compile Include="AI\JobGivers\JobGiver_PrepareVehicleCaravan_RopeAnimals.cs" />
-    <Compile Include="AI\Lords\LordJob_ArmoredAssault.cs" />
+    <Compile Include="AI\Lords\Raids\LordJob_ArmoredAssault.cs" />
     <Compile Include="AI\Lords\LordJob_VehicleNPC.cs" />
-    <Compile Include="AI\Lords\LordToil_AssaultColonyArmored.cs" />
-    <Compile Include="AI\Lords\LordToil_AssaultColonyWithArmor.cs" />
+    <Compile Include="AI\Lords\Raids\LordToil_AssaultColonyArmored.cs" />
     <Compile Include="AI\Lords\LordToil_PrepareCaravan_TieAnimalsToVehicle.cs" />
     <Compile Include="AI\Lords\MemoTrigger.cs" />
     <Compile Include="AI\WorkGiver\WorkGiver_PaintVehicle.cs" />
@@ -548,6 +566,7 @@
     <Compile Include="Utility\Helpers\Combat\CombatFormationHelper.cs" />
     <Compile Include="Utility\Helpers\Combat\CombatPositionFinder.cs" />
     <Compile Include="Utility\Helpers\Combat\CombatTargetFinder.cs" />
+    <Compile Include="Utility\Helpers\DebugActions.cs" />
     <Compile Include="Utility\Helpers\RoleHelper.cs" />
     <Compile Include="Utility\Helpers\TranslationHelper.cs" />
     <Compile Include="Utility\Helpers\World\CaravanHelper.cs" />
@@ -563,7 +582,6 @@
     <Compile Include="Utility\Helpers\World\RoadCostHelper.cs" />
     <Compile Include="Utility\Helpers\SelectionHelper.cs" />
     <Compile Include="Utility\Helpers\GizmoHelper.cs" />
-    <Compile Include="Utility\Helpers\ThreadHelper.cs" />
     <Compile Include="Utility\Helpers\SoundHelper.cs" />
     <Compile Include="Utility\Helpers\World\VehicleCaravanPathingHelper.cs" />
     <Compile Include="Utility\Helpers\Rendering\VehicleGraphics.cs" />
@@ -716,7 +734,6 @@
     <Compile Include="World\WorldObjectComps\AirDefense.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="AI\Lords\Raids\" />
     <Folder Include="Components\Rendering\PawnRenderNode\" />
     <Folder Include="Comps\Fishing\" />
     <Folder Include="CustomFeatures\AerialVehicles\Skyfaller\Bombs\" />

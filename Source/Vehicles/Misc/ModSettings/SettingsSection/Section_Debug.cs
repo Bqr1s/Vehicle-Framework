@@ -4,8 +4,8 @@ using System.Linq;
 using LudeonTK;
 using RimWorld;
 using SmashTools;
-using SmashTools.Debugging;
 using SmashTools.Performance;
+using SmashTools.UnitTesting;
 using UnityEngine;
 using UpdateLogTool;
 using Verse;
@@ -102,9 +102,10 @@ public class Section_Debug : SettingsSection
         defaultValue: true);
       Scribe_Values.Look(ref debugLoadAssetBundles, nameof(debugLoadAssetBundles),
         defaultValue: true);
-
-      Scribe_Values.Look(ref debugAllowRaiders, nameof(debugAllowRaiders));
     }
+#if RAIDERS
+    Scribe_Values.Look(ref debugAllowRaiders, nameof(debugAllowRaiders));
+#endif
   }
 
   public override void DrawSection(Rect rect)
@@ -141,7 +142,7 @@ public class Section_Debug : SettingsSection
           ref debugShootAnyTurret, "VF_DevMode_DebugShootAnyTurretTooltip".Translate());
 
         if (shootAnyTurret != debugShootAnyTurret &&
-            Current.ProgramState == ProgramState.Playing && !Find.Maps.NullOrEmpty())
+          Current.ProgramState == ProgramState.Playing && !Find.Maps.NullOrEmpty())
         {
           foreach (Map map in Find.Maps)
           {
@@ -157,11 +158,9 @@ public class Section_Debug : SettingsSection
 
 #if RAIDERS
         listingStandard.CheckboxLabeledWithMessage("Raiders / Traders (Experimental)",
-          delegate(bool value)
-          {
-            return
-              new Message("VF_WillRequireRestart".Translate(), MessageTypeDefOf.CautionInput);
-          }, ref debugAllowRaiders,
+          (value) =>
+            new Message("VF_WillRequireRestart".Translate(), MessageTypeDefOf.CautionInput),
+          ref debugAllowRaiders,
           "Enables vehicle generation for NPCs.\n NOTE: This is an experimental feature. Use at your own risk.");
 #endif
         listingStandard.CheckboxLabeled("VF_DevMode_DebugSpawnVehiclesGodMode".Translate(),
@@ -264,7 +263,7 @@ public class Section_Debug : SettingsSection
 #endif
 
       if (listingStandard.ButtonText("VF_DevMode_LogThreadActivity".Translate(),
-            "VF_DevMode_LogThreadActivityTooltip"))
+        "VF_DevMode_LogThreadActivityTooltip"))
       {
         SoundDefOf.Click.PlayOneShotOnCamera();
         Find.WindowStack.Add(new Dialog_DedicatedThreadActivity(delegate()
@@ -286,130 +285,25 @@ public class Section_Debug : SettingsSection
       }
 
       if (listingStandard.ButtonText("VF_DevMode_DebugPathfinderDebugging".Translate(),
-            "VF_DevMode_DebugPathfinderDebuggingTooltip"))
+        "VF_DevMode_DebugPathfinderDebuggingTooltip"))
       {
         SoundDefOf.Click.PlayOneShotOnCamera();
         RegionDebugMenu();
       }
 
       if (listingStandard.ButtonText("VF_DevMode_DebugWorldPathfinderDebugging".Translate(),
-            "VF_DevMode_DebugWorldPathfinderDebuggingTooltip"))
+        "VF_DevMode_DebugWorldPathfinderDebuggingTooltip"))
       {
         SoundDefOf.Click.PlayOneShotOnCamera();
         WorldPathingDebugMenu();
       }
 
 #if DEBUG
-      if (listingStandard.ButtonText("Unit Tests"))
-      {
-        SoundDefOf.Click.PlayOneShotOnCamera();
-        List<Toggle> toggles =
-        [
-          //new Toggle("All", () => false, (value) => { }, delegate
-          //{
-          //  UnitTestManager.ExecuteUnitTests();
-          //  Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-          //})
-        ];
-
-        foreach (UnitTest test in UnitTestManager.AllUnitTests.OrderBy(test => test.ExecuteOn)
-                  .ThenBy(test => test.Name))
-        {
-          UnitTest.TestType testType = test.ExecuteOn;
-          if (testType == UnitTest.TestType.Disabled) continue;
-
-          Toggle toggle = new(test.Name, UnitTest.TestTypeLabel(testType), () => false,
-            (value) => { },
-            onToggle: delegate
-            {
-              UnitTestManager.Run(test);
-              Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-            });
-          toggles.Add(toggle);
-        }
-
-        foreach (TestPlanDef testPlanDef in DefDatabase<TestPlanDef>.AllDefsListForReading)
-        {
-          Toggle toggle = new(testPlanDef.LabelCap, "Test Plan", () => false, (value) => { },
-            onToggle: delegate
-            {
-              UnitTestManager.RunPlan(testPlanDef);
-              Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-            });
-          toggles.Add(toggle);
-        }
-
-        Find.WindowStack.Add(new Dialog_RadioButtonMenu("Unit Tests", toggles));
-      }
-
       if (listingStandard.ButtonText("Profiling"))
       {
         Find.WindowStack.Add(new Dialog_Profiler());
       }
-
-      if (listingStandard.ButtonText("Output Material Cache"))
-      {
-        SoundDefOf.Click.PlayOneShotOnCamera();
-        RGBMaterialPool.LogAllMaterials();
-      }
-
-      if (listingStandard.ButtonText("Output Owners"))
-      {
-        Map map = Find.CurrentMap;
-        if (map != null)
-        {
-          Log.Message($"Vehicles = {DefDatabase<VehicleDef>.AllDefsListForReading.Count}");
-          foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
-          {
-            Log.Message($"{vehicleDef} DefIndex = {vehicleDef.DefIndex}");
-          }
-
-          Log.Message("-------");
-          VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-          Log.Message($"Total Owners = {GridOwners.AllOwners.Count}");
-          foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
-          {
-            List<VehicleDef> piggies = mapping.GetPiggies(vehicleDef);
-            Log.Message(
-              $"Owner: {vehicleDef} Piggies=({string.Join(",", piggies.Select(def => def.defName))})");
-          }
-        }
-      }
 #endif
-
-      if (listingStandard.ButtonText("Regenerate All Grids"))
-      {
-        LongEventHandler.QueueLongEvent(delegate()
-        {
-          SoundDefOf.Click.PlayOneShotOnCamera();
-          foreach (Map map in Find.Maps)
-          {
-            VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-            mapping.RegenerateGrids(forceRegenerate: true);
-          }
-        }, "Regenerating Regions", true, null);
-      }
-
-      if (listingStandard.ButtonText("Clear Region Cache"))
-      {
-        LongEventHandler.QueueLongEvent(delegate()
-        {
-          SoundDefOf.Click.PlayOneShotOnCamera();
-          foreach (Map map in Find.Maps)
-          {
-            VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-            foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
-            {
-              mapping[vehicleDef].VehicleReachability.ClearCache();
-            }
-          }
-        }, "Clearing Region Cache", false, null);
-      }
-
-      if (listingStandard.ButtonText("Flash Path Costs"))
-      {
-        OpenFlashPathCostsMenu();
-      }
     }
   }
 
@@ -422,7 +316,7 @@ public class Section_Debug : SettingsSection
         VehicleMapping mapComp = map.GetCachedMapComponent<VehicleMapping>();
         if (debugUseMultithreading)
         {
-          mapComp.InitThread(map);
+          mapComp.InitThread();
         }
         else
         {
@@ -432,67 +326,12 @@ public class Section_Debug : SettingsSection
     }
   }
 
-  public void OpenFlashPathCostsMenu()
-  {
-    List<Toggle> vehicleDefToggles = new List<Toggle>();
-    vehicleDefToggles.Add(new Toggle("Vanilla", () => false, (value) => { }, delegate(bool value)
-    {
-      FlashPathCostsFor(null);
-      Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-    }));
-    foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
-                 def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
-                   ignorePostfix: true))
-              .ThenBy(def => def.modContentPack.Name)
-              .ThenBy(d => d.defName))
-    {
-      Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name, () => false,
-        (value) => { }, onToggle: delegate(bool value)
-        {
-          FlashPathCostsFor(vehicleDef);
-          Find.WindowStack.WindowOfType<Dialog_RadioButtonMenu>()?.Close();
-        });
-      toggle.Disabled = !PathingHelper.ShouldCreateRegions(vehicleDef);
-      vehicleDefToggles.Add(toggle);
-    }
-
-    Find.WindowStack.Add(
-      new Dialog_RadioButtonMenu("VF_DevMode_DebugPathfinderDebugging".Translate(),
-        vehicleDefToggles));
-  }
-
-  private void FlashPathCostsFor(VehicleDef vehicleDef)
-  {
-    SoundDefOf.Click.PlayOneShotOnCamera();
-    SoundDefOf.Click.PlayOneShotOnCamera();
-    if (Find.CurrentMap is Map map)
-    {
-      if (vehicleDef == null)
-      {
-        foreach (IntVec3 cell in map.AllCells)
-        {
-          int cost = map.pathing.Normal.pathGrid.PerceivedPathCostAt(cell);
-          map.debugDrawer.FlashCell(cell, cost / 500f, cost.ToString());
-        }
-      }
-      else
-      {
-        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-        foreach (IntVec3 cell in map.AllCells)
-        {
-          int cost = mapping[vehicleDef].VehiclePathGrid.PerceivedPathCostAt(cell);
-          map.debugDrawer.FlashCell(cell, cost / 500f, cost.ToString());
-        }
-      }
-    }
-  }
-
   public void RegionDebugMenu()
   {
     List<Toggle> vehicleDefToggles = new List<Toggle>();
     vehicleDefToggles.Add(new Toggle("None", () => DebugHelper.Local.VehicleDef == null ||
-                                                   DebugHelper.Local.DebugType ==
-                                                   DebugRegionType.None, delegate(bool value)
+      DebugHelper.Local.DebugType ==
+      DebugRegionType.None, delegate(bool value)
     {
       if (value)
       {
@@ -501,10 +340,10 @@ public class Section_Debug : SettingsSection
       }
     }));
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
-                 def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
-                   ignorePostfix: true))
-              .ThenBy(def => def.modContentPack.Name)
-              .ThenBy(d => d.defName))
+        def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
+          ignorePostfix: true))
+     .ThenBy(def => def.modContentPack.Name)
+     .ThenBy(d => d.defName))
     {
       Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name,
         () => DebugHelper.Local.VehicleDef == vehicleDef,
@@ -537,7 +376,7 @@ public class Section_Debug : SettingsSection
     List<Toggle> vehicleDefToggles = [];
     vehicleDefToggles.Add(new Toggle("None",
       () => DebugHelper.World.VehicleDef == null ||
-            DebugHelper.World.DebugType == WorldPathingDebugType.None, delegate(bool value)
+        DebugHelper.World.DebugType == WorldPathingDebugType.None, delegate(bool value)
       {
         if (value)
         {
@@ -546,10 +385,10 @@ public class Section_Debug : SettingsSection
         }
       }));
     foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading.OrderBy(def =>
-                 def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
-                   ignorePostfix: true))
-              .ThenBy(def => def.modContentPack.Name)
-              .ThenBy(d => d.defName))
+        def.modContentPack.ModMetaData.SamePackageId(VehicleHarmony.VehiclesUniqueId,
+          ignorePostfix: true))
+     .ThenBy(def => def.modContentPack.Name)
+     .ThenBy(d => d.defName))
     {
       Toggle toggle = new Toggle(vehicleDef.defName, vehicleDef.modContentPack.Name,
         () => DebugHelper.World.VehicleDef == vehicleDef, (value) => { },
@@ -583,8 +422,8 @@ public class Section_Debug : SettingsSection
     string versionChecking = "Null";
     VehicleHarmony.updates.Clear();
     foreach (UpdateLog log in FileReader.ReadPreviousFiles(VehicleHarmony.VehicleMCP)
-              .OrderByDescending(log =>
-                 Ext_Settings.CombineVersionString(log.UpdateData.currentVersion)))
+     .OrderByDescending(log =>
+        Ext_Settings.CombineVersionString(log.UpdateData.currentVersion)))
     {
       VehicleHarmony.updates.Add(log);
     }

@@ -12,7 +12,7 @@ namespace Vehicles
   //REDO - Rivers
   public static class WorldHelper
   {
-    private static readonly List<Thing> inventoryItems = new List<Thing>();
+    private static readonly List<Thing> inventoryItems = [];
 
     public static bool RiverIsValid(int tile, List<Pawn> vehicles) => true;
 
@@ -87,7 +87,8 @@ namespace Vehicles
       return null;
     }
 
-    public static (WorldObject sourceObject, WorldObject destObject) WorldObjectsAt(int source, int destination)
+    public static (WorldObject sourceObject, WorldObject destObject) WorldObjectsAt(int source,
+      int destination)
     {
       WorldObject sourceObject = null;
       WorldObject destObject = null;
@@ -148,8 +149,10 @@ namespace Vehicles
     /// <param name="tile"></param>
     public static int BestGotoDestForVehicle(VehicleCaravan caravan, int tile)
     {
-      bool CaravanReachable(int t) => caravan.UniqueVehicleDefsInCaravan().All(v => WorldVehiclePathGrid.Instance.Passable(t, v)) &&
-        WorldVehicleReachability.Instance.CanReach(caravan, t);
+      bool CaravanReachable(int t) => caravan.UniqueVehicleDefsInCaravan()
+         .All(v => WorldVehiclePathGrid.Instance.Passable(t, v)) &&
+        WorldVehiclePathGrid.Instance.reachability.CanReach(caravan, t);
+
       if (CaravanReachable(tile))
       {
         return tile;
@@ -164,12 +167,13 @@ namespace Vehicles
     /// <param name="vehicle"></param>
     /// <param name="faction"></param>
     /// <param name="trader"></param>
-    public static Pawn FindBestNegotiator(VehiclePawn vehicle, Faction faction = null, TraderKindDef trader = null)
+    public static Pawn FindBestNegotiator(VehiclePawn vehicle, Faction faction = null,
+      TraderKindDef trader = null)
     {
       Predicate<Pawn> pawnValidator = null;
       if (faction != null)
       {
-        pawnValidator = delegate (Pawn p)
+        pawnValidator = delegate(Pawn p)
         {
           AcceptanceReport report = p.CanTradeWith(faction, trader);
           return report.Accepted;
@@ -184,18 +188,20 @@ namespace Vehicles
     /// <param name="vehicle"></param>
     /// <param name="faction"></param>
     /// <param name="trader"></param>
-    public static Pawn FindBestNegotiator(VehicleCaravan caravan, Faction faction = null, TraderKindDef trader = null)
+    public static Pawn FindBestNegotiator(VehicleCaravan caravan, Faction faction = null,
+      TraderKindDef trader = null)
     {
       Predicate<Pawn> pawnValidator = null;
       if (faction != null)
       {
-        pawnValidator = delegate (Pawn p)
+        pawnValidator = delegate(Pawn p)
         {
           AcceptanceReport report = p.CanTradeWith(faction, trader);
           return report.Accepted;
         };
       }
-      return BestCaravanPawnUtility.FindPawnWithBestStat(caravan, StatDefOf.TradePriceImprovement, pawnValidator: pawnValidator);
+      return BestCaravanPawnUtility.FindPawnWithBestStat(caravan, StatDefOf.TradePriceImprovement,
+        pawnValidator: pawnValidator);
     }
 
     /// <summary>
@@ -207,7 +213,8 @@ namespace Vehicles
       for (int tile = 0; tile < Find.WorldGrid.TilesCount; tile++)
       {
         Vector3 pos = Find.WorldGrid.GetTileCenter(tile);
-        if (Ext_Math.SphericalDistance(worldCoord, pos) <= 0.75f) //0.25 tile length margin of error for quicker calculation
+        if (Ext_Math.SphericalDistance(worldCoord, pos) <=
+          0.75f) //0.25 tile length margin of error for quicker calculation
         {
           return tile;
         }
@@ -238,26 +245,28 @@ namespace Vehicles
       }
 
       List<int> neighbors = new List<int>();
-      return Ext_World.BFS(tile, neighbors, VehicleMod.CoastRadius, result: delegate (int currentTile, int currentRadius)
-      {
-        if (Find.World.CoastDirectionAt(currentTile).IsValid)
+      return Ext_World.BFS(tile, neighbors, VehicleMod.CoastRadius,
+        result: delegate(int currentTile, int currentRadius)
         {
-          if (Find.WorldGrid[currentTile].biome.canBuildBase && Find.WorldGrid[currentTile].biome.implemented &&
-            Find.WorldGrid[currentTile].hilliness != Hilliness.Impassable)
+          if (Find.World.CoastDirectionAt(currentTile).IsValid)
           {
-            if (DebugProperties.debug && faction is not null)
+            if (Find.WorldGrid[currentTile].biome.canBuildBase &&
+              Find.WorldGrid[currentTile].biome.implemented &&
+              Find.WorldGrid[currentTile].hilliness != Hilliness.Impassable)
             {
-              DebugHelper.DebugDrawSettlement(tile, currentTile);
+              if (DebugProperties.debug && faction is not null)
+              {
+                DebugHelper.DebugDrawSettlement(tile, currentTile);
+              }
+              if (faction != null)
+              {
+                DebugHelper.tiles.Add(new Pair<int, int>(currentTile, currentRadius));
+              }
+              return true;
             }
-            if (faction != null)
-            {
-              DebugHelper.tiles.Add(new Pair<int, int>(currentTile, currentRadius));
-            }
-            return true;
           }
-        }
-        return false;
-      });
+          return false;
+        });
     }
 
     /// <summary>
@@ -267,7 +276,8 @@ namespace Vehicles
     /// <param name="size"></param>
     /// <param name="altOffset"></param>
     /// <param name="counterClockwise"></param>
-    public static Matrix4x4 GetWorldQuadAt(Vector3 pos, float size, float altOffset, bool counterClockwise = false)
+    public static Matrix4x4 GetWorldQuadAt(Vector3 pos, float size, float altOffset,
+      bool counterClockwise = false)
     {
       Vector3 normalized = pos.normalized;
       Vector3 vector;
@@ -296,7 +306,9 @@ namespace Vehicles
     /// <param name="counterClockwise"></param>
     /// <param name="useSkyboxLayer"></param>
     /// <param name="propertyBlock"></param>
-    public static void DrawQuadTangentialToPlanet(Vector3 pos, float size, float altOffset, Material material, bool counterClockwise = false, bool useSkyboxLayer = false, MaterialPropertyBlock propertyBlock = null)
+    public static void DrawQuadTangentialToPlanet(Vector3 pos, float size, float altOffset,
+      Material material, bool counterClockwise = false, bool useSkyboxLayer = false,
+      MaterialPropertyBlock propertyBlock = null)
     {
       if (material == null)
       {
@@ -314,11 +326,14 @@ namespace Vehicles
       {
         vector = normalized;
       }
-      Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) * Quaternion.Euler(0, -90f, 0);
+      Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) *
+        Quaternion.Euler(0, -90f, 0);
       Vector3 s = new Vector3(size, 1f, size);
       Matrix4x4 matrix = default;
       matrix.SetTRS(pos + normalized * altOffset, q, s);
-      int layer = useSkyboxLayer ? WorldCameraManager.WorldSkyboxLayer : WorldCameraManager.WorldLayer;
+      int layer = useSkyboxLayer ?
+        WorldCameraManager.WorldSkyboxLayer :
+        WorldCameraManager.WorldLayer;
       if (propertyBlock != null)
       {
         Graphics.DrawMesh(MeshPool.plane10, matrix, material, layer, null, 0, propertyBlock);

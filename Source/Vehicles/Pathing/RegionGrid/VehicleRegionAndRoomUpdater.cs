@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading;
+using DevTools;
 using SmashTools;
 using UnityEngine;
 using Verse;
@@ -11,7 +11,7 @@ namespace Vehicles
   /// <summary>
   /// Region and room update handler
   /// </summary>
-  public class VehicleRegionAndRoomUpdater : VehicleRegionManager
+  public class VehicleRegionAndRoomUpdater : VehicleGridManager
   {
     private readonly List<VehicleRegion> newRegions = [];
 
@@ -48,7 +48,7 @@ namespace Vehicles
     /// <summary>
     /// Updater has finished initial build
     /// </summary>
-    public bool Enabled { get; internal set; }
+    public bool Enabled { get; private set; }
 
     /// <summary>
     /// Anything in RegionGrid that needs to be rebuilt
@@ -64,8 +64,14 @@ namespace Vehicles
 
     public void Init()
     {
+      if (!mapping[createdFor].VehiclePathGrid.Enabled &&
+        !mapping.GridOwners.TryForfeitOwnership(createdFor))
+      {
+        Trace.Fail("Trying to initialize region grids with no vehicle to claim ownership.");
+        return;
+      }
+
       Enabled = true;
-      mapping[createdFor].Suspended = false;
       regionGrid = mapping[createdFor].VehicleRegionGrid;
       regionGrid.Init();
     }
@@ -74,7 +80,6 @@ namespace Vehicles
     {
       Initialized = false;
       Enabled = false;
-      mapping[createdFor].Suspended = true;
       regionGrid.Release();
     }
 
@@ -112,10 +117,9 @@ namespace Vehicles
       UpdatingRegion = true;
       if (!Initialized)
       {
-        RebuildAllVehicleRegions();
+        mapping[createdFor].VehicleRegionDirtyer.SetAllDirty();
       }
-
-      if (!mapping[createdFor].VehicleRegionDirtyer.AnyDirty)
+      else if (!mapping[createdFor].VehicleRegionDirtyer.AnyDirty)
       {
         UpdatingRegion = false;
         return;

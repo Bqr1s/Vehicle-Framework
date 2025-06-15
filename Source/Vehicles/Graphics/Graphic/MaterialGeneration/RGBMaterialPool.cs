@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using HarmonyLib;
-using RimWorld;
-using RimWorld.Planet;
+using LudeonTK;
 using SmashTools;
 using UnityEngine;
 using Verse;
@@ -24,16 +22,14 @@ namespace Vehicles
 
     internal static int TotalMaterials => cache.Values.Sum(mats => mats.Length);
 
-    public static bool TargetCached(IMaterialCacheTarget target) => cache.ContainsKey(target);
+    public static bool TargetCached(IMaterialCacheTarget target)
+    {
+      return cache.ContainsKey(target);
+    }
 
     public static Material[] GetAll(IMaterialCacheTarget target)
     {
-      if (cache.TryGetValue(target, out Material[] materials))
-      {
-        return materials;
-      }
-
-      return null;
+      return cache.TryGetValue(target);
     }
 
     public static Material Get(IMaterialCacheTarget target, Rot8 rot)
@@ -201,9 +197,9 @@ namespace Vehicles
     {
       if (cache.TryGetValue(target, out Material[] materials))
       {
-        for (int i = 0; i < materials.Length; i++)
+        foreach (Material material in materials)
         {
-          Object.Destroy(materials[i]);
+          Object.Destroy(material);
         }
 
         cache.Remove(target);
@@ -219,15 +215,16 @@ namespace Vehicles
     {
       foreach ((_, Material[] materials) in cache)
       {
-        for (int i = 0; i < materials.Length; i++)
+        foreach (Material material in materials)
         {
-          Object.Destroy(materials[i]);
+          Object.Destroy(material);
         }
       }
 
       cache.Clear();
     }
 
+    [DebugOutput(VehicleHarmony.VehiclesLabel)]
     internal static void LogAllMaterials()
     {
       StringBuilder report = new();

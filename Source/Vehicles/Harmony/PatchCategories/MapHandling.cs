@@ -17,36 +17,50 @@ namespace Vehicles
   {
     public void PatchMethods()
     {
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(BeachMaker), nameof(BeachMaker.Init)),
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(BeachMaker), nameof(BeachMaker.Init)),
         transpiler: new HarmonyMethod(typeof(MapHandling),
-        nameof(BeachMakerTranspiler)));
-      VehicleHarmony.Patch(original: AccessTools.Constructor(typeof(RiverMaker), parameters: [typeof(Vector3), typeof(float), typeof(RiverDef)]),
+          nameof(BeachMakerTranspiler)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Constructor(typeof(RiverMaker),
+          parameters: [typeof(Vector3), typeof(float), typeof(RiverDef)]),
         transpiler: new HarmonyMethod(typeof(MapHandling),
-        nameof(RiverMakerTranspiler)));
+          nameof(RiverMakerTranspiler)));
       //Compiler generated method from GenStep_Terrain.GenerateRiverLookupTexture
-      MethodInfo delegateInfo = typeof(GenStep_Terrain).GetNestedTypes(AccessTools.all).SelectMany(AccessTools.GetDeclaredMethods)
-        .First(methodInfo => methodInfo.ReturnType == typeof(float) && methodInfo.GetParameters()[0].ParameterType == typeof(RiverDef));
+      MethodInfo delegateInfo = typeof(GenStep_Terrain).GetNestedTypes(AccessTools.all)
+       .SelectMany(AccessTools.GetDeclaredMethods)
+       .First(methodInfo => methodInfo.ReturnType == typeof(float) &&
+          methodInfo.GetParameters()[0].ParameterType == typeof(RiverDef));
       VehicleHarmony.Patch(original: delegateInfo,
         transpiler: new HarmonyMethod(typeof(MapHandling),
-        nameof(RiverLookupTextureTranspiler)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(TileFinder), nameof(TileFinder.RandomSettlementTileFor)),
+          nameof(RiverLookupTextureTranspiler)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(TileFinder),
+          nameof(TileFinder.RandomSettlementTileFor)),
         transpiler: new HarmonyMethod(typeof(MapHandling),
-        nameof(PushSettlementToCoastTranspiler)));
-      VehicleHarmony.Patch(original: AccessTools.Property(typeof(MapPawns), nameof(MapPawns.AnyPawnBlockingMapRemoval)).GetGetMethod(),
+          nameof(PushSettlementToCoastTranspiler)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Property(typeof(MapPawns), nameof(MapPawns.AnyPawnBlockingMapRemoval))
+         .GetGetMethod(),
         postfix: new HarmonyMethod(typeof(MapHandling),
-        nameof(AnyVehicleBlockingMapRemoval)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(MapDeiniter), "NotifyEverythingWhichUsesMapReference"),
+          nameof(AnyVehicleBlockingMapRemoval)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(MapDeiniter), "NotifyEverythingWhichUsesMapReference"),
         postfix: new HarmonyMethod(typeof(MapHandling),
-        nameof(NotifyEverythingWhichUsesMapReferencePost)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GasGrid), nameof(GasGrid.GasCanMoveTo)),
+          nameof(NotifyEverythingWhichUsesMapReferencePost)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(GasGrid), nameof(GasGrid.GasCanMoveTo)),
         postfix: new HarmonyMethod(typeof(MapHandling),
-        nameof(GasCanMoveThroughVehicle)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(MapInterface), nameof(MapInterface.MapInterfaceUpdate)),
+          nameof(GasCanMoveThroughVehicle)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(MapInterface), nameof(MapInterface.MapInterfaceUpdate)),
         postfix: new HarmonyMethod(typeof(MapHandling),
-        nameof(DebugUpdateVehicleRegions)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(MapInterface), nameof(MapInterface.MapInterfaceOnGUI_AfterMainTabs)),
+          nameof(DebugUpdateVehicleRegions)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(MapInterface),
+          nameof(MapInterface.MapInterfaceOnGUI_AfterMainTabs)),
         postfix: new HarmonyMethod(typeof(MapHandling),
-        nameof(DebugOnGUIVehicleRegions)));
+          nameof(DebugOnGUIVehicleRegions)));
     }
 
     /// <summary>
@@ -54,11 +68,13 @@ namespace Vehicles
     /// </summary>
     /// <param name="instructions"></param>
     /// <returns></returns>
-    private static IEnumerable<CodeInstruction> BeachMakerTranspiler(IEnumerable<CodeInstruction> instructions)
+    private static IEnumerable<CodeInstruction> BeachMakerTranspiler(
+      IEnumerable<CodeInstruction> instructions)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
 
-      MethodInfo propertyGetter = AccessTools.PropertyGetter(typeof(FloatRange), nameof(FloatRange.RandomInRange));
+      MethodInfo propertyGetter =
+        AccessTools.PropertyGetter(typeof(FloatRange), nameof(FloatRange.RandomInRange));
       for (int i = 0; i < instructionList.Count; i++)
       {
         CodeInstruction instruction = instructionList[i];
@@ -69,13 +85,17 @@ namespace Vehicles
           instruction = instructionList[++i]; //FloatRange::get_RandomInRange
           //yield return new CodeInstruction(opcode: OpCodes.Pop);
           yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
-          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(ModSettingsHelper), nameof(ModSettingsHelper.BeachMultiplier)));
+          yield return new CodeInstruction(opcode: OpCodes.Call,
+            operand: AccessTools.Method(typeof(ModSettingsHelper),
+              nameof(ModSettingsHelper.BeachMultiplier)));
         }
+
         yield return instruction;
       }
     }
 
-    private static IEnumerable<CodeInstruction> RiverMakerTranspiler(IEnumerable<CodeInstruction> instructions)
+    private static IEnumerable<CodeInstruction> RiverMakerTranspiler(
+      IEnumerable<CodeInstruction> instructions)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
 
@@ -83,10 +103,12 @@ namespace Vehicles
       for (int i = 0; i < instructionList.Count; i++)
       {
         CodeInstruction instruction = instructionList[i];
-        
+
         if (instruction.LoadsField(widthOnMapField))
         {
-          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(ModSettingsHelper), nameof(ModSettingsHelper.RiverMultiplier)));
+          yield return new CodeInstruction(opcode: OpCodes.Call,
+            operand: AccessTools.Method(typeof(ModSettingsHelper),
+              nameof(ModSettingsHelper.RiverMultiplier)));
           instruction = instructionList[++i]; //Ldfld : RiverDef::widthOnMap
         }
 
@@ -94,7 +116,8 @@ namespace Vehicles
       }
     }
 
-    private static IEnumerable<CodeInstruction> RiverLookupTextureTranspiler(IEnumerable<CodeInstruction> instructions)
+    private static IEnumerable<CodeInstruction> RiverLookupTextureTranspiler(
+      IEnumerable<CodeInstruction> instructions)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
 
@@ -105,7 +128,9 @@ namespace Vehicles
 
         if (instruction.LoadsField(widthOnMapField))
         {
-          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(ModSettingsHelper), nameof(ModSettingsHelper.RiverMultiplier)));
+          yield return new CodeInstruction(opcode: OpCodes.Call,
+            operand: AccessTools.Method(typeof(ModSettingsHelper),
+              nameof(ModSettingsHelper.RiverMultiplier)));
           instruction = instructionList[++i]; //Ldfld : RiverDef::widthOnMap
         }
 
@@ -118,23 +143,27 @@ namespace Vehicles
     /// </summary>
     /// <param name="instructions"></param>
     /// <returns></returns>
-    public static IEnumerable<CodeInstruction> PushSettlementToCoastTranspiler(IEnumerable<CodeInstruction> instructions)
+    public static IEnumerable<CodeInstruction> PushSettlementToCoastTranspiler(
+      IEnumerable<CodeInstruction> instructions)
     {
-
       List<CodeInstruction> instructionList = instructions.ToList();
 
-      for(int i = 0; i < instructionList.Count; i++)
+      for (int i = 0; i < instructionList.Count; i++)
       {
         CodeInstruction instruction = instructionList[i];
 
-        if(instruction.opcode == OpCodes.Ldnull && instructionList[i-1].opcode == OpCodes.Ldloc_1)
+        if (instruction.opcode == OpCodes.Ldnull &&
+          instructionList[i - 1].opcode == OpCodes.Ldloc_1)
         {
           //Call method, grab new location and store
           yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
-          yield return new CodeInstruction(opcode: OpCodes.Call, operand: AccessTools.Method(typeof(WorldHelper), nameof(WorldHelper.PushSettlementToCoast)));
+          yield return new CodeInstruction(opcode: OpCodes.Call,
+            operand: AccessTools.Method(typeof(WorldHelper),
+              nameof(WorldHelper.PushSettlementToCoast)));
           yield return new CodeInstruction(opcode: OpCodes.Stloc_1);
           yield return new CodeInstruction(opcode: OpCodes.Ldloc_1);
         }
+
         yield return instruction;
       }
     }
@@ -144,7 +173,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="__instance"></param>
     /// <param name="__result"></param>
-    public static void AnyVehicleBlockingMapRemoval(MapPawns __instance, ref bool __result, Map ___map)
+    public static void AnyVehicleBlockingMapRemoval(MapPawns __instance, ref bool __result,
+      Map ___map)
     {
       if (__result is false)
       {
@@ -153,16 +183,19 @@ namespace Vehicles
           __result = true;
           return;
         }
+
         if (MapHelper.AnyVehicleSkyfallersBlockingMap(___map))
         {
           __result = true;
           return;
         }
+
         if (MapHelper.AnyAerialVehiclesInRecon(___map))
         {
           __result = true;
           return;
         }
+
         foreach (Pawn pawn in __instance.AllPawnsSpawned)
         {
           if (pawn is VehiclePawn vehicle && vehicle.AllPawnsAboard.NotNullAndAny())
@@ -174,11 +207,14 @@ namespace Vehicles
                 __result = true;
                 return;
               }
-              if (sailor.relations != null && sailor.relations.relativeInvolvedInRescueQuest != null)
+
+              if (sailor.relations != null &&
+                sailor.relations.relativeInvolvedInRescueQuest != null)
               {
                 __result = true;
                 return;
               }
+
               if (sailor.Faction == Faction.OfPlayer || sailor.HostFaction == Faction.OfPlayer)
               {
                 if (sailor.CurJob != null && sailor.CurJob.exitMapOnArrival)
@@ -202,10 +238,11 @@ namespace Vehicles
       {
         Map searchMap = maps[i];
         VehicleMapping mapping = searchMap.GetCachedMapComponent<VehicleMapping>();
-        foreach (VehicleDef owner in GridOwners.AllOwners)
+        foreach (VehicleDef owner in mapping.GridOwners.AllOwners)
         {
           VehicleMapping.VehiclePathData pathData = mapping[owner];
-          foreach (VehicleRegion region in pathData.VehicleRegionGrid.AllRegions_NoRebuild_InvalidAllowed)
+          foreach (VehicleRegion region in pathData.VehicleRegionGrid
+           .AllRegions_NoRebuild_InvalidAllowed)
           {
             if (i == mapIndex)
             {
@@ -224,14 +261,16 @@ namespace Vehicles
     {
       if (__result)
       {
-        VehiclePawn vehicle = ___map.GetCachedMapComponent<VehiclePositionManager>().ClaimedBy(cell);
+        VehiclePawn vehicle =
+          ___map.GetCachedMapComponent<VehiclePositionManager>().ClaimedBy(cell);
         __result = vehicle == null || vehicle.VehicleDef.Fillage != FillCategory.Full;
       }
     }
 
     public static void DebugUpdateVehicleRegions()
     {
-      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow && DebugHelper.AnyDebugSettings)
+      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow &&
+        DebugHelper.AnyDebugSettings)
       {
         DebugHelper.DebugDrawVehicleRegion(Find.CurrentMap);
       }
@@ -239,7 +278,8 @@ namespace Vehicles
 
     public static void DebugOnGUIVehicleRegions()
     {
-      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow && DebugHelper.AnyDebugSettings)
+      if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow &&
+        DebugHelper.AnyDebugSettings)
       {
         DebugHelper.DebugDrawVehiclePathCostsOverlay(Find.CurrentMap);
       }

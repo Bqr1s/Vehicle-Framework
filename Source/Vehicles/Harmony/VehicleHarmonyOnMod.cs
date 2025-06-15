@@ -16,7 +16,7 @@ namespace Vehicles
   {
     static VehicleHarmonyOnMod()
     {
-      Harmony harmony = new Harmony($"{VehicleHarmony.VehiclesUniqueId}_preload");
+      Harmony harmony = new($"{VehicleHarmony.VehiclesUniqueId}_preload");
 
       harmony.Patch(
         original: AccessTools.PropertyGetter(typeof(ShaderTypeDef), nameof(ShaderTypeDef.Shader)),
@@ -35,8 +35,8 @@ namespace Vehicles
       //	postfix: new HarmonyMethod(typeof(VehicleHarmonyOnMod),
       //	nameof(TestDebug)));
 
-      ProjectSetup.onNewGame += GizmoHelper.ResetDesignatorStatuses;
-      ProjectSetup.onLoadGame += GizmoHelper.ResetDesignatorStatuses;
+      GameEvent.onNewGame += GizmoHelper.ResetDesignatorStatuses;
+      GameEvent.onLoadGame += GizmoHelper.ResetDesignatorStatuses;
     }
 
     /// <summary>

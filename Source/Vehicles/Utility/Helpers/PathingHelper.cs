@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevTools;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
@@ -13,33 +14,71 @@ using Verse.AI.Group;
 
 namespace Vehicles
 {
+  [StaticConstructorOnStartup]
   public static class PathingHelper
   {
-    public const string AllowTerrainWithTag = "PassableVehicles";
-    public const string DisallowTerrainWithTag = "ImpassableVehicles";
+    private const string AllowTerrainWithTag = "PassableVehicles";
+    private const string DisallowTerrainWithTag = "ImpassableVehicles";
 
     internal static readonly Dictionary<ThingDef, List<VehicleDef>> regionEffectors = [];
 
     /// <summary>
-    /// VehicleDef , &lt;TerrainDef Tag,pathCost&gt;
+    /// VehicleDef, (TerrainDef, pathCost)
     /// </summary>
-    public static readonly Dictionary<string, Dictionary<string, int>> allTerrainCostsByTag = new Dictionary<string, Dictionary<string, int>>();
+    public static readonly Dictionary<string, Dictionary<string, int>> allTerrainCostsByTag = [];
+
+    internal static AccessTools.FieldRef<RegionAndRoomUpdater, bool> regionAndRoomUpdaterWorking;
+
+    static PathingHelper()
+    {
+      regionAndRoomUpdaterWorking =
+        AccessTools.FieldRefAccess<bool>(typeof(RegionAndRoomUpdater), "working");
+    }
 
     public static bool IsRegionEffector(VehicleDef vehicleDef, ThingDef thingDef)
     {
-      return regionEffectors.TryGetValue(thingDef, out List<VehicleDef> vehicleDefs) && vehicleDefs.Contains(vehicleDef);
+      return regionEffectors.TryGetValue(thingDef, out List<VehicleDef> vehicleDefs) &&
+        vehicleDefs.Contains(vehicleDef);
     }
-
-    /// <summary>
-    /// Quick retrieval of region updating status
-    /// </summary>
-    /// <param name="map"></param>
-    public static bool RegionWorking(Map map) => (bool)AccessTools.Field(typeof(RegionAndRoomUpdater), "working").GetValue(map.regionAndRoomUpdater);
 
     public static bool ShouldCreateRegions(VehicleDef vehicleDef)
     {
-      return SettingsCache.TryGetValue(vehicleDef, typeof(VehicleDef), nameof(vehicleDef.vehicleMovementPermissions), vehicleDef.vehicleMovementPermissions) > VehiclePermissions.NotAllowed;
+      return SettingsCache.TryGetValue(vehicleDef, typeof(VehicleDef),
+          nameof(vehicleDef.vehicleMovementPermissions), vehicleDef.vehicleMovementPermissions) >
+        VehiclePermissions.NotAllowed;
     }
+
+#region Raiders
+
+    public static Thing FirstBlockingBuilding(VehiclePawn vehicle, PawnPath path)
+    {
+      if (!path.Found)
+      {
+        return null;
+      }
+      List<IntVec3> nodesReversed = path.NodesReversed;
+      if (nodesReversed.Count == 1)
+      {
+        return null;
+      }
+      VehicleDef vehicleDef = vehicle.VehicleDef;
+      // -2 since we don't care about vehicle's starting position
+      for (int i = nodesReversed.Count - 2; i >= 0; i--)
+      {
+        Building edifice = nodesReversed[i].GetEdifice(vehicle.Map);
+        if (edifice != null)
+        {
+          bool fenceBlocked = edifice.def.IsFence && !vehicleDef.race.CanPassFences;
+          if (fenceBlocked || IsRegionEffector(vehicleDef, edifice.def))
+          {
+            return edifice;
+          }
+        }
+      }
+      return null;
+    }
+
+#endregion Raiders
 
     public static bool TryGetStandableCell(VehiclePawn vehicle, IntVec3 cell)
     {
@@ -48,18 +87,21 @@ namespace Vehicles
       for (int i = 0; i < num; i++)
       {
         curLoc = GenRadial.RadialPattern[i] + cell;
-        if (GenGridVehicles.Standable(curLoc, vehicle, vehicle.Map) &&
+        if (curLoc.Standable(vehicle, vehicle.Map) &&
           (!VehicleMod.settings.main.fullVehiclePathing || vehicle.DrivableRectOnCell(curLoc)))
         {
           if (curLoc == vehicle.Position || vehicle.beached)
           {
             return false;
           }
+
           return true;
         }
       }
+
       return false;
     }
+
     /// <summary>
     /// Register any <seealso cref="TerrainDef"/>s with tags "PassableVehicles" or "ImpassableVehicles"
     /// </summary>
@@ -99,7 +141,8 @@ namespace Vehicles
           string terrainTag = terrainFlip.Key;
           int pathCost = terrainFlip.Value;
 
-          List<TerrainDef> terrainDefsWithTag = terrainDefs.Where(td => td.tags.NotNullAndAny(tag => tag == terrainTag)).ToList();
+          List<TerrainDef> terrainDefsWithTag = terrainDefs
+           .Where(td => td.tags.NotNullAndAny(tag => tag == terrainTag)).ToList();
           foreach (TerrainDef terrainDef in terrainDefsWithTag)
           {
             vehicleDef.properties.customTerrainCosts[terrainDef] = pathCost;
@@ -111,22 +154,27 @@ namespace Vehicles
     /// <summary>
     /// Load custom path costs from <see cref="CustomCostDefModExtension"/>
     /// </summary>
-    public static void LoadDefModExtensionCosts<T>(Func<VehicleDef, Dictionary<T, int>> dictFromVehicle) where T : Def
+    public static void LoadDefModExtensionCosts<T>(
+      Func<VehicleDef, Dictionary<T, int>> dictFromVehicle) where T : Def
     {
       foreach (T def in DefDatabase<T>.AllDefsListForReading)
       {
-        if (def.GetModExtension<CustomCostDefModExtension>() is CustomCostDefModExtension customCost)
+        if (def.GetModExtension<CustomCostDefModExtension>() is CustomCostDefModExtension
+          customCost)
         {
           if (def is VehicleDef)
           {
-            Debug.Warning($"Attempting to set custom path cost for {def.defName} when vehicles should not be pathing over other vehicles to begin with. Please do not add this DefModExtension to VehicleDefs.");
+            Debug.Warning(
+              $"Attempting to set custom path cost for {def.defName} when vehicles should not be pathing over other vehicles to begin with. Please do not add this DefModExtension to VehicleDefs.");
             continue;
           }
+
           List<VehicleDef> vehicles = customCost.vehicles;
           if (vehicles.NullOrEmpty()) //If no vehicles are specified, apply to all
           {
             vehicles = DefDatabase<VehicleDef>.AllDefsListForReading;
           }
+
           foreach (VehicleDef vehicleDef in vehicles)
           {
             dictFromVehicle(vehicleDef)[def] = Mathf.RoundToInt(customCost.cost);
@@ -135,22 +183,27 @@ namespace Vehicles
       }
     }
 
-    public static void LoadDefModExtensionCosts<T>(Func<VehicleDef, Dictionary<T, float>> dictFromVehicle) where T : Def
+    public static void LoadDefModExtensionCosts<T>(
+      Func<VehicleDef, Dictionary<T, float>> dictFromVehicle) where T : Def
     {
       foreach (T def in DefDatabase<T>.AllDefsListForReading)
       {
-        if (def.GetModExtension<CustomCostDefModExtension>() is CustomCostDefModExtension customCost)
+        if (def.GetModExtension<CustomCostDefModExtension>() is CustomCostDefModExtension
+          customCost)
         {
           if (def is VehicleDef)
           {
-            Debug.Warning($"Attempting to set custom path cost for {def.defName} when vehicles should not be pathing over other vehicles to begin with. Please do not add this DefModExtension to VehicleDefs.");
+            Debug.Warning(
+              $"Attempting to set custom path cost for {def.defName} when vehicles should not be pathing over other vehicles to begin with. Please do not add this DefModExtension to VehicleDefs.");
             continue;
           }
+
           List<VehicleDef> vehicles = customCost.vehicles;
           if (vehicles.NullOrEmpty()) //If no vehicles are specified, apply to all
           {
             vehicles = DefDatabase<VehicleDef>.AllDefsListForReading;
           }
+
           foreach (VehicleDef vehicleDef in vehicles)
           {
             dictFromVehicle(vehicleDef)[def] = customCost.cost;
@@ -200,7 +253,8 @@ namespace Vehicles
     /// <param name="map"></param>
     public static void ThingAffectingRegionsStateChange(Thing thing, Map map, bool spawned)
     {
-      if (regionEffectors.TryGetValue(thing.def, out List<VehicleDef> vehicleDefs) && !vehicleDefs.NullOrEmpty())
+      if (regionEffectors.TryGetValue(thing.def, out List<VehicleDef> vehicleDefs) &&
+        !vehicleDefs.NullOrEmpty())
       {
         VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
         if (mapping.ThreadAvailable)
@@ -208,7 +262,7 @@ namespace Vehicles
           CellRect occupiedRect = thing.OccupiedRect();
           AsyncRegionAction asyncAction = AsyncPool<AsyncRegionAction>.Get();
           asyncAction.Set(mapping, vehicleDefs, occupiedRect, spawned);
-          mapping.dedicatedThread.Queue(asyncAction);
+          mapping.dedicatedThread.Enqueue(asyncAction);
         }
         else
         {
@@ -228,12 +282,13 @@ namespace Vehicles
     /// <summary>
     /// Thread safe event for triggering dirtyer events
     /// </summary>
-    internal static void ThingInRegionSpawned(CellRect occupiedRect, VehicleMapping mapping, List<VehicleDef> vehicleDefs)
+    internal static void ThingInRegionSpawned(CellRect occupiedRect, VehicleMapping mapping,
+      List<VehicleDef> vehicleDefs)
     {
       foreach (VehicleDef vehicleDef in vehicleDefs)
       {
         mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostUnderRect(occupiedRect);
-        if (GridOwners.IsOwner(vehicleDef))
+        if (mapping.GridOwners.IsOwner(vehicleDef))
         {
           mapping[vehicleDef].VehicleRegionDirtyer.NotifyThingAffectingRegionsSpawned(occupiedRect);
           mapping[vehicleDef].VehicleReachability.ClearCache();
@@ -241,14 +296,16 @@ namespace Vehicles
       }
     }
 
-    internal static void ThingInRegionDespawned(CellRect occupiedRect, VehicleMapping mapping, List<VehicleDef> vehicleDefs)
+    internal static void ThingInRegionDespawned(CellRect occupiedRect, VehicleMapping mapping,
+      List<VehicleDef> vehicleDefs)
     {
       foreach (VehicleDef vehicleDef in vehicleDefs)
       {
         mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostUnderRect(occupiedRect);
-        if (GridOwners.IsOwner(vehicleDef))
+        if (mapping.GridOwners.IsOwner(vehicleDef))
         {
-          mapping[vehicleDef].VehicleRegionDirtyer.NotifyThingAffectingRegionsDespawned(occupiedRect);
+          mapping[vehicleDef].VehicleRegionDirtyer
+           .NotifyThingAffectingRegionsDespawned(occupiedRect);
           mapping[vehicleDef].VehicleReachability.ClearCache();
         }
       }
@@ -256,14 +313,15 @@ namespace Vehicles
 
     public static void ThingAffectingRegionsOrientationChanged(Thing thing, Map map)
     {
-      if (regionEffectors.TryGetValue(thing.def, out List<VehicleDef> vehicleDefs) && !vehicleDefs.NullOrEmpty())
+      if (regionEffectors.TryGetValue(thing.def, out List<VehicleDef> vehicleDefs) &&
+        !vehicleDefs.NullOrEmpty())
       {
         VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
         if (mapping.ThreadAvailable)
         {
           AsyncReachabilityCacheAction asyncAction = AsyncPool<AsyncReachabilityCacheAction>.Get();
           asyncAction.Set(mapping, vehicleDefs);
-          mapping.dedicatedThread.Queue(asyncAction);
+          mapping.dedicatedThread.Enqueue(asyncAction);
         }
         else
         {
@@ -272,11 +330,12 @@ namespace Vehicles
       }
     }
 
-    private static void ThingInRegionOrientationChanged(VehicleMapping mapping, List<VehicleDef> vehicleDefs)
+    private static void ThingInRegionOrientationChanged(VehicleMapping mapping,
+      List<VehicleDef> vehicleDefs)
     {
       foreach (VehicleDef vehicleDef in vehicleDefs)
       {
-        if (GridOwners.IsOwner(vehicleDef))
+        if (mapping.GridOwners.IsOwner(vehicleDef))
         {
           mapping[vehicleDef].VehicleReachability.ClearCache();
         }
@@ -285,10 +344,10 @@ namespace Vehicles
 
     public static void RecalculateAllPerceivedPathCosts(Map map)
     {
-      LongEventHandler.ExecuteWhenFinished(delegate ()
+      LongEventHandler.ExecuteWhenFinished(delegate()
       {
         VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
-        if (GridOwners.AnyOwners)
+        if (mapping.GridOwners.AnyOwners)
         {
           RecalculateAllPerceivedPathCosts(mapping);
         }
@@ -299,7 +358,7 @@ namespace Vehicles
     {
       foreach (IntVec3 cell in mapping.map.AllCells)
       {
-        foreach (VehicleDef vehicleDef in GridOwners.AllOwners)
+        foreach (VehicleDef vehicleDef in mapping.GridOwners.AllOwners)
         {
           mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostAt(cell);
         }
@@ -314,14 +373,17 @@ namespace Vehicles
     /// <param name="map"></param>
     public static void RecalculatePerceivedPathCostAt(IntVec3 cell, Map map)
     {
-      if (!GridOwners.AnyOwners) return;
-
       VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(map);
+      Assert.IsNotNull(mapping);
+
+      if (!mapping.GridOwners.AnyOwners)
+        return;
+
       if (mapping.ThreadAvailable)
       {
         AsyncPathingAction asyncAction = AsyncPool<AsyncPathingAction>.Get();
         asyncAction.Set(mapping, cell);
-        mapping.dedicatedThread.Queue(asyncAction);
+        mapping.dedicatedThread.Enqueue(asyncAction);
       }
       else
       {
@@ -333,7 +395,10 @@ namespace Vehicles
     {
       foreach (VehicleDef vehicleDef in VehicleHarmony.AllMoveableVehicleDefs)
       {
-        mapping[vehicleDef].VehiclePathGrid.RecalculatePerceivedPathCostAt(cell);
+        VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
+        if (!pathData.VehiclePathGrid.Enabled) continue;
+
+        pathData.VehiclePathGrid.RecalculatePerceivedPathCostAt(cell);
       }
     }
 
@@ -344,7 +409,8 @@ namespace Vehicles
     /// <param name="cell"></param>
     public static bool VehicleImpassableInCell(Map map, IntVec3 cell)
     {
-      return map.GetCachedMapComponent<VehiclePositionManager>().ClaimedBy(cell) is VehiclePawn vehicle && vehicle.VehicleDef.passability == Traversability.Impassable;
+      return map.GetCachedMapComponent<VehiclePositionManager>().ClaimedBy(cell) is VehiclePawn
+        vehicle && vehicle.VehicleDef.passability == Traversability.Impassable;
     }
 
     /// <see cref="VehicleImpassableInCell(Map, IntVec3)"/>
@@ -353,37 +419,42 @@ namespace Vehicles
       return VehicleImpassableInCell(map, new IntVec3(x, 0, z));
     }
 
-    public static bool TryFindNearestStandableCell(VehiclePawn vehicle, IntVec3 cell, out IntVec3 result, float radius = -1)
+    public static bool TryFindNearestStandableCell(VehiclePawn vehicle, IntVec3 cell,
+      out IntVec3 result, float radius = -1)
     {
       if (radius < 0)
       {
         radius = Mathf.Min(vehicle.VehicleDef.Size.x, vehicle.VehicleDef.Size.z) * 2;
       }
+
       int radialCount = GenRadial.NumCellsInRadius(radius);
       result = IntVec3.Invalid;
       IntVec3 curLoc;
       for (int i = 0; i < radialCount; i++)
       {
         curLoc = GenRadial.RadialPattern[i] + cell;
-        if (GenGridVehicles.Standable(curLoc, vehicle, vehicle.Map) && (!VehicleMod.settings.main.fullVehiclePathing || vehicle.DrivableRectOnCell(curLoc, maxPossibleSize: true)))
+        if (GenGridVehicles.Standable(curLoc, vehicle, vehicle.Map) &&
+          (!VehicleMod.settings.main.fullVehiclePathing ||
+            vehicle.DrivableRectOnCell(curLoc, maxPossibleSize: true)))
         {
           if (curLoc == vehicle.Position || vehicle.beached)
           {
             result = curLoc;
             return true;
           }
-          if (ThreadHelper.AnyVehicleBlockingPathAt(curLoc, vehicle) != null)
-          {
-            continue; //If another vehicle occupies the cell, skip
-          }
-          if (!VehicleReachabilityUtility.CanReachVehicle(vehicle, curLoc, PathEndMode.OnCell, Danger.Deadly, TraverseMode.ByPawn))
-          {
-            continue; //If unreachable (eg. wall), skip
-          }
+
+          // If another vehicle occupies the cell, skip
+          if (AnyVehicleBlockingPathAt(curLoc, vehicle) != null) continue;
+
+          // If unreachable (eg. wall), skip
+          if (!VehicleReachabilityUtility.CanReachVehicle(vehicle, curLoc, PathEndMode.OnCell,
+            Danger.Deadly)) continue;
+
           result = curLoc;
           return true;
         }
       }
+
       return false;
     }
 
@@ -418,15 +489,38 @@ namespace Vehicles
           vehicle.Angle = 0f;
         }
       }
+
       return vehicle.Angle;
+    }
+
+    public static VehiclePawn AnyVehicleBlockingPathAt(IntVec3 cell, VehiclePawn vehicle)
+    {
+      List<Thing> thingList = cell.GetThingList(vehicle.Map);
+      if (thingList.NullOrEmpty()) return null;
+
+      float euclideanDistance = Ext_Map.Distance(vehicle.Position, cell);
+      for (int i = 0; i < thingList.Count; i++)
+      {
+        if (thingList[i] is VehiclePawn otherVehicle && otherVehicle != vehicle)
+        {
+          if (euclideanDistance < 20 || !otherVehicle.vehiclePather.Moving)
+          {
+            return otherVehicle;
+          }
+        }
+      }
+
+      return null;
     }
 
     public static void ExitMapForVehicle(VehiclePawn vehicle, Job job)
     {
-      if (job.failIfCantJoinOrCreateCaravan && !CaravanExitMapUtility.CanExitMapAndJoinOrCreateCaravanNow(vehicle))
+      if (job.failIfCantJoinOrCreateCaravan &&
+        !CaravanExitMapUtility.CanExitMapAndJoinOrCreateCaravanNow(vehicle))
       {
         return;
       }
+
       ExitMap(vehicle, true, CellRect.WholeMap(vehicle.Map).GetClosestEdge(vehicle.Position));
     }
 
@@ -437,21 +531,26 @@ namespace Vehicles
         Log.Warning($"Called ExitMap() on world pawn {vehicle}");
         return;
       }
+
       Ideo ideo = vehicle.Ideo;
       if (ideo != null)
       {
         ideo.Notify_MemberLost(vehicle, vehicle.Map);
       }
-      if (allowedToJoinOrCreateCaravan && CaravanExitMapUtility.CanExitMapAndJoinOrCreateCaravanNow(vehicle))
+
+      if (allowedToJoinOrCreateCaravan &&
+        CaravanExitMapUtility.CanExitMapAndJoinOrCreateCaravanNow(vehicle))
       {
         CaravanExitMapUtility.ExitMapAndJoinOrCreateCaravan(vehicle, exitDir);
         return;
       }
+
       Lord lord = vehicle.GetLord();
       if (lord != null)
       {
         lord.Notify_PawnLost(vehicle, PawnLostCondition.ExitedMap, null);
       }
+
       if (vehicle.carryTracker != null && vehicle.carryTracker.CarriedThing != null)
       {
         Pawn pawn = vehicle.carryTracker.CarriedThing as Pawn;
@@ -467,6 +566,7 @@ namespace Vehicles
             {
               vehicle.carryTracker.innerContainer.Remove(pawn);
             }
+
             pawn.ExitMap(false, exitDir);
           }
         }
@@ -474,25 +574,34 @@ namespace Vehicles
         {
           vehicle.carryTracker.CarriedThing.Destroy(DestroyMode.Vanish);
         }
+
         if (!vehicle.teleporting || pawn == null)
         {
           vehicle.carryTracker.innerContainer.Clear();
         }
       }
-      bool free = !vehicle.IsCaravanMember() && !vehicle.teleporting && !PawnUtility.IsTravelingInTransportPodWorldObject(vehicle) && (!vehicle.IsPrisoner || vehicle.ParentHolder == null || vehicle.ParentHolder is CompShuttle || (vehicle.guest != null && vehicle.guest.Released));
+
+      bool free = !vehicle.IsCaravanMember() && !vehicle.teleporting &&
+        !PawnUtility.IsTravelingInTransportPodWorldObject(vehicle) && (!vehicle.IsPrisoner ||
+          vehicle.ParentHolder == null || vehicle.ParentHolder is CompShuttle ||
+          (vehicle.guest != null && vehicle.guest.Released));
 
       if (vehicle.Faction != null)
       {
         vehicle.Faction.Notify_MemberExitedMap(vehicle, free);
       }
-      if (vehicle.Faction == Faction.OfPlayer && vehicle.IsSlave && vehicle.SlaveFaction != null && vehicle.SlaveFaction != Faction.OfPlayer && vehicle.guest.Released)
+
+      if (vehicle.Faction == Faction.OfPlayer && vehicle.IsSlave && vehicle.SlaveFaction != null &&
+        vehicle.SlaveFaction != Faction.OfPlayer && vehicle.guest.Released)
       {
         vehicle.SlaveFaction.Notify_MemberExitedMap(vehicle, free);
       }
+
       if (vehicle.Spawned)
       {
-        vehicle.DeSpawn(DestroyMode.Vanish);
+        vehicle.DeSpawn();
       }
+
       vehicle.inventory.UnloadEverything = false;
       if (free)
       {
@@ -500,6 +609,7 @@ namespace Vehicles
         vehicle.jobs.StopAll(false, true);
         vehicle.VerifyReservations();
       }
+
       Find.WorldPawns.PassToWorld(vehicle);
       foreach (Thing thing in vehicle.inventory.innerContainer)
       {
@@ -508,6 +618,7 @@ namespace Vehicles
           Find.WorldPawns.PassToWorld(pawn);
         }
       }
+
       QuestUtility.SendQuestTargetSignals(vehicle.questTags, "LeftMap", vehicle.Named("SUBJECT"));
       Find.FactionManager.Notify_PawnLeftMap(vehicle);
       Find.IdeoManager.Notify_PawnLeftMap(vehicle);

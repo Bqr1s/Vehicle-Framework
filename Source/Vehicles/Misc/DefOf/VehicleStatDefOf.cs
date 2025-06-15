@@ -2,25 +2,26 @@
 
 namespace Vehicles
 {
-	[DefOf]
-	public static class VehicleStatDefOf
-	{
-		static VehicleStatDefOf()
-		{
-			DefOfHelper.EnsureInitializedInCtor(typeof(VehicleStatDefOf));
-		}
+  [DefOf]
+  public static class VehicleStatDefOf
+  {
+    static VehicleStatDefOf()
+    {
+      DefOfHelper.EnsureInitializedInCtor(typeof(VehicleStatDefOf));
+    }
 
-		//General
-		public static VehicleStatDef MoveSpeed;
-		public static VehicleStatDef Mass;
-		public static VehicleStatDef CargoCapacity;
-		public static VehicleStatDef RepairRate;
-		public static VehicleStatDef BodyIntegrity;
+    // General
+    public static VehicleStatDef MoveSpeed;
+    public static VehicleStatDef Mass;
+    public static VehicleStatDef CargoCapacity;
+    public static VehicleStatDef RepairRate;
+    public static VehicleStatDef BodyIntegrity;
 
-		//Combat
+    // Combat
+    public static VehicleStatDef WorkToSabotage;
 
-		//Aerial
-		public static VehicleStatDef FlightSpeed;
-		public static VehicleStatDef FlightControl;
-	}
+    // Aerial
+    public static VehicleStatDef FlightSpeed;
+    public static VehicleStatDef FlightControl;
+  }
 }

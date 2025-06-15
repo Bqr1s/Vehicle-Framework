@@ -14,7 +14,7 @@ namespace Vehicles
   /// <summary>
   /// Region dirtyer handler for recaching
   /// </summary>
-  public class VehicleRegionDirtyer : VehicleRegionManager
+  public class VehicleRegionDirtyer : VehicleGridManager
   {
     private VehicleRegionMaker regionMaker;
 
@@ -24,7 +24,8 @@ namespace Vehicles
     // or directly called from PathingHelper (w/ multithreading disabled)
     private readonly HashSet<VehicleRegion> regionsToDirty = [];
 
-    public VehicleRegionDirtyer(VehicleMapping mapping, VehicleDef createdFor) : base(mapping, createdFor)
+    public VehicleRegionDirtyer(VehicleMapping mapping, VehicleDef createdFor) : base(mapping,
+      createdFor)
     {
     }
 
@@ -43,6 +44,7 @@ namespace Vehicles
         {
           yield return cell;
         }
+
         dirtyCells.Clear();
       }
     }
@@ -63,7 +65,8 @@ namespace Vehicles
         dirtyCells.Add(cell);
       }
 
-      foreach (VehicleRegion region in mapping[createdFor].VehicleRegionGrid.AllRegions_NoRebuild_InvalidAllowed)
+      foreach (VehicleRegion region in mapping[createdFor].VehicleRegionGrid
+       .AllRegions_NoRebuild_InvalidAllowed)
       {
         SetRegionDirty(region, addCellsToDirtyCells: false);
       }
@@ -99,9 +102,11 @@ namespace Vehicles
     {
       if (mapping[createdFor].Suspended) return;
 
-      foreach (IntVec3 cell in occupiedRect.ExpandedBy(createdFor.SizePadding + 1).ClipInsideMap(mapping.map))
+      foreach (IntVec3 cell in occupiedRect.ExpandedBy(createdFor.SizePadding + 1)
+       .ClipInsideMap(mapping.map))
       {
-        VehicleRegion validRegion = mapping[createdFor].VehicleRegionGrid.GetValidRegionAt(cell, rebuild: false);
+        VehicleRegion validRegion = mapping[createdFor].VehicleRegionGrid
+         .GetValidRegionAt(cell, rebuild: false);
         if (validRegion != null)
         {
           SetRegionDirty(validRegion);
@@ -113,11 +118,13 @@ namespace Vehicles
     {
       if (mapping[createdFor].Suspended) return;
 
-      foreach (IntVec3 cell in occupiedRect.ExpandedBy(createdFor.SizePadding + 1).ClipInsideMap(mapping.map))
+      foreach (IntVec3 cell in occupiedRect.ExpandedBy(createdFor.SizePadding + 1)
+       .ClipInsideMap(mapping.map))
       {
         if (cell.InBounds(mapping.map))
         {
-          VehicleRegion validRegion = mapping[createdFor].VehicleRegionGrid.GetValidRegionAt(cell, rebuild: false);
+          VehicleRegion validRegion = mapping[createdFor].VehicleRegionGrid
+           .GetValidRegionAt(cell, rebuild: false);
           if (validRegion != null)
           {
             SetRegionDirty(validRegion);
@@ -129,7 +136,8 @@ namespace Vehicles
     /// <summary>
     /// Set <paramref name="region"/> to dirty status, marking it for update
     /// </summary>
-    private void SetRegionDirty(VehicleRegion region, bool addCellsToDirtyCells = true, bool dirtyLinkedRegions = false)
+    private void SetRegionDirty(VehicleRegion region, bool addCellsToDirtyCells = true,
+      bool dirtyLinkedRegions = false)
     {
       try
       {
@@ -146,10 +154,12 @@ namespace Vehicles
           {
             regionMaker.Return(regionLink);
           }
+
           VehicleRegion otherRegion = regionLink.GetOtherRegion(region);
           if (otherRegion != null && dirtyLinkedRegions)
           {
-            SetRegionDirty(otherRegion, addCellsToDirtyCells: addCellsToDirtyCells, dirtyLinkedRegions: false);
+            SetRegionDirty(otherRegion, addCellsToDirtyCells: addCellsToDirtyCells,
+              dirtyLinkedRegions: false);
           }
         }
 

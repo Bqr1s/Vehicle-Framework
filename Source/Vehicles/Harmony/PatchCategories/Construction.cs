@@ -14,27 +14,41 @@ namespace Vehicles
   {
     public void PatchMethods()
     {
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(PawnGenerator), nameof(PawnGenerator.GeneratePawn), parameters: [typeof(PawnGenerationRequest)]),
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(PawnGenerator), nameof(PawnGenerator.GeneratePawn),
+          parameters: [typeof(PawnGenerationRequest)]),
         prefix: new HarmonyMethod(typeof(Construction),
-        nameof(GenerateVehiclePawn)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction)),
+          nameof(GenerateVehiclePawn)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction)),
         prefix: new HarmonyMethod(typeof(Construction),
-        nameof(CompleteConstructionVehicle)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(ListerBuildingsRepairable), nameof(ListerBuildingsRepairable.Notify_BuildingRepaired)),
+          nameof(CompleteConstructionVehicle)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(ListerBuildingsRepairable),
+          nameof(ListerBuildingsRepairable.Notify_BuildingRepaired)),
         prefix: new HarmonyMethod(typeof(Construction),
-        nameof(Notify_RepairedVehicle)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenSpawn), name: nameof(GenSpawn.Spawn), [typeof(Thing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(WipeMode), typeof(bool), typeof(bool)]),
+          nameof(Notify_RepairedVehicle)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(GenSpawn), name: nameof(GenSpawn.Spawn),
+        [
+          typeof(Thing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(WipeMode), typeof(bool),
+          typeof(bool)
+        ]),
         prefix: new HarmonyMethod(typeof(Construction),
-        nameof(RegisterThingSpawned)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(Designator_Deconstruct), nameof(Designator.CanDesignateThing)),
+          nameof(RegisterThingSpawned)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(Designator_Deconstruct),
+          nameof(Designator.CanDesignateThing)),
         postfix: new HarmonyMethod(typeof(Construction),
-        nameof(AllowDeconstructVehicle)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(GenLeaving), nameof(GenLeaving.DoLeavingsFor), [typeof(Thing), typeof(Map), typeof(DestroyMode), typeof(List<Thing>)]),
+          nameof(AllowDeconstructVehicle)));
+      VehicleHarmony.Patch(
+        original: AccessTools.Method(typeof(GenLeaving), nameof(GenLeaving.DoLeavingsFor),
+          [typeof(Thing), typeof(Map), typeof(DestroyMode), typeof(List<Thing>)]),
         prefix: new HarmonyMethod(typeof(Construction),
-        nameof(DoUnsupportedVehicleRefunds)));
+          nameof(DoUnsupportedVehicleRefunds)));
       VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn), nameof(Pawn.Destroy)),
         transpiler: new HarmonyMethod(typeof(Construction),
-        nameof(ValidDestroyModeForVehicles)));
+          nameof(ValidDestroyModeForVehicles)));
     }
 
     private static bool GenerateVehiclePawn(PawnGenerationRequest request, ref Pawn __result)
@@ -44,6 +58,7 @@ namespace Vehicles
         __result = VehicleSpawner.GenerateVehicle(vehicleDef, request.Faction);
         return false;
       }
+
       return true;
     }
 
@@ -60,8 +75,10 @@ namespace Vehicles
         {
           def.soundBuilt.PlayOneShot(new TargetInfo(__instance.Position, map, false));
         }
+
         vehicle.SetFaction(worker.Faction);
-        GenSpawn.Spawn(vehicle, __instance.Position, map, __instance.Rotation, WipeMode.FullRefund, false);
+        GenSpawn.Spawn(vehicle, __instance.Position, map, __instance.Rotation, WipeMode.FullRefund,
+          false);
         worker.records.Increment(RecordDefOf.ThingsConstructed);
 
         if (!DebugSettings.godMode) //quick spawning for development
@@ -81,12 +98,14 @@ namespace Vehicles
         //Tale RecordTale LongConstructionProject?
         return false;
       }
+
       return true;
     }
 
     public static bool Notify_RepairedVehicle(Building b, ListerBuildingsRepairable __instance)
     {
-      if (b is VehicleBuilding building && b.def is VehicleBuildDef vehicleDef && vehicleDef.thingToSpawn != null)
+      if (b is VehicleBuilding building && b.def is VehicleBuildDef vehicleDef &&
+        vehicleDef.thingToSpawn != null)
       {
         if (b.HitPoints < b.MaxHitPoints)
           return true;
@@ -106,20 +125,24 @@ namespace Vehicles
         IntVec3 position = b.Position;
         Rot4 rotation = b.Rotation;
 
-        AccessTools.Method(typeof(ListerBuildingsRepairable), "UpdateBuilding").Invoke(__instance, new object[] { b });
+        AccessTools.Method(typeof(ListerBuildingsRepairable), "UpdateBuilding")
+         .Invoke(__instance, new object[] { b });
         if (vehicleDef.soundBuilt != null)
         {
           vehicleDef.soundBuilt.PlayOneShot(new TargetInfo(position, map, false));
         }
+
         if (vehicle.Faction != Faction.OfPlayer)
         {
           vehicle.SetFaction(Faction.OfPlayer);
         }
+
         b.Destroy(DestroyMode.Vanish);
         vehicle.ForceSetStateToUnspawned();
         GenSpawn.Spawn(vehicle, position, map, rotation, WipeMode.FullRefund, false);
         return false;
       }
+
       return true;
     }
 
@@ -133,138 +156,207 @@ namespace Vehicles
     /// <param name="__result"></param>
     /// <param name="wipeMode"></param>
     /// <param name="respawningAfterLoad"></param>
-    public static bool RegisterThingSpawned(Thing newThing, ref IntVec3 loc, Map map, ref Rot4 rot, ref Thing __result,
-      WipeMode wipeMode, bool respawningAfterLoad)
+    public static bool RegisterThingSpawned(Thing newThing, ref IntVec3 loc, Map map, ref Rot4 rot,
+      ref Thing __result, bool respawningAfterLoad)
     {
-      if (newThing.def is VehicleBuildDef def)
+      if (newThing.def is VehicleBuildDef buildDef &&
+        !VehicleMod.settings.debug.debugSpawnVehicleBuildingGodMode &&
+        newThing.HitPoints == newThing.MaxHitPoints && !respawningAfterLoad)
       {
-        if (!VehicleMod.settings.debug.debugSpawnVehicleBuildingGodMode && newThing.HitPoints == newThing.MaxHitPoints)
-        {
-          VehiclePawn vehiclePawn = VehicleSpawner.GenerateVehicle(def.thingToSpawn, newThing.Faction);
-
-          if (def.soundBuilt != null)
-          {
-            def.soundBuilt.PlayOneShot(new TargetInfo(loc, map, false));
-          }
-          VehiclePawn vehicleSpawned = (VehiclePawn)GenSpawn.Spawn(vehiclePawn, loc, map, rot, WipeMode.FullRefund, false);
-
-          if (!DebugSettings.godMode) //quick spawning for development
-          {
-            vehicleSpawned.Rename();
-          }
-          else
-          {
-            foreach (VehicleComp vehicleComp in vehicleSpawned.AllComps.Where(comp => comp is VehicleComp))
-            {
-              vehicleComp.SpawnedInGodMode();
-            }
-          }
-
-          __result = vehicleSpawned;
-          return false;
-        }
+        return BuildVehicle(newThing, buildDef, map, ref rot, ref loc, ref __result);
       }
-      else if (newThing is VehiclePawn vehicle)
+
+      if (newThing is VehiclePawn vehicle)
+      {
+        __result = vehicle;
+        return PlaceVehicle(vehicle, map, ref rot, ref loc, respawningAfterLoad);
+      }
+
+      if (newThing is Pawn { Dead: false } pawn)
+      {
+        TryAdjustPawn(pawn, map, ref loc);
+      }
+
+      return true;
+
+      static bool BuildVehicle(Thing newThing, VehicleBuildDef buildDef, Map map, ref Rot4 rot,
+        ref IntVec3 loc, ref Thing __result)
+      {
+        VehiclePawn vehicle =
+          VehicleSpawner.GenerateVehicle(buildDef.thingToSpawn, newThing.Faction);
+
+        buildDef.soundBuilt?.PlayOneShot(new TargetInfo(loc, map));
+
+        // NOTE - Vehicle will go back through this patch for placement where it will then have
+        // its placement adjusted. We don't need to do anything about this loc here.
+        GenSpawn.Spawn(vehicle, loc, map, rot, WipeMode.FullRefund);
+
+        if (!DebugSettings.godMode)
+        {
+          // Only prompt name when not spawned via godmode. This is really annoying to deal with
+          // when debugging. The prompt just gets all up in your face, demanding a response.
+          vehicle.Rename();
+        }
+        else
+        {
+          foreach (ThingComp thingComp in vehicle.AllComps)
+          {
+            if (thingComp is VehicleComp vehicleComp)
+              vehicleComp.SpawnedInGodMode();
+          }
+        }
+
+        __result = vehicle;
+        return false;
+      }
+
+      static bool PlaceVehicle(VehiclePawn vehicle, Map map, ref Rot4 rot, ref IntVec3 loc,
+        bool respawningAfterLoad)
       {
         if (!vehicle.VehicleDef.rotatable)
         {
           rot = vehicle.VehicleDef.defaultPlacingRot;
         }
-        VehiclePositionManager positionManager = map.GetCachedMapComponent<VehiclePositionManager>();
+
+        VehiclePositionManager positionManager =
+          map.GetCachedMapComponent<VehiclePositionManager>();
         bool standable = true;
         foreach (IntVec3 cell in vehicle.PawnOccupiedCells(loc, rot))
         {
-          if (!cell.InBounds(map) || !GenGridVehicles.Walkable(cell, vehicle.VehicleDef, map) ||
+          if (!cell.InBounds(map) || !cell.Walkable(vehicle.VehicleDef, map) ||
             positionManager.PositionClaimed(cell))
           {
             standable = false;
             break;
           }
         }
+
         if (standable)
         {
+          if (!respawningAfterLoad)
+            FinalizePosition(vehicle, rot, ref loc);
           Debug.Message($"Spawning {vehicle} at {loc} Rotation={rot}");
           return true; // If location is still valid, skip to spawning
         }
-        Rot4 tmpRot = rot;
-        if (!CellFinderExtended.TryRadialSearchForCell(loc, map, 30, (IntVec3 cell) =>
+
+        Rot4 lambdaRot = rot;
+        if (!CellFinderExtended.TryRadialSearchForCell(loc, map, 30, (cell) =>
           {
-            foreach (IntVec3 cell2 in vehicle.PawnOccupiedCells(cell, tmpRot))
+            foreach (IntVec3 occupiedCell in vehicle.PawnOccupiedCells(cell, lambdaRot))
             {
-              if (!cell2.InBounds(map) || !GenGridVehicles.Walkable(cell2, vehicle.VehicleDef, map) ||
-              positionManager.PositionClaimed(cell2))
+              if (!occupiedCell.InBounds(map) ||
+                !occupiedCell.Walkable(vehicle.VehicleDef, map) ||
+                positionManager.PositionClaimed(occupiedCell))
               {
                 return false;
               }
             }
-            Debug.Message($"Adjusting {vehicle} to {cell} Rotation={tmpRot}");
+
+            Debug.Message($"Adjusting {vehicle} to {cell} Rotation={lambdaRot}");
             return true;
           }, out IntVec3 newLoc))
         {
           // Just get the vehicle spawned in, user will need to dev-mode teleport them once loaded.
           // This is easier to handle than lost vehicles needing to be recovered from world pawns.
-          Log.Error($"Unable to find location to spawn {newThing.LabelShort}. Performing wider search.");
-          if (!CellFinderExtended.TryRadialSearchForCell(loc, map, 100, (IntVec3 cell) =>
+          Log.Error(
+            $"Unable to find location to spawn {vehicle.LabelShort}. Performing wider search.");
+          if (!CellFinderExtended.TryRadialSearchForCell(loc, map, 100, (cell) =>
             {
-              foreach (IntVec3 cell2 in vehicle.PawnOccupiedCells(cell, tmpRot))
+              foreach (IntVec3 occupiedCell in vehicle.PawnOccupiedCells(cell, lambdaRot))
               {
-                if (!cell2.InBounds(map))
+                if (!occupiedCell.InBounds(map))
                 {
                   return false;
                 }
               }
+
               return true;
             }, out newLoc))
           {
-            Log.Error($"Unable to find location to spawn {newThing.LabelShort}. Aborting spawn.");
+            Log.Error($"Unable to find location to spawn {vehicle.LabelShort}. Aborting spawn.");
             return false;
           }
         }
+
         loc = newLoc;
+        if (!respawningAfterLoad)
+          FinalizePosition(vehicle, rot, ref loc);
+        return true;
       }
-      else if (newThing is Pawn pawn && !pawn.Dead)
+
+      static void TryAdjustPawn(Pawn pawn, Map map, ref IntVec3 loc)
       {
         try
         {
-          VehiclePositionManager positionManager = map.GetCachedMapComponent<VehiclePositionManager>();
+          VehiclePositionManager positionManager =
+            map.GetCachedMapComponent<VehiclePositionManager>();
           if (positionManager.PositionClaimed(loc))
           {
             VehiclePawn inPlaceVehicle = positionManager.ClaimedBy(loc);
             CellRect occupiedRect = inPlaceVehicle.OccupiedRect().ExpandedBy(1);
             Rand.PushState();
+            for (int i = 0; i < 3; i++)
             {
-              for (int i = 0; i < 3; i++)
+              IntVec3 newLoc = occupiedRect.EdgeCells.Where(c => c.InBounds(map) &&
+                c.Standable(map)).RandomElementWithFallback(inPlaceVehicle.Position);
+              if (occupiedRect.EdgeCells.Contains(newLoc))
               {
-                IntVec3 newLoc = occupiedRect.EdgeCells.Where(c => GenGrid.InBounds(c, map) &&
-                  GenGrid.Standable(c, map)).RandomElementWithFallback(inPlaceVehicle.Position);
-                if (occupiedRect.EdgeCells.Contains(newLoc))
-                {
-                  loc = newLoc;
-                  break;
-                }
-                occupiedRect = occupiedRect.ExpandedBy(1);
+                loc = newLoc;
+                break;
               }
+
+              occupiedRect = occupiedRect.ExpandedBy(1);
             }
+
             Rand.PopState();
           }
         }
         catch (Exception ex)
         {
-          Log.Error($"Pawn {newThing.Label} could not be readjusted for spawn location. Exception={ex}");
+          Log.Error(
+            $"Pawn {pawn.Label} could not be readjusted for spawn location.\nException={ex}");
         }
       }
-      return true;
+
+      // There is a discrepancy between Thing true centers and Vehicle true centers. If the vehicle
+      // is even width or even height, it will shift when transitioning between the placement of
+      // the building and the spawning of the vehicle. Adjusting the position unconditionally will
+      // avoid map edge issues where the vehicle jumps 1 cell off the map and despawns from
+      // registration issues.
+      static void FinalizePosition(VehiclePawn vehicle, Rot4 rot, ref IntVec3 cell)
+      {
+        switch (rot.AsInt)
+        {
+          // This is only a problem with south and west facing entities due to the way
+          // RimWorld handles even-size rotations.
+          case 2:
+            if (vehicle.VehicleDef.Size.x % 2 == 0)
+              cell.x -= 1;
+            if (vehicle.VehicleDef.Size.z % 2 == 0)
+              cell.z -= 1;
+            break;
+          case 3:
+            if (vehicle.VehicleDef.Size.x % 2 == 0)
+              cell.z += 1;
+            if (vehicle.VehicleDef.Size.z % 2 == 0)
+              cell.x -= 1;
+            break;
+        }
+      }
     }
 
-    public static void AllowDeconstructVehicle(Designator_Deconstruct __instance, Thing t, ref AcceptanceReport __result)
+    public static void AllowDeconstructVehicle(Designator_Deconstruct __instance, Thing t,
+      ref AcceptanceReport __result)
     {
       if (t is VehiclePawn vehicle && vehicle.DeconstructibleBy(Faction.OfPlayer))
       {
-        if (__instance.Map.designationManager.DesignationOn(t, DesignationDefOf.Deconstruct) != null)
+        if (__instance.Map.designationManager.DesignationOn(t, DesignationDefOf.Deconstruct) !=
+          null)
         {
           __result = false;
         }
-        else if (__instance.Map.designationManager.DesignationOn(t, DesignationDefOf.Uninstall) != null)
+        else if (__instance.Map.designationManager.DesignationOn(t, DesignationDefOf.Uninstall) !=
+          null)
         {
           __result = false;
         }
@@ -283,10 +375,12 @@ namespace Vehicles
         vehicle.RefundMaterials(map, mode, listOfLeavingsOut);
         return false;
       }
+
       return true;
     }
 
-    public static IEnumerable<CodeInstruction> ValidDestroyModeForVehicles(IEnumerable<CodeInstruction> instructions)
+    public static IEnumerable<CodeInstruction> ValidDestroyModeForVehicles(
+      IEnumerable<CodeInstruction> instructions)
     {
       List<CodeInstruction> instructionList = instructions.ToList();
 
@@ -305,7 +399,8 @@ namespace Vehicles
           yield return new CodeInstruction(opcode: OpCodes.Ldarg_1);
           yield return new CodeInstruction(opcode: OpCodes.Call, operand:
             AccessTools.Method(typeof(Construction), nameof(VehicleValidDestroyMode)));
-          yield return new CodeInstruction(opcode: OpCodes.Brtrue, operand: labels.FirstOrDefault());
+          yield return new CodeInstruction(opcode: OpCodes.Brtrue,
+            operand: labels.FirstOrDefault());
         }
 
         yield return instruction;

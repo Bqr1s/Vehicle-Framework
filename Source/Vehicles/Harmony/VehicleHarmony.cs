@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using DevTools.UnitTesting;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
-using SmashTools.Debugging;
 using UpdateLogTool;
 using Verse;
 
@@ -63,7 +63,7 @@ internal static class VehicleHarmony
     Utilities.InvokeWithLogging(ApplyAllDefModExtensions);
     Utilities.InvokeWithLogging(PathingHelper.LoadTerrainTagCosts);
     Utilities.InvokeWithLogging(PathingHelper.LoadTerrainDefaults);
-    Utilities.InvokeWithLogging(RecacheMoveableVehicleDefs);
+    Utilities.InvokeWithLogging(GridOwners.RecacheMoveableVehicleDefs);
     Utilities.InvokeWithLogging(PathingHelper.CacheVehicleRegionEffecters);
 
     Utilities.InvokeWithLogging(LoadedModManager.GetMod<VehicleMod>().InitializeTabs);
@@ -74,11 +74,11 @@ internal static class VehicleHarmony
 
     Utilities.InvokeWithLogging(RegisterVehicleAreas);
 
-#if DEBUG
+    DebugProperties.Init();
+
+#if DEV_TOOLS
     UnitTestManager.OnUnitTestStateChange += SuppressDebugLogging;
 #endif
-
-    DebugProperties.Init();
   }
 
   private static void RunAllPatches()
@@ -105,7 +105,7 @@ internal static class VehicleHarmony
       catch
       {
         SmashLog.Error($"Failed to Patch <type>{patch.GetType().FullName}</type>. " +
-                       $"Method=\"{methodPatching}\"");
+          $"Method=\"{methodPatching}\"");
         throw;
       }
     }
@@ -190,20 +190,6 @@ internal static class VehicleHarmony
   public static void ClearModConfig()
   {
     Utilities.DeleteConfig(VehicleMod.mod);
-  }
-
-  internal static void RecacheMoveableVehicleDefs()
-  {
-    AllMoveableVehicleDefs = DefDatabase<VehicleDef>.AllDefsListForReading
-     .Where(PathingHelper.ShouldCreateRegions).ToList();
-    GridOwners.Init();
-    if (!Find.Maps.NullOrEmpty())
-    {
-      foreach (Map map in Find.Maps)
-      {
-        map.GetCachedMapComponent<VehicleMapping>().ConstructComponents();
-      }
-    }
   }
 
   private static void ApplyAllDefModExtensions()

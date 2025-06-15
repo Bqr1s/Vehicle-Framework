@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<TestPlan>
+  <name>All</name>
+	<plan>
+      <li>
+        <type>MainMenu</type>
+        <tests>
+          <!-- Animations -->
+          <li>SmashTools.UnitTesting.UnitTest_AnimDynamicMethod</li>
+          <!-- Utils -->
+          <li>SmashTools.UnitTesting.UnitTest_CellRectUtils</li>
+          <!-- Resources -->
+          <li>SmashTools.UnitTesting.UnitTest_ObjectPool</li>
+          <li>SmashTools.UnitTesting.UnitTest_AsyncPool</li>
+          <li>SmashTools.UnitTesting.UnitTest_DedicatedThread</li>
+          <li>Vehicles.Testing.UnitTest_MaterialPoolDefs</li>
+        </tests>
+      </li>
+      <li>
+        <type>Playing</type>
+        <tests>
+          <!-- Core Vehicle Mechanics -->
+          <li>Vehicles.Testing.UnitTest_VehicleHandler</li>
+          <!-- World-->
+          <li>Vehicles.Testing.UnitTest_WorldReachability</li>
+          <li>Vehicles.Testing.UnitTest_AerialVehicle</li>
+          <li>Vehicles.Testing.UnitTest_StashedVehicle</li>
+          <!-- Vehicle Grids -->
+          <li>Vehicles.Testing.UnitTest_DeferredGeneration</li>
+          <li>Vehicles.Testing.UnitTest_GridOwners</li>
+          <li>Vehicles.Testing.UnitTest_SpawnPlacement</li>
+          <li>Vehicles.Testing.UnitTest_PositionManager</li>
+          <li>Vehicles.Testing.UnitTest_CoverGrid</li>
+          <li>Vehicles.Testing.UnitTest_GasGrid</li>
+          <li>Vehicles.Testing.UnitTest_TerrainGrid</li>
+          <li>Vehicles.Testing.UnitTest_ThingGrid</li>
+          <li>Vehicles.Testing.UnitTest_PathGrid</li>
+          <li>Vehicles.Testing.UnitTest_Regions</li>
+          <!-- Resources -->
+          <li>Vehicles.Testing.UnitTest_MaterialPool</li>
+          <li>Vehicles.Testing.UnitTest_HotReload</li>
+          <li>Vehicles.Testing.UnitTest_MapDeinit</li>
+        </tests>
+      </li>
+      <li>
+        <type>MainMenu</type>
+        <tests>
+          <li>SmashTools.UnitTesting.UnitTest_ComponentCache</li>
+        </tests>
+      </li>
+    </plan>
+</TestPlan>

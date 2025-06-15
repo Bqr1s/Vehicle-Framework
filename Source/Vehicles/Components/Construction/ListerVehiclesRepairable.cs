@@ -7,96 +7,102 @@ using UnityEngine;
 
 namespace Vehicles
 {
-	public class ListerVehiclesRepairable : MapComponent
-	{
-		private Dictionary<Faction, VehicleRepairsCollection> vehiclesToRepair = new Dictionary<Faction, VehicleRepairsCollection>();
+  public class ListerVehiclesRepairable : MapComponent
+  {
+    private Dictionary<Faction, VehicleRepairsCollection> vehiclesToRepair = [];
 
-		public ListerVehiclesRepairable(Map map) : base(map)
-		{
-		}
+    public ListerVehiclesRepairable(Map map) : base(map)
+    {
+    }
 
-		public HashSet<VehiclePawn> RepairsForFaction(Faction faction)
-		{
-			if (vehiclesToRepair.TryGetValue(faction, out VehicleRepairsCollection vehicles))
-			{
-				return vehicles;
-			}
-			return new HashSet<VehiclePawn>();
-		}
+    public HashSet<VehiclePawn> RepairsForFaction(Faction faction)
+    {
+      if (vehiclesToRepair.TryGetValue(faction, out VehicleRepairsCollection vehicles))
+      {
+        return vehicles;
+      }
 
-		public void NotifyVehicleSpawned(VehiclePawn vehicle)
-		{
-			NotifyVehicleRepaired(vehicle);
-			NotifyVehicleTookDamage(vehicle);
-		}
+      return new HashSet<VehiclePawn>();
+    }
 
-		public void NotifyVehicleDespawned(VehiclePawn vehicle)
-		{
-			if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
-			{
-				vehicles.Remove(vehicle);
-			}
-		}
+    public void NotifyVehicleSpawned(VehiclePawn vehicle)
+    {
+      NotifyVehicleRepaired(vehicle);
+      NotifyVehicleTookDamage(vehicle);
+    }
 
-		public void NotifyVehicleTookDamage(VehiclePawn vehicle)
-		{
-			if (vehicle.statHandler.NeedsRepairs && !Mathf.Approximately(vehicle.GetStatValue(VehicleStatDefOf.BodyIntegrity), 0))
-			{
-				if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
-				{
-					if (vehicle.Spawned)
-					{
-						vehicles.Add(vehicle);
-					}
-					else 
-					{
-						vehicles.Remove(vehicle);
-					}
-				}
-				else if (vehicle.Spawned)
-				{
-					vehiclesToRepair[vehicle.Faction] = new VehicleRepairsCollection();
-					vehiclesToRepair[vehicle.Faction].Add(vehicle);
-				}
-			}
-		}
+    public void NotifyVehicleDespawned(VehiclePawn vehicle)
+    {
+      if (vehicle.Faction == null) return;
+      if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
+      {
+        vehicles.Remove(vehicle);
+      }
+    }
 
-		public void NotifyVehicleRepaired(VehiclePawn vehicle)
-		{
-			if (!vehicle.statHandler.NeedsRepairs && vehicle.Faction != null)
-			{
-				if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
-				{
-					vehicles.Remove(vehicle);
-				}
-			}
-		}
+    public void NotifyVehicleTookDamage(VehiclePawn vehicle)
+    {
+      if (vehicle.Faction == null) return;
 
-		//TODO - revisit for saving
-		//Note: May not actually need to be saved, vehicles spawning in will recache status
-		public override void ExposeData()
-		{
-			base.ExposeData();
-			//Scribe_Collections.Look(ref vehiclesToRepair, nameof(vehiclesToRepair), LookMode.Reference, LookMode.Deep, ref factions_tmp, ref vehicleRepairs_tmp);
-		}
+      if (vehicle.statHandler.NeedsRepairs &&
+        !Mathf.Approximately(vehicle.GetStatValue(VehicleStatDefOf.BodyIntegrity), 0))
+      {
+        if (vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
+        {
+          if (vehicle.Spawned)
+          {
+            vehicles.Add(vehicle);
+          }
+          else
+          {
+            vehicles.Remove(vehicle);
+          }
+        }
+        else if (vehicle.Spawned)
+        {
+          vehiclesToRepair[vehicle.Faction] = new VehicleRepairsCollection();
+          vehiclesToRepair[vehicle.Faction].Add(vehicle);
+        }
+      }
+    }
 
-		private class VehicleRepairsCollection : IExposable
-		{
-			private HashSet<VehiclePawn> requests = new HashSet<VehiclePawn>();
+    public void NotifyVehicleRepaired(VehiclePawn vehicle)
+    {
+      if (vehicle.Faction == null) return;
 
-			public static implicit operator HashSet<VehiclePawn>(VehicleRepairsCollection collection)
-			{
-				return collection.requests;
-			}
+      if (!vehicle.statHandler.NeedsRepairs &&
+        vehiclesToRepair.TryGetValue(vehicle.Faction, out var vehicles))
+      {
+        vehicles.Remove(vehicle);
+      }
+    }
 
-			public bool Add(VehiclePawn vehicle) => requests.Add(vehicle);
+    //TODO - revisit for saving
+    //Note: May not actually need to be saved, vehicles spawning in will recache status
+    public override void ExposeData()
+    {
+      base.ExposeData();
+      //Scribe_Collections.Look(ref vehiclesToRepair, nameof(vehiclesToRepair), LookMode.Reference, LookMode.Deep, ref factions_tmp, ref vehicleRepairs_tmp);
+    }
 
-			public bool Remove(VehiclePawn vehicle) => requests.Remove(vehicle);
+    // TODO 1.6 - Remove, RimWorld now supports serializing nested collections. This is nonsense.
+    private class VehicleRepairsCollection : IExposable
+    {
+      private HashSet<VehiclePawn> requests = new HashSet<VehiclePawn>();
 
-			public void ExposeData()
-			{
-				Scribe_Collections.Look(ref requests, nameof(requests), LookMode.Reference);
-			}
-		}
-	}
+      public static implicit operator HashSet<VehiclePawn>(VehicleRepairsCollection collection)
+      {
+        return collection.requests;
+      }
+
+      public bool Add(VehiclePawn vehicle) => requests.Add(vehicle);
+
+      public bool Remove(VehiclePawn vehicle) => requests.Remove(vehicle);
+
+      public void ExposeData()
+      {
+        Scribe_Collections.Look(ref requests, nameof(requests), LookMode.Reference);
+      }
+    }
+  }
 }

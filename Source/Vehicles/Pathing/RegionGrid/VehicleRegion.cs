@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using DevTools;
 using SmashTools;
 using SmashTools.Performance;
 using UnityEngine;
@@ -600,8 +601,8 @@ namespace Vehicles
             if (new Rect(0f, 0f, UI.screenWidth, UI.screenHeight).Overlaps(rect))
             {
               Widgets.Label(rect,
-                Map.GetCachedMapComponent<VehicleMapping>()[vehicleDef].VehiclePathGrid
-                 .PerceivedPathCostAt(intVec).ToString());
+                Map.GetCachedMapComponent<VehicleMapping>()[DebugHelper.Local.VehicleDef]
+                 .VehiclePathGrid.PerceivedPathCostAt(intVec).ToString());
             }
           }
         }
