@@ -35,22 +35,10 @@ public class VehicleDef : ThingDef, IDefIndex<VehicleDef>, IMaterialCacheTarget,
   // config file in the existing setup.
   public List<VehicleStatModifier> vehicleStats = [];
 
-  // TODO - remove in 1.6
-  #pragma warning disable CS0414
-  //[PostToSettings(Label = "VF_MovementPermissions", Translate = true,
-  //  UISettingsType = UISettingsType.SliderEnum)]
-  //[ActionOnSettingsInput(typeof(VehicleHarmony),
-  //  nameof(GridOwners.RecacheMoveableVehicleDefs))]
-  [Unsaved]
-  [LoadAlias("vehicleMovementPermissions")]
-  private VehiclePermissions movementPermissions = VehiclePermissions.DriverNeeded;
-  #pragma warning restore CS0414
-
   [PostToSettings(Label = "VF_CanCaravan", Translate = true, Tooltip = "VF_CanCaravanTooltip",
     UISettingsType = UISettingsType.Checkbox)]
   public bool canCaravan = true;
 
-  //[LoadAlias("vehicleCategory")]
   public VehicleCategory vehicleCategory;
 
   [LoadAlias("vehicleType")]

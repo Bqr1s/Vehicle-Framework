@@ -11,7 +11,7 @@ namespace Vehicles.UnitTesting;
 /// </summary>
 internal class PawnAnchorer : IDisposable
 {
-  private static readonly Pawn pawn;
+  private static Pawn pawn;
 
   static PawnAnchorer()
   {
@@ -27,6 +27,8 @@ internal class PawnAnchorer : IDisposable
 
   void IDisposable.Dispose()
   {
+    if (pawn.Destroyed || pawn.Discarded)
+      pawn = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, faction: Faction.OfPlayer);
     Assert.IsTrue(CellFinder.TryFindRandomSpawnCellForPawnNear(Find.CurrentMap.Center,
       Find.CurrentMap, out IntVec3 spawnCell));
     GenSpawn.Spawn(pawn, spawnCell, Find.CurrentMap);

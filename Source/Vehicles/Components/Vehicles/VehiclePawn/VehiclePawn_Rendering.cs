@@ -168,14 +168,7 @@ public partial class VehiclePawn
   [Obsolete("Vehicles should call DrawTracker instead of the vanilla implementation", true)]
   public new VehicleDrawTracker Drawer => DrawTracker;
 
-  public VehicleDrawTracker DrawTracker
-  {
-    get
-    {
-      drawTracker ??= new VehicleDrawTracker(this);
-      return drawTracker;
-    }
-  }
+  public VehicleDrawTracker DrawTracker => drawTracker;
 
   public Graphic_Vehicle VehicleGraphic
   {
@@ -231,15 +224,6 @@ public partial class VehiclePawn
         PatternDefOf.Default;
     }
     set { patternData.patternDef = value; }
-  }
-
-  public Vector3 OverlayCenter
-  {
-    get
-    {
-      float movePercent = DrawTracker.tweener.MovedPercent();
-      return GenThing.TrueCenter(Position, Rotation, VehicleDef.Size, VehicleDef.Altitude);
-    }
   }
 
   public IEnumerable<AnimationDriver> Animations
@@ -571,7 +555,7 @@ public partial class VehiclePawn
       yield break;
     }
 
-    if (!MovementPermissions.HasFlag(VehiclePermissions.Immobile))
+    if (MovementPermissions.HasFlag(VehiclePermissions.Mobile))
     {
       foreach (Gizmo gizmo in ignition.GetGizmos())
       {

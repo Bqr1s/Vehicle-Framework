@@ -115,7 +115,7 @@ namespace Vehicles
         foreach (VehiclePawn vehicle in ___map.GetDetachedMapComponent<VehiclePositionManager>()
          .AllClaimants)
         {
-          if (vehicle.MovementPermissions == VehiclePermissions.Autonomous)
+          if (vehicle.MovementPermissions.HasFlag(VehiclePermissions.Autonomous))
           {
             __result = true;
             return;

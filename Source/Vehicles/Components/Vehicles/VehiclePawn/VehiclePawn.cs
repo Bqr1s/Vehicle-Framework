@@ -73,7 +73,6 @@ namespace Vehicles
           handlers.Add(new VehicleRoleHandler(this, role));
         }
       }
-      CacheCompRenderers();
       RecacheComponents();
       RecacheMovementPermissions();
     }
@@ -92,6 +91,7 @@ namespace Vehicles
       ageTracker.BirthAbsTicks = 0;
       //health.Reset();
       statHandler.InitializeComponents();
+      RegenerateUnsavedComponents();
 
       if (Faction != Faction.OfPlayer && VehicleDef.npcProperties != null)
       {
@@ -227,7 +227,6 @@ namespace Vehicles
       // Events must be registered before comp post loads, SpawnSetup won't trigger register in this case
       this.RegisterEvents();
       RegenerateUnsavedComponents();
-      CacheCompRenderers();
       RecacheComponents();
       RecachePawnCount();
       animator?.PostLoad();
@@ -327,6 +326,18 @@ namespace Vehicles
 
     public override void ExposeData()
     {
+      // Needs to occur before comps so vehicle can initialize managers before comps access them
+      switch (Scribe.mode)
+      {
+        case LoadSaveMode.LoadingVars:
+          RecacheComponents();
+        break;
+        case LoadSaveMode.PostLoadInit:
+          this.EnsureUncachedCompList();
+          PostLoad();
+        break;
+      }
+
       base.ExposeData();
 
       Scribe_Collections.Look(ref activatableComps, nameof(activatableComps),
@@ -379,12 +390,6 @@ namespace Vehicles
 
       Scribe_Collections.Look(ref handlers, nameof(handlers), LookMode.Deep);
       Scribe_Collections.Look(ref bills, nameof(bills), LookMode.Deep);
-
-      if (Scribe.mode == LoadSaveMode.PostLoadInit)
-      {
-        this.EnsureUncachedCompList();
-        PostLoad();
-      }
     }
   }
 }

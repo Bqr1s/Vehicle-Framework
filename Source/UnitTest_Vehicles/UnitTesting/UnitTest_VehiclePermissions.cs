@@ -18,19 +18,18 @@ internal sealed class UnitTest_VehiclePermissions
   {
     manualVehicle = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      permissions = VehiclePermissions.DriverNeeded,
+      permissions = VehiclePermissions.Mobile,
       drivers = 1,
       passengers = 1
     });
     autonomousVehicle = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      permissions = VehiclePermissions.Autonomous,
+      permissions = VehiclePermissions.Mobile | VehiclePermissions.Autonomous,
       passengers = 1
     });
     immobileVehicle = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      permissions = VehiclePermissions.Immobile,
-      drivers = 1,
+      permissions = VehiclePermissions.Autonomous,
       passengers = 1
     });
   }

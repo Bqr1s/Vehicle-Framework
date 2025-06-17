@@ -22,7 +22,7 @@ internal sealed class UnitTest_GameEnder
   {
     manualVehicle = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      permissions = VehiclePermissions.DriverNeeded,
+      permissions = VehiclePermissions.Mobile,
       drivers = 1,
       passengers = 1
     });

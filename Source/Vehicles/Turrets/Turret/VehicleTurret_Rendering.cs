@@ -707,7 +707,7 @@ public partial class VehicleTurret
 
     if (cachedMaterial is null || forceRegen)
     {
-      cachedMaterial = Graphic.MatAt(Rot8.North, vehicle);
+      cachedMaterial = cachedGraphic?.MatAt(Rot8.North, vehicle);
     }
   }
 

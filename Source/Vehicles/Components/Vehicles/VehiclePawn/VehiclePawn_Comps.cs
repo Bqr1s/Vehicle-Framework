@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using SmashTools;
-using SmashTools.Rendering;
 using UnityEngine;
 using Verse;
 
@@ -98,20 +96,9 @@ public partial class VehiclePawn
     }
   }
 
-  private void CacheCompRenderers()
-  {
-    foreach (ThingComp thingComp in AllComps)
-    {
-      if (thingComp is IParallelRenderer parallelRenderer)
-        DrawTracker.AddRenderer(parallelRenderer);
-    }
-  }
-
   public void AddComp(ThingComp thingComp)
   {
     AllComps.Add(thingComp);
-    if (thingComp is IParallelRenderer parallelRenderer)
-      DrawTracker.AddRenderer(parallelRenderer);
     RecacheComponents();
   }
 
@@ -120,8 +107,6 @@ public partial class VehiclePawn
     bool result = AllComps.Remove(thingComp);
     if (result)
     {
-      if (thingComp is IParallelRenderer parallelRenderer)
-        DrawTracker.RemoveRenderer(parallelRenderer);
       RecacheComponents();
     }
     return result;

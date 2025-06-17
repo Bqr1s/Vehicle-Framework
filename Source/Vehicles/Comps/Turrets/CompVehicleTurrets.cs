@@ -648,14 +648,10 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
     newTurret.Init(reference);
     turrets.Add(newTurret);
     RevalidateTurrets();
+    TryRegisterRenderer(newTurret);
 
     if (Vehicle.Spawned)
-      RecacheGizmos();
-
-    // Parent turrets take ownership for rendering child turrets so transform data
-    // can be properly passed down and inherited in the final render results.
-    if (!newTurret.NoGraphic && newTurret.attachedTo is null)
-      Vehicle.DrawTracker.AddRenderer(newTurret);
+      LongEventHandler.ExecuteWhenFinished(RecacheGizmos);
 
     if (!backupQuotas.NullOrEmpty())
     {
@@ -724,11 +720,24 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
     }
     turret.OnDestroy();
     bool removed = turrets.Remove(turret);
+    TryDeregisterRenderer(turret);
+    if (Vehicle.Spawned)
+      LongEventHandler.ExecuteWhenFinished(RecacheGizmos);
+    return removed;
+  }
+
+  private void TryRegisterRenderer(VehicleTurret turret)
+  {
+    // Parent turrets take ownership for rendering child turrets so transform data
+    // can be properly passed down and inherited in the final render results.
+    if (!turret.NoGraphic && turret.attachedTo is null)
+      Vehicle.DrawTracker.AddRenderer(turret);
+  }
+
+  private void TryDeregisterRenderer(VehicleTurret turret)
+  {
     if (!turret.NoGraphic && turret.attachedTo is null)
       Vehicle.DrawTracker.RemoveRenderer(turret);
-    if (Vehicle.Spawned)
-      RecacheGizmos();
-    return removed;
   }
 
   public void RevalidateTurrets()
@@ -870,6 +879,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
   {
     turret.Init(reference);
     ResolveTurretChildren(turret);
+    TryRegisterRenderer(turret);
     QueueTicker(turret); // Queue all turrets initially, will be sorted out after 1st tick
   }
 
@@ -934,7 +944,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
           SetQuotaLevel(turret, GetQuotaLevel(turret)); //Stores default quota level
         }
       }
-      RecacheGizmos();
+      LongEventHandler.ExecuteWhenFinished(RecacheGizmos);
     }
     catch (Exception ex)
     {
@@ -959,7 +969,7 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
     turretQuotas ??= [];
     backupQuotas ??= [];
 
-    if (Scribe.mode == LoadSaveMode.LoadingVars)
+    if (Scribe.mode == LoadSaveMode.PostLoadInit)
     {
       InitTurrets();
     }

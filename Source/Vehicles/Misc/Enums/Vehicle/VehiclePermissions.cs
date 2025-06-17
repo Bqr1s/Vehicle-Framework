@@ -9,7 +9,7 @@ namespace Vehicles;
 [Flags]
 public enum VehiclePermissions
 {
-  Immobile = 1 << 0,
-  DriverNeeded = 1 << 1,
-  Autonomous = 1 << 2
+  None = 0,
+  Mobile = 1 << 0,
+  Autonomous = 1 << 1
 }

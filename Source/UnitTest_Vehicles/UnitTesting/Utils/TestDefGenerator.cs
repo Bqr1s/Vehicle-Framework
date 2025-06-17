@@ -17,13 +17,13 @@ internal static class TestDefGenerator
     fleshField = AccessTools.Field(typeof(RaceProperties), "fleshType");
   }
 
-  public static VehicleDef CreateTransientVehicleDef(string defName)
+  public static VehicleDef CreateTransientVehicleDef(string defName, string label = null)
   {
     Assert.IsNotNull(fleshField);
     VehicleBuildDef buildDef = new()
     {
       defName = $"{defName}_Blueprint",
-      label = $"{defName}_Blueprint_LABEL",
+      label = $"{label ?? defName} Blueprint",
       modContentPack = VehicleHarmony.VehicleMCP,
       thingClass = typeof(VehicleBuilding),
       terrainAffordanceNeeded = TerrainAffordanceDefOf.Heavy,
@@ -41,6 +41,7 @@ internal static class TestDefGenerator
     VehicleDef def = new()
     {
       defName = defName,
+      label = label ?? $"{defName}_LABEL",
       modContentPack = VehicleHarmony.VehicleMCP,
       thingClass = typeof(VehiclePawn),
       category = ThingCategory.Pawn,

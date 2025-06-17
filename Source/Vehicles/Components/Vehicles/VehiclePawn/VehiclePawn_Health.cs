@@ -31,7 +31,7 @@ namespace Vehicles
     public VehiclePermissions MovementPermissions { get; private set; }
 
     public bool CanMove => GetStatValue(VehicleStatDefOf.MoveSpeed) > 0.1f &&
-      MovementPermissions > VehiclePermissions.Immobile &&
+      MovementPermissions.HasFlag(VehiclePermissions.Mobile) &&
       movementStatus == VehicleMovementStatus.Online;
 
     public bool CanMoveFinal =>
@@ -66,21 +66,21 @@ namespace Vehicles
 
     private void RecacheMovementPermissions()
     {
+      // Assume everything is mobile and autonomous unless restrictions are defined
+      MovementPermissions = VehiclePermissions.Mobile | VehiclePermissions.Autonomous;
       if (Mathf.Approximately(VehicleDef.GetStatValueAbstract(VehicleStatDefOf.MoveSpeed), 0))
       {
-        MovementPermissions = VehiclePermissions.Immobile;
-        return;
+        MovementPermissions &= ~VehiclePermissions.Mobile;
       }
 
       foreach (VehicleRoleHandler handler in handlers)
       {
         if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement))
         {
-          MovementPermissions = VehiclePermissions.DriverNeeded;
-          return;
+          MovementPermissions &= ~VehiclePermissions.Autonomous;
+          break;
         }
       }
-      MovementPermissions = VehiclePermissions.Autonomous;
     }
 
     public IEnumerable<IntVec3> InhabitedCells(int expandedBy = 0)

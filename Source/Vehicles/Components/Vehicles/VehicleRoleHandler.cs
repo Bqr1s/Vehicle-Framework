@@ -117,42 +117,6 @@ namespace Vehicles
       }
     }
 
-    //public void Draw()
-    //{
-    //  foreach (Pawn pawn in handlers)
-    //  {
-    //    pawn.Drawer.renderer.RenderPawnAt(
-    //      transformData.position + role.PawnRenderer.DrawOffsetFor(transformData.orientation),
-    //      rotOverride: role.PawnRenderer.RotFor(transformData.orientation));
-    //  }
-    //}
-
-    public static bool operator ==(VehicleRoleHandler lhs, VehicleRoleHandler rhs)
-    {
-      if (lhs is null)
-      {
-        return rhs is null;
-      }
-      return lhs.Equals(rhs);
-    }
-
-    public static bool operator !=(VehicleRoleHandler lhs, VehicleRoleHandler rhs)
-    {
-      return !(lhs == rhs);
-    }
-
-    public static bool operator ==(VehicleRoleHandler lhs, IThingHolder rhs)
-    {
-      if (rhs is not VehicleRoleHandler handler)
-        return false;
-      return lhs == handler;
-    }
-
-    public static bool operator !=(VehicleRoleHandler lhs, IThingHolder rhs)
-    {
-      return !(lhs == rhs);
-    }
-
     public bool CanOperateRole(Pawn pawn)
     {
       if (role.HandlingTypes > HandlingType.None)
@@ -167,25 +131,9 @@ namespace Vehicles
       return true;
     }
 
-    public override bool Equals(object obj)
-    {
-      return obj is VehicleRoleHandler handler && Equals(handler);
-    }
-
-    public bool Equals(VehicleRoleHandler obj2)
-    {
-      return obj2?.roleKey == roleKey;
-    }
-
     public override string ToString()
     {
       return roleKey;
-    }
-
-    public override int GetHashCode()
-    {
-      // ReSharper disable once NonReadonlyMemberInGetHashCode
-      return roleKey.GetHashCode();
     }
 
     public string GetUniqueLoadID()

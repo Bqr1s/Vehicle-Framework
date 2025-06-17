@@ -1281,10 +1281,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
         SetTarget(LocalTargetInfo.Invalid);
         return true;
       }
-
-      return false;
     }
-
     return false;
   }
 

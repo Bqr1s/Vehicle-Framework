@@ -281,36 +281,6 @@ namespace Vehicles
       }
     }
 
-    private static IEnumerable<CodeInstruction> RenderOverlaysCenterVehicle(
-      IEnumerable<CodeInstruction> instructions)
-    {
-      List<CodeInstruction> instructionList = instructions.ToList();
-      for (int i = 0; i < instructionList.Count; i++)
-      {
-        CodeInstruction instruction = instructionList[i];
-
-        if (instruction.opcode == OpCodes.Stloc_0 &&
-          instructionList[i - 1].Calls(TrueCenter_Baseline))
-        {
-          yield return new CodeInstruction(opcode: OpCodes.Ldarg_1);
-          yield return new CodeInstruction(opcode: OpCodes.Call,
-            operand: AccessTools.Method(typeof(Patch_Rendering),
-              nameof(Patch_Rendering.VehicleTrueCenterReroute)));
-        }
-
-        yield return instruction;
-      }
-    }
-
-    private static Vector3 VehicleTrueCenterReroute(Vector3 trueCenter, Thing thing)
-    {
-      if (thing is VehiclePawn vehicle)
-      {
-        return vehicle.OverlayCenter;
-      }
-      return trueCenter;
-    }
-
     private static bool TrueCenterVehicle(Thing t, ref Vector3 __result)
     {
       if (t is VehiclePawn vehicle)

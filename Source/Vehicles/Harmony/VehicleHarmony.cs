@@ -100,6 +100,7 @@ public static class VehicleHarmony
           $"Failed to Patch <type>{patch.GetType().FullName}</type>. Method=\"{methodPatching}\"\n{ex}");
       }
     }
+
 #if !RELEASE
     if (Prefs.DevMode)
     {

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <Config>
+  <log>
+    <verboseLogging>false</verboseLogging>
+  </log>
+
   <map>
     <size>50</size>
   </map>

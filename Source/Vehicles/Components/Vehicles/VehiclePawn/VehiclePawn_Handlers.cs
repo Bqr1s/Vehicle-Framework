@@ -57,27 +57,18 @@ public partial class VehiclePawn
   {
     get
     {
-      switch (MovementPermissions)
+      if (!MovementPermissions.HasFlag(VehiclePermissions.Autonomous))
       {
-        case VehiclePermissions.Autonomous:
-          return true;
-        case VehiclePermissions.Immobile:
-          return false;
-        case VehiclePermissions.DriverNeeded:
+        foreach (VehicleRoleHandler handler in handlers)
         {
-          foreach (VehicleRoleHandler handler in handlers)
+          if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement) &&
+            !handler.RoleFulfilled)
           {
-            if (handler.role.HandlingTypes.HasFlag(HandlingType.Movement) &&
-              !handler.RoleFulfilled)
-            {
-              return false;
-            }
+            return false;
           }
-          return true;
         }
-        default:
-          throw new NotImplementedException(nameof(VehiclePermissions));
       }
+      return MovementPermissions.HasFlag(VehiclePermissions.Mobile);
     }
   }
 

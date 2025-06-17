@@ -24,25 +24,32 @@ internal sealed class UnitTest_MapRemoval
   {
     manualVehicle = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      permissions = VehiclePermissions.DriverNeeded,
+      debugLabel = "Mobile Ground Vehicle",
+      permissions = VehiclePermissions.Mobile,
       drivers = 1,
       passengers = 1
     });
     autonomousVehicle = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      permissions = VehiclePermissions.Autonomous,
+      debugLabel = "Autonomous Ground Vehicle",
+      permissions = VehiclePermissions.Mobile | VehiclePermissions.Autonomous,
       passengers = 1
     });
     aerialVehicle = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      permissions = VehiclePermissions.Autonomous | VehiclePermissions.Immobile,
+      debugLabel = "Autonomous Aerial Vehicle",
+      permissions = VehiclePermissions.Autonomous,
       passengers = 1,
       comps =
       [
         new CompProperties_VehicleLauncher
         {
           compClass = typeof(CompVehicleLauncher),
-          launchProtocol = new DefaultTakeoff()
+          launchProtocol = new DefaultTakeoff
+          {
+            launchProperties = new LaunchProtocolProperties(),
+            landingProperties = new LaunchProtocolProperties()
+          }
         }
       ]
     });
@@ -85,6 +92,7 @@ internal sealed class UnitTest_MapRemoval
   private void Settlement()
   {
     using GenStepWarningDisabler warningDisabler = new();
+    using PawnAnchorer anchorer = new();
 
     Assert.IsFalse(manualVehicle.vehicle.Spawned);
     Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
@@ -134,8 +142,8 @@ internal sealed class UnitTest_MapRemoval
       Expect.IsFalse(settlement.ShouldRemoveMapNow(out _));
 
       // Autonomous vehicle no passengers CanMove
-      aerialVehicle.DisembarkAll();
-      aerialVehicle.DeSpawnPawns();
+      autonomousVehicle.DisembarkAll();
+      autonomousVehicle.DeSpawnPawns();
       Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
       Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
       Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
@@ -191,6 +199,7 @@ internal sealed class UnitTest_MapRemoval
   private void Site()
   {
     using GenStepWarningDisabler gswd = new();
+    using PawnAnchorer anchorer = new();
 
     Assert.IsFalse(manualVehicle.vehicle.Spawned);
     Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
@@ -246,7 +255,11 @@ internal sealed class UnitTest_MapRemoval
       Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
       Expect.IsFalse(site.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle with passengers
+      autonomousVehicle.DeSpawn();
+      Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
+      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
+
+      // Autonomous aerial vehicle with passengers
       aerialVehicle.Spawn();
       Assert.IsTrue(aerialVehicle.vehicle.Spawned);
       aerialVehicle.DisembarkAll();
@@ -254,13 +267,18 @@ internal sealed class UnitTest_MapRemoval
       aerialVehicle.BoardAll();
       Expect.IsFalse(site.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle no passengers CanMove
+      // Autonomous aerial vehicle no passengers CanMove
       aerialVehicle.DisembarkAll();
       aerialVehicle.DeSpawnPawns();
       Assert.IsTrue(aerialVehicle.vehicle.Spawned);
       Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
       Assert.IsFalse(aerialVehicle.vehicle.CanMove);
+      Assert.IsTrue(aerialVehicle.vehicle.CompVehicleLauncher.CanLaunchWithCargoCapacity(out _));
       Expect.IsFalse(site.ShouldRemoveMapNow(out _));
+
+      aerialVehicle.DeSpawn();
+      Assert.IsFalse(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
     }
     finally
     {
@@ -343,21 +361,30 @@ internal sealed class UnitTest_MapRemoval
       Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
       Expect.IsFalse(camp.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle with passengers
-      autonomousVehicle.Spawn();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      autonomousVehicle.DisembarkAll();
+      autonomousVehicle.DeSpawn();
+      Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
+      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
+
+      // Autonomous aerial vehicle with passengers
+      aerialVehicle.Spawn();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      aerialVehicle.DisembarkAll();
       Expect.IsFalse(camp.ShouldRemoveMapNow(out _));
-      autonomousVehicle.BoardAll();
+      aerialVehicle.BoardAll();
       Expect.IsFalse(camp.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle no passengers CanMove
-      autonomousVehicle.DisembarkAll();
-      autonomousVehicle.DeSpawnPawns();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
-      Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
+      // Autonomous aerial vehicle no passengers CanMove
+      aerialVehicle.DisembarkAll();
+      aerialVehicle.DeSpawnPawns();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
+      Assert.IsFalse(aerialVehicle.vehicle.CanMove);
+      Assert.IsTrue(aerialVehicle.vehicle.CompVehicleLauncher.CanLaunchWithCargoCapacity(out _));
       Expect.IsFalse(camp.ShouldRemoveMapNow(out _));
+
+      aerialVehicle.DeSpawn();
+      Assert.IsFalse(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
     }
     finally
     {
@@ -445,21 +472,30 @@ internal sealed class UnitTest_MapRemoval
       Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
       Expect.IsFalse(battlefield.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle with passengers
-      autonomousVehicle.Spawn();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      autonomousVehicle.DisembarkAll();
+      autonomousVehicle.DeSpawn();
+      Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
+      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
+
+      // Autonomous aerial vehicle with passengers
+      aerialVehicle.Spawn();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      aerialVehicle.DisembarkAll();
       Expect.IsFalse(battlefield.ShouldRemoveMapNow(out _));
-      autonomousVehicle.BoardAll();
+      aerialVehicle.BoardAll();
       Expect.IsFalse(battlefield.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle no passengers CanMove
-      autonomousVehicle.DisembarkAll();
-      autonomousVehicle.DeSpawnPawns();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
-      Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
+      // Autonomous aerial vehicle no passengers CanMove
+      aerialVehicle.DisembarkAll();
+      aerialVehicle.DeSpawnPawns();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
+      Assert.IsFalse(aerialVehicle.vehicle.CanMove);
+      Assert.IsTrue(aerialVehicle.vehicle.CompVehicleLauncher.CanLaunchWithCargoCapacity(out _));
       Expect.IsFalse(battlefield.ShouldRemoveMapNow(out _));
+
+      aerialVehicle.DeSpawn();
+      Assert.IsFalse(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
     }
     finally
     {
@@ -544,21 +580,30 @@ internal sealed class UnitTest_MapRemoval
       Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
       Expect.IsFalse(settlement.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle with passengers
-      autonomousVehicle.Spawn();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      autonomousVehicle.DisembarkAll();
+      autonomousVehicle.DeSpawn();
+      Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
+      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
+
+      // Autonomous aerial vehicle with passengers
+      aerialVehicle.Spawn();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      aerialVehicle.DisembarkAll();
       Expect.IsFalse(settlement.ShouldRemoveMapNow(out _));
-      autonomousVehicle.BoardAll();
+      aerialVehicle.BoardAll();
       Expect.IsFalse(settlement.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle no passengers CanMove
-      autonomousVehicle.DisembarkAll();
-      autonomousVehicle.DeSpawnPawns();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
-      Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
+      // Autonomous aerial vehicle no passengers CanMove
+      aerialVehicle.DisembarkAll();
+      aerialVehicle.DeSpawnPawns();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
+      Assert.IsFalse(aerialVehicle.vehicle.CanMove);
+      Assert.IsTrue(aerialVehicle.vehicle.CompVehicleLauncher.CanLaunchWithCargoCapacity(out _));
       Expect.IsFalse(settlement.ShouldRemoveMapNow(out _));
+
+      aerialVehicle.DeSpawn();
+      Assert.IsFalse(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
     }
     finally
     {
@@ -585,6 +630,7 @@ internal sealed class UnitTest_MapRemoval
   }
 
   [Test]
+  [LoadIfOdysseyActive]
   private void SpaceMapParent()
   {
     using GenStepWarningDisabler gswd = new();
@@ -593,7 +639,7 @@ internal sealed class UnitTest_MapRemoval
     Assert.IsFalse(manualVehicle.vehicle.Spawned);
     Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
 
-    PlanetTile tile = FindValidTile(PlanetLayerDefOf.Surface);
+    PlanetTile tile = FindValidTile(PlanetLayerDefOf.Orbit);
     Assert.IsTrue(tile.Valid);
 
     Map map = null;
@@ -602,10 +648,16 @@ internal sealed class UnitTest_MapRemoval
       WorldObjectDef asteroidObjectDef =
         DefDatabase<WorldObjectDef>.GetNamed("AsteroidMiningSite");
       Assert.IsNotNull(asteroidObjectDef);
-      map = GetOrGenerateMapUtility.GetOrGenerateMap(tile, DefaultMapSize, asteroidObjectDef);
+      MapParent mapParent = Find.WorldObjects.MapParentAt(tile);
+      Assert.IsNull(mapParent);
+      mapParent = (MapParent)WorldObjectMaker.MakeWorldObject(asteroidObjectDef);
+      mapParent.Tile = tile;
+      Assert.IsNotNull(mapParent);
+      map = MapGenerator.GenerateMap(DefaultMapSize, mapParent, asteroidObjectDef.mapGenerator);
       // Ensure we're testing a derivative of the type that actually implements a check for map removal
       Assert.IsTrue(map.Parent is SpaceMapParent);
-      ResourceAsteroidMapParent asteroid = map.Parent as ResourceAsteroidMapParent;
+      Assert.AreEqual(map.Parent, mapParent);
+      ResourceAsteroidMapParent asteroid = mapParent as ResourceAsteroidMapParent;
       Assert.IsNotNull(asteroid);
       CameraJumper.TryJump(map.Center, map);
 
@@ -647,21 +699,30 @@ internal sealed class UnitTest_MapRemoval
       Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
       Expect.IsFalse(asteroid.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle with passengers
-      autonomousVehicle.Spawn();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      autonomousVehicle.DisembarkAll();
+      autonomousVehicle.DeSpawn();
+      Assert.IsFalse(autonomousVehicle.vehicle.Spawned);
+      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
+
+      // Autonomous aerial vehicle with passengers
+      aerialVehicle.Spawn();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      aerialVehicle.DisembarkAll();
       Expect.IsFalse(asteroid.ShouldRemoveMapNow(out _));
-      autonomousVehicle.BoardAll();
+      aerialVehicle.BoardAll();
       Expect.IsFalse(asteroid.ShouldRemoveMapNow(out _));
 
-      // Autonomous vehicle no passengers CanMove
-      autonomousVehicle.DisembarkAll();
-      autonomousVehicle.DeSpawnPawns();
-      Assert.IsTrue(autonomousVehicle.vehicle.Spawned);
-      Assert.IsFalse(autonomousVehicle.pawns.Any(pawn => pawn.Spawned));
-      Assert.IsTrue(autonomousVehicle.vehicle.CanMove);
+      // Autonomous aerial vehicle no passengers CanMove
+      aerialVehicle.DisembarkAll();
+      aerialVehicle.DeSpawnPawns();
+      Assert.IsTrue(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
+      Assert.IsFalse(aerialVehicle.vehicle.CanMove);
+      Assert.IsTrue(aerialVehicle.vehicle.CompVehicleLauncher.CanLaunchWithCargoCapacity(out _));
       Expect.IsFalse(asteroid.ShouldRemoveMapNow(out _));
+
+      aerialVehicle.DeSpawn();
+      Assert.IsFalse(aerialVehicle.vehicle.Spawned);
+      Assert.IsFalse(aerialVehicle.pawns.Any(pawn => pawn.Spawned));
     }
     finally
     {

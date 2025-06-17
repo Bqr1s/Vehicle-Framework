@@ -92,12 +92,8 @@ public class VehicleGroup : IDisposable
     vehicle.DisembarkAll();
     foreach (Pawn pawn in pawns)
     {
-      if (vehicle.Spawned)
-        Assert.IsTrue(pawn.Spawned);
-      else if (vehicle.InVehicleCaravan())
+      if (vehicle.InVehicleCaravan())
         Assert.IsTrue(pawn.InVehicleCaravan());
-      else
-        throw new NotImplementedException("Unhandled disembarking situation.");
       Assert.IsTrue(pawn.Spawned);
     }
   }
@@ -118,7 +114,8 @@ public class VehicleGroup : IDisposable
   public static VehicleGroup CreateBasicVehicleGroup(MockSettings settings)
   {
     VehicleDef vehicleDef =
-      TestDefGenerator.CreateTransientVehicleDef($"VehicleDef_MOCK_{Rand.Int}");
+      TestDefGenerator.CreateTransientVehicleDef($"VehicleDef_MOCK_{Rand.Int}",
+        settings.debugLabel);
 
     if (!settings.statModifiers.NullOrEmpty())
     {
@@ -132,7 +129,7 @@ public class VehicleGroup : IDisposable
         new VehicleStatModifier
         {
           statDef = VehicleStatDefOf.MoveSpeed,
-          value = settings.permissions == VehiclePermissions.Immobile ? 0 : 10
+          value = !settings.permissions.HasFlag(VehiclePermissions.Mobile) ? 0 : 10
         },
         new VehicleStatModifier
         {
@@ -154,7 +151,9 @@ public class VehicleGroup : IDisposable
       ];
     }
 
-    if (settings.drivers > 0)
+    Assert.IsTrue(settings.drivers > 0 ==
+      !settings.permissions.HasFlag(VehiclePermissions.Autonomous));
+    if (!settings.permissions.HasFlag(VehiclePermissions.Autonomous))
     {
       vehicleDef.properties.roles.Add(new VehicleRole
       {
@@ -189,6 +188,9 @@ public class VehicleGroup : IDisposable
 
   public class MockSettings
   {
+    public string debugLabel;
+
+    // Reverse mapping permissions to def restrictions for easy configuration
     public VehiclePermissions permissions;
     public int drivers;
     public int passengers;
