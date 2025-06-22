@@ -32,6 +32,7 @@ public class Dialog_AssignSeats : Window
 
   private readonly List<TransferableOneWay> transferablePawns = [];
   private readonly List<Pawn> pawns;
+  private readonly HashSet<Pawn> insideVehicle;
 
   private readonly TransferableOneWay vehicleTransferable;
 
@@ -41,6 +42,7 @@ public class Dialog_AssignSeats : Window
   {
     vehicle = vehicleTransferable.AnyThing as VehiclePawn;
     Assert.IsNotNull(vehicle);
+    insideVehicle = vehicle.AllPawnsAboard.ToHashSet();
 
     this.vehicleTransferable = vehicleTransferable;
     GetTransferablePawns(pawns, vehicle, transferablePawns);
@@ -76,7 +78,7 @@ public class Dialog_AssignSeats : Window
 
   private int PreAssignedCount(VehicleRoleHandler handler)
   {
-    int count = handler.thingOwner.Count;
+    int count = 0;
     foreach (AssignedSeat seat in Assignments)
     {
       if (seat.handler == handler)
@@ -281,8 +283,8 @@ public class Dialog_AssignSeats : Window
         if (assignedSeat.handler.role != handler.role)
           continue;
 
-        if (DrawPawnRow(pawnRowRect, assignedSeat.pawn, "VF_RemoveFromRole".Translate()) &&
-          !assignedSeat.Vehicle.AllPawnsAboard.Contains(assignedSeat.pawn))
+        if (DrawPawnRow(pawnRowRect, assignedSeat.pawn,
+          insideVehicle.Contains(assignedSeat.pawn) ? null : "VF_RemoveFromRole".Translate()))
         {
           removalList.Add(assignedSeat.pawn);
         }
@@ -339,7 +341,6 @@ public class Dialog_AssignSeats : Window
         Messages.Message("VF_AssignFailure".Translate(failReason), MessageTypeDefOf.RejectInput);
         return;
       }
-      // TODO - invalidate Dialog_FormCaravan cached values
       Close();
     }
   }
@@ -387,8 +388,7 @@ public class Dialog_AssignSeats : Window
       if (!handler.role.RequiredForCaravan)
         continue;
 
-      int count = PreAssignedCount(handler);
-      if (count > 0 && count < handler.role.SlotsToOperate)
+      if (PreAssignedCount(handler) < handler.role.SlotsToOperate)
       {
         failReason = "VF_CantAssignVehicle".Translate(vehicle.LabelCap);
         return false;
@@ -413,6 +413,7 @@ public class Dialog_AssignSeats : Window
       int transferCount = Assignments.Count > 0 ? vehicleTransferable.GetMaximumToTransfer() : 0;
       vehicleTransferable.AdjustTo(transferCount);
       Dialog_FormVehicleCaravan.MarkDirty();
+      // TODO - Mark Dialog_FormCaravan dirty
     }
     catch (Exception ex)
     {

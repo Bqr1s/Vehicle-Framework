@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using SmashTools;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
@@ -56,8 +57,15 @@ public sealed class VehicleAssignment
 
   public void RemoveAssignment(Pawn pawn)
   {
+    Assert.IsFalse(pawn is VehiclePawn);
     pawnAssignment.Remove(pawn);
     UpdateVehicleAssignments();
+  }
+
+  public void RemoveAssignments(VehiclePawn vehicle)
+  {
+    vehicleAssignments.Remove(vehicle);
+    UpdatePawnAssignments();
   }
 
   public void SetAssignment(AssignedSeat assignment)
@@ -69,11 +77,8 @@ public sealed class VehicleAssignment
 
   public void SetAssignments(VehiclePawn vehicle, List<AssignedSeat> assignments)
   {
-    if (assignments.NullOrEmpty())
-      vehicleAssignments.Remove(vehicle);
-    else
-      vehicleAssignments[vehicle] = assignments;
-
+    Assert.IsFalse(assignments.NullOrEmpty());
+    vehicleAssignments[vehicle] = assignments;
     UpdatePawnAssignments();
   }
 

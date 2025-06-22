@@ -155,6 +155,7 @@ internal class Patch_FormCaravanDialog : IPatchCategory
   {
     ___tabsList.Clear();
     selectedTab = TabVehicles;
+    CaravanHelper.assignedSeats.Clear();
   }
 
   private static void CreateTransferableVehicleWidget(List<TransferableOneWay> transferables,

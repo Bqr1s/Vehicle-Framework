@@ -229,17 +229,21 @@ public sealed class TransferableVehicleWidget
     Rect checkboxRect = new(iconBar.xMax - CheckboxSize, iconBar.y, CheckboxSize, CheckboxSize);
     Widgets.Checkbox(checkboxRect.position, ref checkOn, disabled: !canCaravan, size: CheckboxSize);
 
-    UIElements.CheckboxDraw(checkboxRect.position.x, checkboxRect.position.y,
-      transferable.CountToTransfer > 0, disabled: !canCaravan, size: CheckboxSize);
-
     if (!canCaravan)
       TooltipHandler.TipRegionByKey(checkboxRect, disableReason);
-    UIHighlighter.HighlightOpportunity(checkboxRect, "VehicleCardCheckbox");
 
-    if (Widgets.ButtonInvisible(checkboxRect))
+    if (checkOn != transferable.CountToTransfer > 0)
     {
       SoundDefOf.Click.PlayOneShotOnCamera();
-      Find.WindowStack.Add(new Dialog_AssignSeats(pawns, transferable));
+      if (checkOn)
+      {
+        Find.WindowStack.Add(new Dialog_AssignSeats(pawns, transferable));
+      }
+      else
+      {
+        transferable.ForceTo(0);
+        CaravanHelper.assignedSeats.RemoveAssignments(vehicle);
+      }
     }
 
     //Rect specialPropsRect = iconBar with

@@ -98,8 +98,8 @@ internal class Patch_Debug : IPatchCategory
   {
     if (__exception != null)
     {
-      SmashLog.Message(
-        $"Exception caught! <error>Ex={__exception}</error> Instance: {__instance}");
+      Log.Message(
+        $"Exception caught! Ex={__exception} Instance: {__instance}");
     }
 
     return __exception;
