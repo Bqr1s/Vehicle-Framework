@@ -1,38 +1,30 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
-using HarmonyLib;
-using Verse;
-using Verse.Sound;
-using Verse.AI;
-using Verse.AI.Group;
+﻿using HarmonyLib;
 using RimWorld;
-using RimWorld.Planet;
-using OpCodes = System.Reflection.Emit.OpCodes;
-using UnityEngine;
+using SmashTools.Patching;
+using Verse;
 
-namespace Vehicles
+namespace Vehicles;
+
+internal class Patch_LordAi : IPatchCategory
 {
-  internal class Patch_LordAi : IPatchCategory
-  {
-    public void PatchMethods()
-    {
-      VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(GatheringsUtility),
-          nameof(GatheringsUtility.ShouldGuestKeepAttendingGathering)),
-        prefix: new HarmonyMethod(typeof(Patch_LordAi),
-          nameof(VehiclesDontParty)));
-    }
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
 
-    public static bool VehiclesDontParty(Pawn p, ref bool __result)
+  void IPatchCategory.PatchMethods()
+  {
+    HarmonyPatcher.Patch(
+      original: AccessTools.Method(typeof(GatheringsUtility),
+        nameof(GatheringsUtility.ShouldGuestKeepAttendingGathering)),
+      prefix: new HarmonyMethod(typeof(Patch_LordAi),
+        nameof(VehiclesDontParty)));
+  }
+
+  public static bool VehiclesDontParty(Pawn p, ref bool __result)
+  {
+    if (p is VehiclePawn)
     {
-      if (p is VehiclePawn)
-      {
-        __result = false;
-        return false;
-      }
-      return true;
+      __result = false;
+      return false;
     }
+    return true;
   }
 }

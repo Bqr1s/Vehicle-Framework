@@ -311,8 +311,8 @@ public class CompVehicleTurrets : VehicleAIComp, IRefundable
       command.disabledReason = null;
 
       VehicleTurret turret = command.turret;
-      foreach (VehicleRoleHandler relatedHandler in
-        Vehicle.GetAllHandlersMatch(HandlingType.Turret, turret.key))
+      foreach (VehicleRoleHandler relatedHandler in Vehicle.GetHandlers(HandlingType.Turret)
+       .Where(handler => handler.role.TurretIds.NotNullAndContains(turret.key)))
       {
         if (relatedHandler.thingOwner.Count < relatedHandler.role.SlotsToOperate &&
           !VehicleMod.settings.debug.debugShootAnyTurret)

@@ -38,7 +38,7 @@ public static class VehicleGui
         max = texSize;
     }
     int sampledWidth = Mathf.Min(Mathf.RoundToInt(rect.width * oversampleFactor), max.width);
-    int sampledHeight = Mathf.Min(Mathf.RoundToInt(rect.width * oversampleFactor), max.width);
+    int sampledHeight = Mathf.Min(Mathf.RoundToInt(rect.height * oversampleFactor), max.height);
     return (sampledWidth, sampledHeight);
   }
 
@@ -343,7 +343,8 @@ public static class VehicleGui
     if (rtIdler == null || rtIdler.Disposed)
     {
       BlitRequest request = BlitRequest.For(vehicleDef) with { patternData = defaultPatternData };
-      rtIdler = new RenderTextureIdler(CreateRenderTexture(buttonRect, request), IdlerTimeExpiry);
+      rtIdler = new RenderTextureIdler(CreateRenderTextureBuffer(buttonRect, request),
+        IdlerTimeExpiry);
       gizmoTextures[vehicleDef.DefIndex] = rtIdler;
       Blit(rtIdler.GetWrite(), buttonRect, request);
     }

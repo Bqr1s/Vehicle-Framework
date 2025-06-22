@@ -187,7 +187,7 @@ public class GraphicOverlay : IAnimationObject, IMaterialCacheTarget,
 
       if (Graphic is Graphic_Rotator)
       {
-        transform.rotation = (transform.rotation + acceleration).ClampAndWrap(0, 360);
+        transform.rotation = (transform.rotation + acceleration).ClampAngle();
       }
     }
     else

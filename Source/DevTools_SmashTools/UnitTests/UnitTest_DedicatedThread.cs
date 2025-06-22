@@ -26,7 +26,7 @@ internal class UnitTest_DedicatedThread
 
     // No signal should be received, it should've already entered a blocked state while waiting 
     // for an item to enqueue.
-    Expect.IsTrue(dedicatedThread.IsBlocked, "No Polling");
+    Assert.IsTrue(dedicatedThread.IsBlocked, "No Polling");
 
     // ReSharper disable AccessToDisposedClosure
     // NOTE - Yes this may seem a little dubious but we're using the wait handle to run this test

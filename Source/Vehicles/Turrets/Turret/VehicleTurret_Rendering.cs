@@ -34,6 +34,10 @@ public partial class VehicleTurret
 
   /* ----------------- */
 
+  [TweakField]
+  [AnimationProperty(Name = "Transform")]
+  private Transform transform = new();
+
   [Unsaved]
   private PreRenderResults results;
 
@@ -65,8 +69,13 @@ public partial class VehicleTurret
   [Unsaved]
   private Vector3 rootDrawPos_NorthWest;
 
+  [Unsaved]
   public Texture2D currentFireIcon;
+
+  [Unsaved]
   private Texture2D gizmoIcon;
+
+  [Unsaved]
   private Texture2D mainMaskTex;
 
   [Unsaved]
@@ -87,10 +96,6 @@ public partial class VehicleTurret
   [Unsaved]
   private RotatingList<Texture2D> overheatIcons;
 
-  [TweakField]
-  [AnimationProperty(Name = "Transform")]
-  private Transform transform = new();
-
   [Unsaved]
   private bool selfDirty;
 
@@ -109,8 +114,6 @@ public partial class VehicleTurret
   public bool GizmoHighlighted { get; set; }
 
   public MaterialPropertyBlock PropertyBlock { get; private set; }
-
-  public static MaterialPropertyBlock TargeterPropertyBlock { get; private set; }
 
   // Need recursive parent check for nested turret attachment
   public bool ShouldDraw => (component is null || component.MeetsRequirements) &&
@@ -552,7 +555,7 @@ public partial class VehicleTurret
 
   (int width, int height) IBlitTarget.TextureSize(in BlitRequest request)
   {
-    return Texture != null ? (Texture.width, Texture.height) : (0, 0);
+    return Texture ? (Texture.width, Texture.height) : (0, 0);
   }
 
   IEnumerable<RenderData> IBlitTarget.GetRenderData(Rect rect, BlitRequest request)
@@ -594,71 +597,99 @@ public partial class VehicleTurret
 
   protected virtual void DrawTargeter()
   {
-    // TODO - clean up
-    TargeterPropertyBlock ??= new MaterialPropertyBlock();
     if (GizmoHighlighted || TurretTargeter.Turret == this)
     {
-      if (angleRestricted != Vector2.zero)
+      switch (def.turretType)
       {
-        VehicleGraphics.DrawAngleLines(TurretLocation, angleRestricted, MinRange, MaxRange,
-          restrictedTheta, attachedTo?.TurretRotation ?? vehicle.FullRotation.AsAngle);
-      }
-      else if (def.turretType == TurretType.Static)
-      {
-        if (!groupKey.NullOrEmpty())
-        {
-          foreach (VehicleTurret turret in GroupTurrets)
+        case TurretType.Rotatable:
+          // TODO - Bake into a mesh for better rendering performance
+          if (Mathf.Approximately(restrictedTheta, 0))
           {
-            Vector3 target =
-              turret.TurretLocation.PointFromAngle(turret.MaxRange, turret.TurretRotation);
-            float range = Vector3.Distance(turret.TurretLocation, target);
+            if (MaxRange < DefaultMaxRange)
+              GenDraw.DrawCircleOutline(results.position, MaxRange);
+            if (MinRange > 0)
+              GenDraw.DrawCircleOutline(results.position, MaxRange);
+          }
+          else
+          {
+            DrawAngleLines(results.position, angleRestricted, MinRange, MaxRange, restrictedTheta,
+              attachedTo?.TurretRotation ?? vehicle.FullRotation.AsAngle);
+          }
+        break;
+        case TurretType.Static:
+          if (!groupKey.NullOrEmpty())
+          {
+            foreach (VehicleTurret turret in GroupTurrets)
+            {
+              Vector3 target =
+                turret.TurretLocation.PointFromAngle(turret.MaxRange, turret.TurretRotation);
+              float range = Vector3.Distance(turret.TurretLocation, target);
+              GenDraw.DrawRadiusRing(target.ToIntVec3(),
+                turret.CurrentFireMode.forcedMissRadius * (range / turret.def.maxRange));
+            }
+          }
+          else
+          {
+            Vector3 target = TurretLocation.PointFromAngle(MaxRange, TurretRotation);
+            float range = Vector3.Distance(TurretLocation, target);
             GenDraw.DrawRadiusRing(target.ToIntVec3(),
-              turret.CurrentFireMode.forcedMissRadius * (range / turret.def.maxRange));
+              CurrentFireMode.forcedMissRadius * (range / def.maxRange));
           }
-        }
-        else
-        {
-          Vector3 target = TurretLocation.PointFromAngle(MaxRange, TurretRotation);
-          float range = Vector3.Distance(TurretLocation, target);
-          GenDraw.DrawRadiusRing(target.ToIntVec3(),
-            CurrentFireMode.forcedMissRadius * (range / def.maxRange));
-        }
+        break;
+        default:
+          throw new NotImplementedException(nameof(def.turretType));
       }
-      else
-      {
-        if (MaxRange > -1)
-        {
-          Vector3 pos = TurretLocation;
-          pos.y = AltitudeLayer.MoteOverhead.AltitudeFor();
-          float currentAlpha = 0.65f;
-          if (currentAlpha > 0f)
-          {
-            Color value = Color.grey;
-            value.a *= currentAlpha;
-            TargeterPropertyBlock.SetColor(ShaderPropertyIDs.Color, value);
-            Matrix4x4 matrix = default;
-            matrix.SetTRS(pos, Quaternion.identity, new Vector3(MaxRange * 2f, 1f, MaxRange * 2f));
-            Graphics.DrawMesh(MeshPool.plane10, matrix, TexData.RangeMat((int)MaxRange), 0, null, 0,
-              TargeterPropertyBlock);
-          }
-        }
+    }
+  }
 
-        if (MinRange > 0)
-        {
-          Vector3 pos = TurretLocation;
-          pos.y = AltitudeLayer.MoteOverhead.AltitudeFor();
-          float currentAlpha = 0.65f;
-          if (currentAlpha > 0f)
-          {
-            Color value = Color.red;
-            value.a *= currentAlpha;
-            TargeterPropertyBlock.SetColor(ShaderPropertyIDs.Color, value);
-            Matrix4x4 matrix = default;
-            matrix.SetTRS(pos, Quaternion.identity, new Vector3(MinRange * 2f, 1f, MinRange * 2f));
-            Graphics.DrawMesh(MeshPool.plane10, matrix, TexData.RangeMat((int)MinRange), 0, null, 0,
-              TargeterPropertyBlock);
-          }
-        }
+  /// <summary>
+  /// Render lines from <paramref name="position"/> given angle and ranges
+  /// </summary>
+  /// <param name="position"></param>
+  /// <param name="restrictedAngle"></param>
+  /// <param name="minRange"></param>
+  /// <param name="maxRange"></param>
+  /// <param name="theta"></param>
+  /// <param name="rotation"></param>
+  public static void DrawAngleLines(Vector3 position, Vector2 restrictedAngle, float minRange,
+    float maxRange, float theta, float rotation = 0f)
+  {
+    Vector3 minTargetPos1 =
+      position.PointFromAngle(minRange, restrictedAngle.x + rotation);
+    Vector3 minTargetPos2 =
+      position.PointFromAngle(minRange, restrictedAngle.y + rotation);
+
+    Vector3 maxTargetPos1 =
+      position.PointFromAngle(maxRange, restrictedAngle.x + rotation);
+    Vector3 maxTargetPos2 =
+      position.PointFromAngle(maxRange, restrictedAngle.y + rotation);
+
+    GenDraw.DrawLineBetween(minTargetPos1, maxTargetPos1);
+    GenDraw.DrawLineBetween(minTargetPos2, maxTargetPos2);
+    if (minRange > 0)
+    {
+      GenDraw.DrawLineBetween(position, minTargetPos1, SimpleColor.Red);
+      GenDraw.DrawLineBetween(position, minTargetPos2, SimpleColor.Red);
+    }
+
+    float angleStart = restrictedAngle.x;
+
+    Vector3 lastPointMin = minTargetPos1;
+    Vector3 lastPointMax = maxTargetPos1;
+
+    for (int angle = 0; angle < theta + 1; angle++)
+    {
+      Vector3 targetPointMax =
+        position.PointFromAngle(maxRange, angleStart + angle + rotation);
+      GenDraw.DrawLineBetween(lastPointMax, targetPointMax);
+      lastPointMax = targetPointMax;
+
+      if (minRange > 0)
+      {
+        Vector3 targetPointMin =
+          position.PointFromAngle(minRange, angleStart + angle + rotation);
+        GenDraw.DrawLineBetween(lastPointMin, targetPointMin, SimpleColor.Red);
+        lastPointMin = targetPointMin;
       }
     }
   }
@@ -1024,7 +1055,7 @@ public partial class VehicleTurret
     throw new NotImplementedException();
   }
 
-  public readonly struct SubGizmo
+  public record SubGizmo
   {
     public readonly Action<Rect> drawGizmo;
     public readonly Func<bool> canClick;
@@ -1040,8 +1071,6 @@ public partial class VehicleTurret
     }
 
     public bool IsValid => onClick != null;
-
-    public static SubGizmo None { get; private set; } = new();
   }
 
   public class TurretDrawData : IMaterialCacheTarget

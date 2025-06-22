@@ -338,7 +338,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
 
       UpdateRotationLock();
 
-      transform.rotation = transform.rotation.ClampAndWrap(0, 360);
+      transform.rotation = transform.rotation.ClampAngle();
       if (angleRestricted != Vector2.zero)
         transform.rotation = transform.rotation.Clamp(angleRestricted.x, angleRestricted.y);
 
@@ -346,7 +346,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
         return transform.rotation + attachedTo.TurretRotation;
       return transform.rotation;
     }
-    set { transform.rotation = value.ClampAndWrap(0, 360); }
+    set { transform.rotation = value.ClampAngle(); }
   }
 
   public float TurretRotationTargeted
@@ -356,7 +356,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
     {
       if (Mathf.Approximately(rotationTargeted, value))
         return;
-      rotationTargeted = value.ClampAndWrap(0, 360);
+      rotationTargeted = value.ClampAngle();
     }
   }
 
@@ -1293,7 +1293,7 @@ public partial class VehicleTurret : IExposable, ILoadReferenceable, ITweakField
   public void FlagForAlignment()
   {
     TurretRotationTargeted =
-      TurretRotationFor(vehicle.FullRotation, defaultAngleRotated.ClampAndWrap(0, 360));
+      TurretRotationFor(vehicle.FullRotation, defaultAngleRotated.ClampAngle());
   }
 
   public virtual void ResetPrefireTimer()

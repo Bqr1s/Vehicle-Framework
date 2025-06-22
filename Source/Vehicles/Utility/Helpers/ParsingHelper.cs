@@ -71,7 +71,7 @@ public static class ParsingHelper
   {
     if (value.ToUpperInvariant() == "TRUE")
     {
-      string defName = XmlParseHelper.BackSearchDefName(node);
+      string defName = BackSearchDefName(node);
       if (string.IsNullOrEmpty(defName))
       {
         SmashLog.Error(
@@ -93,7 +93,7 @@ public static class ParsingHelper
 
   private static void AssignDefaults(XmlNode node, string value, FieldInfo field)
   {
-    string defName = XmlParseHelper.BackSearchDefName(node);
+    string defName = BackSearchDefName(node);
     if (string.IsNullOrEmpty(defName))
     {
       SmashLog.Error(
@@ -125,7 +125,7 @@ public static class ParsingHelper
 
   private static void AllowTerrainCosts(XmlNode node, string value, FieldInfo field)
   {
-    string defName = XmlParseHelper.BackSearchDefName(node);
+    string defName = BackSearchDefName(node);
     if (string.IsNullOrEmpty(defName))
     {
       SmashLog.Error($"Could not find <xml>defName</xml> node for {node.Name}.");
@@ -151,7 +151,7 @@ public static class ParsingHelper
 
   private static void DisallowTerrainCosts(XmlNode node, string value, FieldInfo field)
   {
-    string defName = XmlParseHelper.BackSearchDefName(node);
+    string defName = BackSearchDefName(node);
     if (string.IsNullOrEmpty(defName))
     {
       SmashLog.Error($"Could not find <xml>defName</xml> node for {node.Name}.");
@@ -164,5 +164,28 @@ public static class ParsingHelper
       PathingHelper.allTerrainCostsByTag[defName] = terrainDict;
     }
     terrainDict[value] = VehiclePathGrid.ImpassableCost;
+  }
+
+  /// <summary>
+  /// Traverse backwards from the <paramref name="curNode"/> until the defName node is found.
+  /// </summary>
+  /// <param name="curNode"></param>
+  /// <returns>Empty string if not found and the document element is reached</returns>
+  private static string BackSearchDefName(XmlNode curNode)
+  {
+    XmlNode defNode = curNode.SelectSingleNode("defName");
+    XmlNode parentNode = curNode;
+    while (defNode is null)
+    {
+      parentNode = parentNode.ParentNode;
+      if (parentNode is null)
+      {
+        return string.Empty;
+      }
+
+      defNode = parentNode.SelectSingleNode("defName");
+    }
+
+    return defNode.InnerText;
   }
 }

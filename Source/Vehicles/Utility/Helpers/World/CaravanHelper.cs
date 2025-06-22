@@ -20,31 +20,9 @@ public static class CaravanHelper
   private static readonly List<int> availableExitTiles = [];
   private static readonly List<PlanetTile> neighborTiles = [];
 
-  public static Dictionary<Pawn, AssignedSeat> assignedSeats = [];
+  public static VehicleAssignment assignedSeats = new();
 
   private static int pawnsBeingAdded;
-
-  /// <summary>
-  /// Remove all pawns from <see cref="assignedSeats"/> for this vehicle
-  /// </summary>
-  public static void ClearAssignedSeats(VehiclePawn vehicle, Action<Pawn> onRemoval)
-  {
-    List<Pawn> assignedPawns = assignedSeats.Where(kvp => kvp.Value.vehicle == vehicle)
-     .Select(kvp => kvp.Key).ToList();
-
-    if (!assignedPawns.NullOrEmpty())
-    {
-      foreach (Pawn pawn in assignedPawns)
-      {
-        assignedSeats.Remove(pawn);
-        onRemoval(pawn);
-      }
-      foreach (Pawn pawn in vehicle.AllPawnsAboard)
-      {
-        onRemoval(pawn);
-      }
-    }
-  }
 
   /// <summary>
   /// VehicleCaravan is able to be created and embark given list of pawns
@@ -270,27 +248,17 @@ public static class CaravanHelper
   /// <summary>
   /// Board all pawns automatically into assigned seats
   /// </summary>
-  /// <param name="pawns"></param>
-  public static void BoardAllAssignedPawns(List<Pawn> pawns)
+  public static void BoardAllAssignedPawns()
   {
-    List<VehiclePawn> vehicles = pawns.Where(p => p is VehiclePawn).Cast<VehiclePawn>().ToList();
-    List<Pawn> nonVehicles = pawns.Where(p => !(p is VehiclePawn)).ToList();
-    foreach (Pawn pawn in nonVehicles)
+    foreach (AssignedSeat seat in assignedSeats.AllAssignments.Values)
     {
-      if (assignedSeats.ContainsKey(pawn) && vehicles.Contains(assignedSeats[pawn].vehicle))
-      {
-        if (pawn.Spawned)
-        {
-          assignedSeats[pawn].vehicle.TryAddPawn(pawn, assignedSeats[pawn].handler);
-        }
-        else if (!pawn.IsInVehicle())
-        {
-          assignedSeats[pawn].vehicle
-           .Notify_BoardedCaravan(pawn, assignedSeats[pawn].handler.thingOwner);
-        }
-        pawns.Remove(pawn);
-      }
+      Pawn pawn = seat.pawn;
+      if (pawn.Spawned)
+        seat.Vehicle.TryAddPawn(pawn, seat.handler);
+      else if (!pawn.IsInVehicle())
+        seat.Vehicle.Notify_BoardedCaravan(pawn, seat.handler.thingOwner);
     }
+    assignedSeats.Clear();
   }
 
   /// <summary>

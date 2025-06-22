@@ -107,8 +107,8 @@ public static class MapHelper
   /// <param name="rot"></param>
   public static VehiclePawn VehicleInPosition(VehiclePawn vehicle, Map map, IntVec3 cell, Rot4 rot)
   {
-    IEnumerable<IntVec3> cells = vehicle.PawnOccupiedCells(cell, rot);
-    return VehicleReservationManager.VehicleInhabitingCells(cells, map);
+    return VehicleReservationManager.VehicleInhabitingCells(vehicle.PawnOccupiedCells(cell, rot),
+      map);
   }
 
   public static VehicleSkyfaller VehicleSkyfallerInPosition(VehiclePawn vehicle, Map map,

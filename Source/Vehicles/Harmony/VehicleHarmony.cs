@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
+using System.Text;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
+using SmashTools.Patching;
+using UnityEngine.Assertions;
 using UpdateLogTool;
 using Verse;
 
@@ -20,34 +20,34 @@ public static class VehicleHarmony
   public const string VehiclesLabel = "Vehicle Framework";
   internal const string LogLabel = "[VehicleFramework]";
 
-  public static readonly ModMetaData VehicleMMD;
-  public static readonly ModContentPack VehicleMCP;
-
-  private static string methodPatching = string.Empty;
-
   internal static List<UpdateLog> updates = [];
 
-  private static Harmony Harmony { get; } = new(VehiclesUniqueId);
-
-  internal static string VersionPath => Path.Combine(VehicleMMD.RootDir.FullName, "Version.txt");
+  internal static string VersionPath =>
+    Path.Combine(VehicleMod.metaData.RootDir.FullName, "Version.txt");
 
   internal static string BuildDatePath =>
-    Path.Combine(VehicleMMD.RootDir.FullName, "BuildDate.txt");
+    Path.Combine(VehicleMod.metaData.RootDir.FullName, "BuildDate.txt");
 
   public static List<VehicleDef> AllMoveableVehicleDefs { get; internal set; }
 
   static VehicleHarmony()
   {
-    //harmony.PatchAll(Assembly.GetExecutingAssembly());
-    Harmony.DEBUG = true;
+    Assert.IsTrue(UnityData.IsInMainThread);
 
-    VehicleMCP = VehicleMod.mod.Content;
-    VehicleMMD = ModLister.GetActiveModWithIdentifier(VehiclesUniqueId, ignorePostfix: true);
+    Log.Message($"{LogLabel} v{VehicleMod.metaData.ModVersion}");
 
-    Log.Message($"<color=orange>{LogLabel}</color> version {VehicleMMD.ModVersion}");
-
-    //Harmony.PatchAll();
-    RunAllPatches();
+    List<ConditionalPatch.Result> compatPatches = ConditionalPatches.GetPatches(VehiclesUniqueId);
+    if (!compatPatches.NullOrEmpty())
+    {
+      StringBuilder reportBuilder = new();
+      foreach (ConditionalPatch.Result result in compatPatches)
+      {
+        reportBuilder.AppendLine(
+          $"[{VehiclesUniqueId}] Applying compatibility patch for {result.PackageId}. Active: {result.Active.ToStringYesNo()}");
+      }
+      if (reportBuilder.Length > 0)
+        Log.Message(reportBuilder.ToString());
+    }
 
     Utilities.InvokeWithLogging(ResolveAllReferences);
     Utilities.InvokeWithLogging(PostDefDatabaseCalls);
@@ -71,52 +71,6 @@ public static class VehicleHarmony
     Utilities.InvokeWithLogging(PatternDef.GenerateMaterials);
 
     DebugProperties.Init();
-  }
-
-  private static void RunAllPatches()
-  {
-    List<IPatchCategory> patchCategories = [];
-    foreach (Assembly assembly in VehicleMCP.assemblies.loadedAssemblies)
-    {
-      foreach (Type type in assembly.GetTypes())
-      {
-        if (type.HasInterface(typeof(IPatchCategory)))
-        {
-          IPatchCategory patch = (IPatchCategory)Activator.CreateInstance(type, null);
-          patchCategories.Add(patch);
-        }
-      }
-    }
-
-    foreach (IPatchCategory patch in patchCategories)
-    {
-      try
-      {
-        patch.PatchMethods();
-      }
-      catch (Exception ex)
-      {
-        SmashLog.Error(
-          $"Failed to Patch <type>{patch.GetType().FullName}</type>. Method=\"{methodPatching}\"\n{ex}");
-      }
-    }
-
-#if !RELEASE
-    if (Prefs.DevMode)
-    {
-      SmashLog.Message(
-        $"<color=orange>{LogLabel}</color> <success>{Harmony.GetPatchedMethods().Count()} " +
-        $"patches successfully applied.</success>");
-    }
-#endif
-  }
-
-  public static void Patch(MethodBase original, HarmonyMethod prefix = null,
-    HarmonyMethod postfix = null,
-    HarmonyMethod transpiler = null, HarmonyMethod finalizer = null)
-  {
-    methodPatching = original?.Name ?? $"Null\", Previous=\"{methodPatching}";
-    Harmony.Patch(original, prefix, postfix, transpiler, finalizer);
   }
 
   private static void ResolveAllReferences()

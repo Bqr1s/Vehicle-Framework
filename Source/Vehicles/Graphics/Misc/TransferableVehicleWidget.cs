@@ -9,6 +9,7 @@ using SmashTools.Rendering;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Verse;
+using Verse.Sound;
 using TransferableOneWay = RimWorld.TransferableOneWay;
 
 namespace Vehicles.Rendering;
@@ -40,19 +41,9 @@ public sealed class TransferableVehicleWidget
 
   private static readonly StringBuilder stringBuilder = new();
 
-  private readonly List<Section> sections = [];
-  private string sourceLabel;
-  private string destinationLabel;
-  private string sourceCountDesc;
-  private bool drawMass;
-  private IgnorePawnsInventoryMode ignorePawnInventoryMass = IgnorePawnsInventoryMode.DontIgnore;
-  private bool includePawnsMassInMassUsage;
-  private Func<float> availableMassGetter;
-  private float extraHeaderSpace;
-  private bool ignoreSpawnedCorpseGearAndInventoryMass;
-  private PlanetTile tile;
-  private bool drawMarketValue;
-  private bool drawFishPerDay;
+  private readonly Section vehicleSection;
+  private readonly List<TransferableOneWay> pawns;
+  private readonly PlanetTile tile;
   private bool transferablesCached;
 
   private readonly TransferableSorter sortByCategory;
@@ -72,57 +63,38 @@ public sealed class TransferableVehicleWidget
       {
         CacheTransferables();
       }
-      foreach (Section section in sections)
-      {
-        if (section.SortedTransferables.Any())
-          return true;
-      }
-      return false;
+      return vehicleSection.SortedTransferables.Count > 0;
     }
   }
 
-  public TransferableVehicleWidget(IEnumerable<TransferableOneWay> transferables,
-    string sourceLabel, string destinationLabel, string sourceCountDesc, bool drawMass = false,
-    IgnorePawnsInventoryMode ignorePawnInventoryMass = IgnorePawnsInventoryMode.DontIgnore,
-    bool includePawnsMassInMassUsage = false, Func<float> availableMassGetter = null,
-    float extraHeaderSpace = 0f, bool ignoreSpawnedCorpseGearAndInventoryMass = false,
-    int tile = -1, bool drawMarketValue = false, bool drawFishPerDay = false)
+  public TransferableVehicleWidget(string title, List<TransferableOneWay> vehicles,
+    List<TransferableOneWay> pawns,
+    PlanetTile tile = default)
   {
-    if (transferables != null)
+    vehicleSection = new Section
     {
-      AddSection(null, transferables);
-    }
-    this.sourceLabel = sourceLabel;
-    this.destinationLabel = destinationLabel;
-    this.sourceCountDesc = sourceCountDesc;
-    this.drawMass = drawMass;
-    this.ignorePawnInventoryMass = ignorePawnInventoryMass;
-    this.includePawnsMassInMassUsage = includePawnsMassInMassUsage;
-    this.availableMassGetter = availableMassGetter;
-    this.extraHeaderSpace = extraHeaderSpace;
-    this.ignoreSpawnedCorpseGearAndInventoryMass = ignoreSpawnedCorpseGearAndInventoryMass;
+      title = title,
+      transferables = vehicles,
+    };
+    this.pawns = pawns;
     this.tile = tile;
-    this.drawMarketValue = drawMarketValue;
-    this.drawFishPerDay = drawFishPerDay;
 
     sortByCategory = new TransferableSorter(this, TransferableSorterDefOf.Category);
     sortByMarketValue = new TransferableSorter(this, TransferableSorterDefOf.MarketValue);
+
+    Init();
   }
 
-  public void AddSection(string title, IEnumerable<TransferableOneWay> transferables)
+  private void Init()
   {
-    Section section = new()
-    {
-      title = title,
-    };
-    section.transferables.AddRange(transferables);
-    sections.Add(section);
+    Assert.IsNotNull(vehicleSection);
+
     transferablesCached = false;
 
-    if (!section.transferables.NullOrEmpty())
+    if (!vehicleSection.transferables.NullOrEmpty())
     {
       WorldVehiclePathGrid worldVehiclePathGrid = Find.World.GetComponent<WorldVehiclePathGrid>();
-      foreach (TransferableOneWay transferable in section.transferables)
+      foreach (TransferableOneWay transferable in vehicleSection.transferables)
       {
         VehicleDef vehicleDef = transferable.ThingDef as VehicleDef;
         Assert.IsNotNull(vehicleDef, "Non-vehicle transferable in vehicles section.");
@@ -135,28 +107,22 @@ public sealed class TransferableVehicleWidget
   private void CacheTransferables()
   {
     transferablesCached = true;
-    foreach (Section section in sections)
-    {
-      section.SortedTransferables.Clear();
-      section.SortedTransferables.AddRange(section.transferables
-       .OrderBy(transferableOneWay => CanCaravan(transferableOneWay, out _))
-       .ThenBy(transferOneWay => transferOneWay, sortByCategory.sorterDef.Comparer)
-       .ThenBy(transferOneWay => transferOneWay, sortByMarketValue.sorterDef.Comparer)
-       .ThenBy(TransferableUIUtility.DefaultListOrderPriority));
-    }
+    vehicleSection.SortedTransferables.Clear();
+    vehicleSection.SortedTransferables.AddRange(vehicleSection.transferables
+     .OrderBy(transferableOneWay => CanCaravan(transferableOneWay, out _))
+     .ThenBy(transferOneWay => transferOneWay, sortByCategory.sorterDef.Comparer)
+     .ThenBy(transferOneWay => transferOneWay, sortByMarketValue.sorterDef.Comparer)
+     .ThenBy(TransferableUIUtility.DefaultListOrderPriority));
     RecalculateHeight();
   }
 
   private void RecalculateHeight()
   {
     float height = FirstTransferableY;
-    foreach (Section section in sections)
-    {
-      height += Mathf.CeilToInt(section.SortedTransferables.Count / (float)ColumnCount) *
-        CardHeight;
-      if (section.title != null)
-        height += LabelHeight + ExtraSpaceAfterSectionTitle;
-    }
+    height += Mathf.CeilToInt(vehicleSection.SortedTransferables.Count / (float)ColumnCount) *
+      CardHeight;
+    if (vehicleSection.title != null)
+      height += LabelHeight + ExtraSpaceAfterSectionTitle;
     Height = height;
   }
 
@@ -165,34 +131,12 @@ public sealed class TransferableVehicleWidget
     if (!transferablesCached)
       CacheTransferables();
 
+    using TextBlock textBlock = new(GameFont.Small);
     TransferableUIUtility.DoTransferableSorters(sortByCategory.sorterDef,
       sortByMarketValue.sorterDef, sortByCategory.Sort, sortByMarketValue.Sort);
 
-    if (!sourceLabel.NullOrEmpty() || !destinationLabel.NullOrEmpty())
-    {
-      // TODO - split caravans UI
-      float num = inRect.width - 515f;
-      Rect position = new Rect(inRect.x + num, inRect.y, inRect.width - num, 37f);
-      Widgets.BeginGroup(position);
-      Text.Font = GameFont.Medium;
-      if (!sourceLabel.NullOrEmpty())
-      {
-        Rect rect = new Rect(0f, 0f, position.width / 2f, position.height);
-        Text.Anchor = TextAnchor.UpperLeft;
-        Widgets.Label(rect, sourceLabel);
-      }
-      if (!destinationLabel.NullOrEmpty())
-      {
-        Rect rect2 = new Rect(position.width / 2f, 0f, position.width / 2f, position.height);
-        Text.Anchor = TextAnchor.UpperRight;
-        Widgets.Label(rect2, destinationLabel);
-      }
-      Text.Font = GameFont.Small;
-      Text.Anchor = TextAnchor.UpperLeft;
-      Widgets.EndGroup();
-    }
-    Rect mainRect = new Rect(inRect.x, inRect.y + 37f + extraHeaderSpace, inRect.width,
-      inRect.height - 37f - extraHeaderSpace);
+    Rect mainRect = new(inRect.x, inRect.y + 37f, inRect.width,
+      inRect.height - 37f);
     FillMainRect(mainRect);
   }
 
@@ -210,13 +154,10 @@ public sealed class TransferableVehicleWidget
       disableReason = "VF_CaravanDisabled";
       return false;
     }
-    if (transferable.AnyThing is VehiclePawn vehicle)
+    if (transferable.AnyThing is VehiclePawn { CanMove: false })
     {
-      if (!vehicle.CanMove)
-      {
-        disableReason = "VF_CaravanCantMove";
-        return false;
-      }
+      disableReason = "VF_CaravanCantMove";
+      return false;
     }
     disableReason = null;
     return true;
@@ -233,54 +174,47 @@ public sealed class TransferableVehicleWidget
 
     using TextBlock fontBlock = new(GameFont.Small);
     float curY = FirstTransferableY;
-    float availableMass = availableMassGetter?.Invoke() ?? float.MaxValue;
     float bottomLimit = scrollPosition.y - CardHeight;
     float topLimit = scrollPosition.y + mainRect.height;
 
     Rect viewRect = new(0f, 0f, mainRect.width - 16f, Height);
     Widgets.BeginScrollView(mainRect, ref scrollPosition, viewRect);
     float cardWidth = viewRect.width / ColumnCount;
-    foreach (Section section in sections)
+
+    if (vehicleSection.SortedTransferables.NullOrEmpty())
+      return;
+
+    if (vehicleSection.title != null)
     {
-      List<TransferableOneWay> cachedTransferables = section.SortedTransferables;
-      if (cachedTransferables.NullOrEmpty())
-        continue;
-
-      if (section.title != null)
-      {
-        Widgets.ListSeparator(ref curY, viewRect.width, section.title);
-        curY += ExtraSpaceAfterSectionTitle;
-      }
-      for (int i = 0; i < section.transferables.Count; i++)
-      {
-        TransferableOneWay transferable = section.transferables[i];
-        if (curY > bottomLimit && curY < topLimit)
-        {
-          int column = i % ColumnCount;
-          Rect rect = new(column * cardWidth, curY, cardWidth, CardHeight);
-
-          Widgets.BeginGroup(rect);
-          rect = rect.AtZero().ContractedBy(CardSpacing / 2f);
-          Widgets.DrawBoxSolidWithOutline(rect, cardColor, Widgets.SeparatorLineColor);
-          DrawCard(rect.ContractedBy(CardContentPadding), section, transferable,
-            availableMass);
-          Widgets.EndGroup();
-        }
-        if ((i + 1) % ColumnCount == 0)
-          curY += CardHeight;
-      }
-      section.texturesDirty = false;
+      Widgets.ListSeparator(ref curY, viewRect.width, vehicleSection.title);
+      curY += ExtraSpaceAfterSectionTitle;
     }
+    for (int i = 0; i < vehicleSection.transferables.Count; i++)
+    {
+      TransferableOneWay transferable = vehicleSection.transferables[i];
+      if (curY > bottomLimit && curY < topLimit)
+      {
+        int column = i % ColumnCount;
+        Rect rect = new(column * cardWidth, curY, cardWidth, CardHeight);
+
+        Widgets.BeginGroup(rect);
+        rect = rect.AtZero().ContractedBy(CardSpacing / 2f);
+        Widgets.DrawBoxSolidWithOutline(rect, cardColor, Widgets.SeparatorLineColor);
+        DrawCard(rect.ContractedBy(CardContentPadding), vehicleSection, transferable);
+        Widgets.EndGroup();
+      }
+      if ((i + 1) % ColumnCount == 0)
+        curY += CardHeight;
+    }
+    vehicleSection.texturesDirty = false;
     Widgets.EndScrollView();
   }
 
-  private void DrawCard(Rect rect, Section section, TransferableOneWay transferable,
-    float availableMass)
+  private void DrawCard(Rect rect, Section section, TransferableOneWay transferable)
   {
     const float Margin = 15;
     const float LinePadding = 2;
     const float CheckboxSize = 24;
-    const float SpecialPropIconSize = 24;
 
     VehiclePawn vehicle = transferable.AnyThing as VehiclePawn;
     VehicleDef vehicleDef = transferable.ThingDef as VehicleDef;
@@ -290,20 +224,28 @@ public sealed class TransferableVehicleWidget
     Rect iconBar = rect with { height = CardIconSize };
     Rect iconRect = iconBar.ToSquare();
 
+    // Assign seats checkbox
     bool checkOn = transferable.CountToTransfer > 0;
     Rect checkboxRect = new(iconBar.xMax - CheckboxSize, iconBar.y, CheckboxSize, CheckboxSize);
     Widgets.Checkbox(checkboxRect.position, ref checkOn, disabled: !canCaravan, size: CheckboxSize);
-    if (!canCaravan)
-    {
-      TooltipHandler.TipRegionByKey(checkboxRect, disableReason);
-    }
-    if (checkOn != transferable.CountToTransfer > 0)
-      transferable.AdjustTo(checkOn ? 1 : 0);
 
-    Rect specialPropsRect = iconBar with
+    UIElements.CheckboxDraw(checkboxRect.position.x, checkboxRect.position.y,
+      transferable.CountToTransfer > 0, disabled: !canCaravan, size: CheckboxSize);
+
+    if (!canCaravan)
+      TooltipHandler.TipRegionByKey(checkboxRect, disableReason);
+    UIHighlighter.HighlightOpportunity(checkboxRect, "VehicleCardCheckbox");
+
+    if (Widgets.ButtonInvisible(checkboxRect))
     {
-      y = iconBar.yMax - SpecialPropIconSize, height = SpecialPropIconSize
-    };
+      SoundDefOf.Click.PlayOneShotOnCamera();
+      Find.WindowStack.Add(new Dialog_AssignSeats(pawns, transferable));
+    }
+
+    //Rect specialPropsRect = iconBar with
+    //{
+    //  y = iconBar.yMax - SpecialPropIconSize, height = SpecialPropIconSize
+    //};
     //DrawSpecialProperties(specialPropsRect, vehicleDef, vehicle);
 
     RenderTextureBuffer buffer = section.buffers.TryGetValue(transferable);
@@ -388,7 +330,7 @@ public sealed class TransferableVehicleWidget
     Widgets.DrawHighlightIfMouseover(rect);
     rect.SplitVertically(rect.width / 2, out Rect labelRect, out Rect valueRect);
     using TextBlock fontBlock = new(GameFont.Small);
-    TooltipHandler.TipRegionByKey(rect, "MarketValueTip");
+    TooltipHandler.TipRegionByKey(rect, "VF_Caravan_MoveSpeed");
 
     float moveSpeed;
     if (trad.AnyThing is VehiclePawn vehicle)
@@ -448,6 +390,7 @@ public sealed class TransferableVehicleWidget
     Widgets.DrawHighlightIfMouseover(rect);
     rect.SplitVertically(rect.width / 2, out Rect labelRect, out Rect valueRect);
     using TextBlock fontBlock = new(GameFont.Small, TextAnchor.MiddleRight);
+    TooltipHandler.TipRegion(rect, VehicleStatDefOf.CargoCapacity.description);
 
     using (new TextBlock(TextAnchor.MiddleLeft))
     {
@@ -468,6 +411,7 @@ public sealed class TransferableVehicleWidget
     Widgets.DrawHighlightIfMouseover(rect);
     rect.SplitVertically(rect.width / 2, out Rect labelRect, out Rect valueRect);
     using TextBlock fontBlock = new(GameFont.Small, TextAnchor.MiddleRight);
+    TooltipHandler.TipRegion(rect, StatDefOf.MarketValue.description);
 
     using (new TextBlock(TextAnchor.MiddleLeft))
     {
@@ -476,39 +420,6 @@ public sealed class TransferableVehicleWidget
     using (new TextBlock(TextAnchor.MiddleRight))
     {
       Widgets.Label(valueRect, trad.AnyThing.MarketValue.ToStringMoney());
-    }
-  }
-
-  private void DrawMass(Rect rect, TransferableOneWay trad, float availableMass)
-  {
-    VehiclePawn vehicle = trad.AnyThing as VehiclePawn;
-
-    using TextBlock colorBlock = new(Color.white);
-
-    Widgets.DrawHighlightIfMouseover(rect);
-    if (vehicle == null)
-    {
-      VehicleDef vehicleDef = trad.ThingDef as VehicleDef;
-      Assert.IsNotNull(vehicleDef);
-      float defMass = vehicleDef.GetStatValueAbstract(VehicleStatDefOf.Mass);
-      GUI.color = defMass <= availableMass ?
-        TransferableOneWayWidget.ItemMassColor :
-        ColorLibrary.RedReadable;
-      Widgets.Label(rect, defMass.ToStringMass());
-      return;
-    }
-    float mass = vehicle.statHandler.GetStatValue(VehicleStatDefOf.Mass);
-    float invMass =
-      InventoryCalculatorsUtility.ShouldIgnoreInventoryOf(vehicle, ignorePawnInventoryMass) ?
-        0f :
-        MassUtility.InventoryMass(vehicle);
-    float totalMass = mass + invMass;
-    GUI.color = totalMass < availableMass ? Color.green : TransferableOneWayWidget.ItemMassColor;
-
-    Widgets.Label(rect, totalMass.ToStringMass());
-    if (Mouse.IsOver(rect))
-    {
-      TooltipHandler.TipRegion(rect, $"{"Mass".Translate()}: {totalMass.ToStringMass()}");
     }
   }
 
@@ -528,7 +439,7 @@ public sealed class TransferableVehicleWidget
   private class Section : IDisposable
   {
     public string title;
-    public readonly List<TransferableOneWay> transferables = [];
+    public List<TransferableOneWay> transferables;
     public readonly Dictionary<TransferableOneWay, RenderTextureBuffer> buffers = [];
     public bool texturesDirty = true;
 

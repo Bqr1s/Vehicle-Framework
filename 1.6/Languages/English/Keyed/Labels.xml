@@ -62,7 +62,7 @@
   <!-- Tooltips -->
   
   <VF_RenameVehicleTooltip>Assign or clear name.</VF_RenameVehicleTooltip>
-  <VF_RecolorTooltip>Change colors or pattern.</VF_RecolorTooltip>
+  <VF_RecolorTooltip>Paint vehicle</VF_RecolorTooltip>
   <VF_DoubleClickShuttleTarget>Click to Confirm Destination</VF_DoubleClickShuttleTarget>
   <VF_SwapColors>Cycle colors between each other.\n\nColorOne &gt; ColorTwo &gt; ColorThree</VF_SwapColors>
   <VF_StartFishing>Fish</VF_StartFishing>
@@ -92,12 +92,12 @@
   
   <VF_Electricity>Electricity</VF_Electricity>
   <VF_ElectricFlick>Toggle connecting to the power grid.</VF_ElectricFlick>
-  <VF_ElectricFlickDesc>When on top of a power conduit, this vehicle can connect to the power grid to recharge its battery. If enabled, it will continually drain energy until full.
+  <VF_ElectricFlickDesc>When on top of a power conduit, this connects to the power grid and transfers energy to recharge its battery.
 
-Currently connected to the power grid: {0}</VF_ElectricFlickDesc>
+Currently connected: {0}</VF_ElectricFlickDesc>
   <VF_OutOfFuel>Cannot move. {0} needs more fuel.</VF_OutOfFuel>
   
-  <VF_Assign>Assign</VF_Assign>
+  <VF_AutoAssign>Autofill</VF_AutoAssign>
   <VF_Assigned>Assigned</VF_Assigned>
   <VF_ApplyButton>Apply</VF_ApplyButton>
   <VF_Colonists>Colonists</VF_Colonists>

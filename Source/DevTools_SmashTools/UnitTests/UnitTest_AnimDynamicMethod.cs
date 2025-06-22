@@ -13,7 +13,7 @@ namespace SmashTools.UnitTesting;
 [UnitTest(TestType.MainMenu)]
 [TestDescription(
   "DynamicMethod generation and Set / Get delegates used for animation value changes.")]
-internal class UnitTest_AnimDynamicMethod
+internal sealed class UnitTest_AnimDynamicMethod
 {
   private const int TestCount = 10;
 

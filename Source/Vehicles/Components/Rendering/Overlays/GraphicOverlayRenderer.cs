@@ -61,7 +61,7 @@ public sealed class GraphicOverlayRenderer
 
   public void AddOverlay(string key, GraphicOverlay graphicOverlay)
   {
-    extraOverlayLookup.AddOrInsert(key, graphicOverlay);
+    extraOverlayLookup.AddOrAppend(key, graphicOverlay);
     extraOverlays.Add(graphicOverlay);
     AllOverlaysListForReading.Add(graphicOverlay);
     vehicle.DrawTracker.AddRenderer(graphicOverlay);

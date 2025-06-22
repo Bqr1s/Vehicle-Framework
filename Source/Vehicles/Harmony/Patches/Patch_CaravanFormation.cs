@@ -2,6 +2,7 @@
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using SmashTools.Patching;
 using Verse;
 using Verse.AI.Group;
 
@@ -9,39 +10,36 @@ namespace Vehicles;
 
 internal class Patch_CaravanFormation : IPatchCategory
 {
-  public void PatchMethods()
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanFormingUtility),
         nameof(CaravanFormingUtility.IsFormingCaravan)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanFormation),
         nameof(IsFormingCaravanVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(TransferableUtility),
         nameof(TransferableUtility.CanStack)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanFormation),
         nameof(CanStackVehicle)));
-    VehicleHarmony.Patch(
-      original: AccessTools.Method(typeof(TransferableUIUtility),
-        "DoCountAdjustInterfaceInternal"),
-      prefix: new HarmonyMethod(typeof(Patch_CaravanFormation),
-        nameof(CanAdjustPawnTransferable)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(GiveToPackAnimalUtility),
         nameof(GiveToPackAnimalUtility.UsablePackAnimalWithTheMostFreeSpace)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanFormation),
         nameof(UsableVehicleWithMostFreeSpace)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanExitMapUtility),
         nameof(CaravanExitMapUtility.CanExitMapAndJoinOrCreateCaravanNow)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanFormation),
         nameof(CanVehicleExitMapAndJoinOrCreateCaravanNow)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanExitMapUtility),
         nameof(CaravanExitMapUtility.ExitMapAndJoinOrCreateCaravan)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanFormation),
         nameof(ExitMapAndJoinOrCreateVehicleCaravan)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertySetter(typeof(Pawn_InventoryTracker),
         nameof(Pawn_InventoryTracker.UnloadEverything)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanFormation),
@@ -71,14 +69,6 @@ internal class Patch_CaravanFormation : IPatchCategory
   {
     if (thing is VehiclePawn)
       __result = false;
-  }
-
-  private static void CanAdjustPawnTransferable(Transferable trad, ref bool readOnly)
-  {
-    if (trad.AnyThing is Pawn pawn)
-    {
-      readOnly = CaravanHelper.assignedSeats.ContainsKey(pawn) || pawn.IsInVehicle();
-    }
   }
 
   /// <summary>

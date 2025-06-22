@@ -280,7 +280,8 @@ public class SectionDebug : SettingsSection
             return null;
           }
 
-          VehiclePathingSystem vehicleMapping = Find.CurrentMap.GetCachedMapComponent<VehiclePathingSystem>();
+          VehiclePathingSystem vehicleMapping =
+            Find.CurrentMap.GetCachedMapComponent<VehiclePathingSystem>();
           return vehicleMapping.dedicatedThread;
         }));
       }
@@ -424,7 +425,7 @@ public class SectionDebug : SettingsSection
   {
     string versionChecking = "Null";
     VehicleHarmony.updates.Clear();
-    foreach (UpdateLog log in FileReader.ReadPreviousFiles(VehicleHarmony.VehicleMCP)
+    foreach (UpdateLog log in FileReader.ReadPreviousFiles(VehicleMod.content)
      .OrderByDescending(log =>
         Ext_Settings.CombineVersionString(log.UpdateData.currentVersion)))
     {
@@ -438,7 +439,7 @@ public class SectionDebug : SettingsSection
       {
         versionChecking = update.UpdateData.currentVersion;
         string label = versionChecking;
-        if (versionChecking == VehicleHarmony.VehicleMMD.ModVersion)
+        if (versionChecking == VehicleMod.metaData.ModVersion)
         {
           label += " (Current)";
         }

@@ -1,6 +1,7 @@
 ﻿using HarmonyLib;
 using RimWorld;
 using SmashTools;
+using SmashTools.Patching;
 using Verse;
 
 namespace Vehicles
@@ -23,11 +24,11 @@ namespace Vehicles
         Messages.Message("Patching PermanentWeatherTick for unit testing.",
           MessageTypeDefOf.NeutralEvent);
         permanentWeatherDef = DefDatabase<WeatherDef>.GetNamed("SnowHard");
-        VehicleHarmony.Patch(
+        HarmonyPatcher.Patch(
           AccessTools.Method(typeof(GameComponentUtility),
             nameof(GameComponentUtility.GameComponentTick)),
           postfix: new HarmonyMethod(typeof(PerformanceTesting), nameof(PermanentWeatherTick)));
-        VehicleHarmony.Patch(
+        HarmonyPatcher.Patch(
           AccessTools.PropertyGetter(typeof(MapTemperature), nameof(MapTemperature.OutdoorTemp)),
           postfix: new HarmonyMethod(typeof(PerformanceTesting), nameof(PermanentFreezing)));
       });

@@ -8,61 +8,74 @@ using DescriptionAttribute = DevTools.UnitTesting.TestDescriptionAttribute;
 
 namespace Vehicles.UnitTesting;
 
-[UnitTest(TestType.Playing)]
+// Validation of vehicle functionality needs to occur before
+[UnitTest(TestType.Playing), ExecutionPriority(Priority.AboveNormal)]
 [TestCategory(TestCategoryNames.TickBehavior)]
 [Description("VehicleRoleHandler behavior and all logic surrounding board and disembark.")]
-internal sealed class UnitTest_VehicleRoleHandler : UnitTest_MapTest
+internal sealed class UnitTest_VehicleRoleHandler
 {
-  protected override bool ShouldTest(VehicleDef vehicleDef)
-  {
-    return vehicleDef.properties.roles.NotNullAndAny(role => role.Slots > 0);
-  }
-
   [Test]
   private void BoardingUnboarding()
   {
-    foreach (VehiclePawn vehicle in vehicles)
+    using VehicleGroup group = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
     {
-      using VehicleTestCase vtc = new(vehicle, this);
+      drivers = 2,
+      passengers = 2,
+      animals = 2,
+    });
 
-      GenSpawn.Spawn(vehicle, root, map);
-      Assert.IsTrue(vehicle.Spawned);
+    TestUtils.ForceSpawn(group.vehicle);
+    Assert.IsTrue(group.vehicle.Spawned);
 
-      // Colonists can board
-      int total = vehicle.SeatsAvailable;
-      for (int i = 0; i < total; i++)
-      {
-        Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
-        Assert.IsNotNull(colonist);
-        Assert.AreEqual(colonist.Faction, Faction.OfPlayer);
-        Expect.IsTrue(vehicle.TryAddPawn(colonist), $"Boarded {i + 1}/{total}");
-      }
-
-      // Colonist cannot board full vehicle
-      Pawn failColonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
-      Assert.IsNotNull(failColonist);
-      Assert.AreEqual(failColonist.Faction, Faction.OfPlayer);
-      Expect.IsFalse(vehicle.TryAddPawn(failColonist), "Reject boarding (Full Capacity)");
-
-      failColonist.Destroy();
-      vehicle.DestroyPawns();
-
-      Pawn animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Alphabeaver, Faction.OfPlayer);
-      Assert.IsNotNull(animal);
-      Assert.AreEqual(animal.Faction, Faction.OfPlayer);
-      Expect.IsTrue(vehicle.TryAddPawn(animal), "Boarded animal");
-
-      vehicle.DestroyPawns();
-
-      if (ModsConfig.BiotechActive)
-      {
-        Pawn mechanoid =
-          PawnGenerator.GeneratePawn(PawnKindDefOf.Mech_Warqueen, Faction.OfPlayer);
-        Assert.IsNotNull(mechanoid);
-        Assert.AreEqual(mechanoid.Faction, Faction.OfPlayer);
-        Expect.IsTrue(vehicle.TryAddPawn(mechanoid), "Boarded mech");
-      }
+    // Colonists can board
+    for (int i = 0; i < group.pawns.Count; i++)
+    {
+      Pawn pawn = group.pawns[i];
+      Expect.IsTrue(group.vehicle.TryAddPawn(pawn), $"Boarded {i + 1}/{group.pawns.Count}");
     }
+    Assert.IsTrue(group.pawns.All(pawn => pawn.IsInVehicle() && !pawn.Spawned));
+
+    // Colonist cannot board full vehicle
+    Pawn failColonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
+    Assert.IsNotNull(failColonist);
+    Assert.AreEqual(failColonist.Faction, Faction.OfPlayer);
+    Expect.IsFalse(group.vehicle.TryAddPawn(failColonist));
+
+    failColonist.Destroy();
+
+    if (ModsConfig.BiotechActive)
+    {
+      group.DisembarkAll();
+      Pawn mechanoid =
+        PawnGenerator.GeneratePawn(PawnKindDefOf.Mech_Warqueen, Faction.OfPlayer);
+      Assert.IsNotNull(mechanoid);
+      Assert.AreEqual(mechanoid.Faction, Faction.OfPlayer);
+      Expect.IsTrue(group.vehicle.TryAddPawn(mechanoid));
+      group.vehicle.DisembarkPawn(mechanoid);
+      mechanoid.Destroy();
+    }
+  }
+
+  // TODO
+  [Test]
+  private void ReservationChecks()
+  {
+    using VehicleGroup group = VehicleGroup.CreateBasicVehicleGroup(new VehicleGroup.MockSettings
+    {
+      drivers = 1,
+      passengers = 1,
+      animals = 1,
+    });
+
+    TestUtils.ForceSpawn(group.vehicle);
+    Assert.IsTrue(group.vehicle.Spawned);
+
+    VehicleReservationManager reservationMgr =
+      group.vehicle.Map.GetCachedMapComponent<VehicleReservationManager>();
+    Assert.IsNotNull(reservationMgr);
+    VehicleHandlerReservation reservation =
+      reservationMgr.GetReservation<VehicleHandlerReservation>(group.vehicle);
+    Assert.IsNull(reservation);
   }
 
   [Test]

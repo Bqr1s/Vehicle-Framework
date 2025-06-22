@@ -19,7 +19,7 @@ internal sealed class UnitTest_HotReload
   [SetUp]
   private void CacheCounts()
   {
-    mcpDefs = [.. VehicleHarmony.VehicleMCP.AllDefs];
+    mcpDefs = [.. VehicleMod.content.AllDefs];
     cacheTargets = [.. RGBMaterialPool.AllCacheTargets];
 
     PlayDataLoader.HotReloadDefs();
@@ -36,12 +36,12 @@ internal sealed class UnitTest_HotReload
   private void ModContentPack()
   {
     // Verify the transient defs don't linger behind in the def lists
-    foreach (Def def in VehicleHarmony.VehicleMCP.AllDefs)
+    foreach (Def def in VehicleMod.content.AllDefs)
       Expect.IsFalse(def.defName.Contains(HotReloadSuffix));
     foreach (VehicleDef def in DefDatabase<VehicleDef>.AllDefsListForReading)
       Expect.IsFalse(def.defName.Contains(HotReloadSuffix));
 
-    Expect.AreEqual(mcpDefs.Count, VehicleHarmony.VehicleMCP.AllDefs.Count(),
+    Expect.AreEqual(mcpDefs.Count, VehicleMod.content.AllDefs.Count(),
       "ModContentPack Def Count");
     Expect.AreEqual(mcpDefs.Count(def => def is VehicleDef),
       DefDatabase<VehicleDef>.AllDefsListForReading.Count,

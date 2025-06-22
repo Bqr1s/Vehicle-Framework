@@ -19,7 +19,7 @@ public class MoteCannonPlume : Mote
   protected override void DrawAt(Vector3 drawLoc, bool flip = false)
   {
     exactPosition.y = def.altitudeLayer.AltitudeFor();
-    Graphic.DrawWorkerAnimated(this, frame, exactRotation.ClampAndWrap(0, 360));
+    Graphic.DrawWorkerAnimated(this, frame, exactRotation.ClampAngle());
   }
 
   protected override void Tick()

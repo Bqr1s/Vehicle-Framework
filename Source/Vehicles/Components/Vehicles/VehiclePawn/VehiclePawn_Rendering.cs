@@ -450,8 +450,6 @@ public partial class VehiclePawn
     for (int i = 0; i < 8; i++)
       _ = newGraphic.MeshAtFull(new Rot8(i));
 
-    // TODO - generate combined mesh here and/or build list of things that should be batch rendered
-
     return newGraphic;
   }
 
@@ -474,50 +472,28 @@ public partial class VehiclePawn
       return;
     }
 
-    IntVec3 intVec = vehiclePather.nextCell - Position;
-    if (intVec.x > 0)
+    IntVec3 position = vehiclePather.nextCell - Position;
+    Rotation = position.x switch
     {
-      Rotation = Rot4.East;
-    }
-    else if (intVec.x < 0)
-    {
-      Rotation = Rot4.West;
-    }
-    else if (intVec.z > 0)
-    {
-      Rotation = Rot4.North;
-    }
-    else
-    {
-      Rotation = Rot4.South;
-    }
+      > 0                   => Rot4.East,
+      < 0                   => Rot4.West,
+      0 when position.z > 0 => Rot4.North,
+      _                     => Rot4.South,
+    };
   }
 
   public void UpdateAngle()
   {
     if (vehiclePather.Moving)
     {
-      IntVec3 c = vehiclePather.nextCell - Position;
-      if (c.x > 0 && c.z > 0)
+      angle = (vehiclePather.nextCell - Position) switch
       {
-        angle = -45f;
-      }
-      else if (c.x > 0 && c.z < 0)
-      {
-        angle = 45f;
-      }
-      else if (c.x < 0 && c.z < 0)
-      {
-        angle = -45f;
-      }
-      else if (c.x < 0 && c.z > 0)
-      {
-        angle = 45f;
-      }
-      else
-      {
-        angle = 0f;
-      }
+        { x: > 0, z: > 0 } => -45,
+        { x: > 0, z: < 0 } => 45,
+        { x: < 0, z: < 0 } => -45,
+        { x: < 0, z: > 0 } => 45,
+        _                  => 0
+      };
     }
   }
 
@@ -697,12 +673,11 @@ public partial class VehiclePawn
           }
         }, delegate(LocalTargetInfo target)
         {
-          if (target.Thing is Pawn pawn && pawn.IsColonistPlayerControlled && !pawn.Downed)
+          if (target.Thing is Pawn { Downed: false } pawn)
           {
             VehicleRoleHandler handler = pawn.IsColonistPlayerControlled ?
-              NextAvailableHandler() :
-              handlers.FirstOrDefault(handler => handler.AreSlotsAvailableAndReservable &&
-                handler.role.HandlingTypes == HandlingType.None);
+              GetAnyAvailableHandler() :
+              GetNextAvailableHandler(HandlingType.None);
             PromptToBoardVehicle(pawn, handler);
             return;
           }
@@ -954,7 +929,7 @@ public partial class VehiclePawn
             {
               if (cell.InBounds(Map))
               {
-                Map.debugDrawer.FlashCell(cell, 0, duration: 180);
+                Map.debugDrawer.FlashCell(cell, duration: 180);
               }
             }
           }
@@ -964,10 +939,10 @@ public partial class VehiclePawn
       {
         if (CompVehicleLauncher != null)
         {
-          yield return new Command_Action()
+          yield return new Command_Action
           {
             defaultLabel = "Toggle Loitering",
-            action = delegate()
+            action = delegate
             {
               CompVehicleLauncher.loiter = !CompVehicleLauncher.loiter;
               animator.SetBool(PropertyIds.Loiter, CompVehicleLauncher.loiter);
@@ -1015,18 +990,27 @@ public partial class VehiclePawn
       }
     }
 
+    VehicleReservationManager reservationManager =
+      Map.GetCachedMapComponent<VehicleReservationManager>();
     foreach (VehicleRoleHandler handler in handlers)
     {
       if (handler.AreSlotsAvailableAndReservable)
       {
-        VehicleReservationManager reservationManager =
-          Map.GetCachedMapComponent<VehicleReservationManager>();
-        FloatMenuOption opt = new("VF_EnterVehicle".Translate(LabelShort,
-            handler.role.label,
-            (handler.role.Slots - (handler.thingOwner.Count +
-              reservationManager.GetReservation<VehicleHandlerReservation>(this)
-              ?.ClaimantsOnHandler(handler) ?? 0)).ToString()),
-          delegate { PromptToBoardVehicle(selPawn, handler); });
+        bool canOperate = handler.CanOperateRole(selPawn);
+        int reservedCount = reservationManager.GetReservation<VehicleHandlerReservation>(this)
+        ?.ClaimantsOnHandler(handler) ?? 0;
+        string label = canOperate ?
+          // Board {Label} {Count Remaining}
+          "VF_BoardVehicle".Translate(handler.role.label,
+            (handler.role.Slots - (handler.thingOwner.Count + reservedCount)).ToString()) :
+          // Board {Label} ({Reason for failure})
+          "VF_BoardVehicleGroupFail".Translate(handler.role.label,
+            "VF_BoardFailureNonCombatant".Translate(selPawn.LabelShort));
+
+        FloatMenuOption opt = new(label, delegate { PromptToBoardVehicle(selPawn, handler); })
+        {
+          Disabled = !canOperate
+        };
         yield return opt;
       }
     }
@@ -1042,7 +1026,7 @@ public partial class VehiclePawn
       return;
     }
 
-    Job job = new Job(JobDefOf_Vehicles.Board, this);
+    Job job = new(JobDefOf_Vehicles.Board, this);
     GiveLoadJob(pawn, handler);
     pawn.jobs.TryTakeOrderedJob(job, JobTag.DraftedOrder);
     if (!pawn.Spawned)
@@ -1057,44 +1041,21 @@ public partial class VehiclePawn
   public bool IdeoAllowsBoarding(Pawn selPawn)
   {
     if (!ModsConfig.IdeologyActive)
-    {
       return true;
-    }
 
-    switch (this.VehicleDef.type)
+    return VehicleDef.type switch
     {
-      case VehicleType.Air:
-        if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardAirVehicle, selPawn))
-        {
-          return false;
-        }
-
-      break;
-      case VehicleType.Sea:
-        if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardSeaVehicle, selPawn))
-        {
-          return false;
-        }
-
-      break;
-      case VehicleType.Land:
-        if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardLandVehicle, selPawn))
-        {
-          return false;
-        }
-
-      break;
-      case VehicleType.Universal:
-        if (!IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardUniversalVehicle,
-          selPawn))
-        {
-          return false;
-        }
-
-      break;
-    }
-
-    return true;
+      VehicleType.Air => IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardAirVehicle,
+        selPawn),
+      VehicleType.Sea => IdeoUtility.DoerWillingToDo(HistoryEventDefOf_Vehicles.VF_BoardSeaVehicle,
+        selPawn),
+      VehicleType.Land => IdeoUtility.DoerWillingToDo(
+        HistoryEventDefOf_Vehicles.VF_BoardLandVehicle, selPawn),
+      VehicleType.Universal => IdeoUtility.DoerWillingToDo(
+        HistoryEventDefOf_Vehicles.VF_BoardUniversalVehicle,
+        selPawn),
+      _ => true,
+    };
   }
 
 
@@ -1189,15 +1150,15 @@ public partial class VehiclePawn
       {
         if (Widgets.ButtonImage(rect, VehicleTex.Settings))
         {
-          List<FloatMenuOption> options = new List<FloatMenuOption>();
+          List<FloatMenuOption> options = [];
           options.Add(new FloatMenuOption("Tweak Values",
-            delegate() { Find.WindowStack.Add(new EditWindow_TweakFields(this)); }));
+            delegate { Find.WindowStack.Add(new EditWindow_TweakFields(this)); }));
           if (CompVehicleLauncher != null)
           {
             options.Add(new FloatMenuOption("Open in Graph Editor", OpenInAnimator));
           }
 #if DEBUG
-          options.Add(new FloatMenuOption("Open in Animator (test version)", OpenInAnimatorTemp));
+          options.Add(new FloatMenuOption("Open in Animator (test version)", OpenInNewAnimator));
 #endif
           if (!options.NullOrEmpty())
           {
@@ -1218,12 +1179,12 @@ public partial class VehiclePawn
 
   public void OpenInAnimator()
   {
-    Dialog_GraphEditor dialog_GraphEditor = new Dialog_GraphEditor(this, false);
+    Dialog_GraphEditor dialog_GraphEditor = new(this);
     //dialog_GraphEditor.LogReport = VehicleMod.settings.debug.debugLogging;
     Find.WindowStack.Add(dialog_GraphEditor);
   }
 
-  public void OpenInAnimatorTemp()
+  public void OpenInNewAnimator()
   {
     Dialog_AnimationEditor dialogGraphEditor = new(this);
     Find.WindowStack.Add(dialogGraphEditor);
@@ -1231,7 +1192,7 @@ public partial class VehiclePawn
 
   public void MultiplePawnFloatMenuOptions(List<Pawn> pawns)
   {
-    List<FloatMenuOption> options = new List<FloatMenuOption>();
+    List<FloatMenuOption> options = [];
 
     if (pawns.Any(pawn => !IdeoAllowsBoarding(pawn)))
     {
@@ -1239,46 +1200,39 @@ public partial class VehiclePawn
     }
     else
     {
-      VehicleReservationManager reservationManager =
-        Map.GetCachedMapComponent<VehicleReservationManager>();
-      FloatMenuOption opt1 = new FloatMenuOption("VF_BoardVehicleGroup".Translate(LabelShort),
-        delegate()
-        {
-          List<IntVec3> cells = this.OccupiedRect().Cells.ToList();
-          foreach (Pawn p in pawns)
-          {
-            if (cells.Contains(p.Position))
-            {
-              continue;
-            }
-
-            VehicleRoleHandler handler = p.IsColonistPlayerControlled ?
-              NextAvailableHandler() :
-              handlers.FirstOrDefault(handler => handler.AreSlotsAvailableAndReservable &&
-                handler.role.HandlingTypes == HandlingType.None);
-            PromptToBoardVehicle(p, handler);
-          }
-        });
-      FloatMenuOption opt2 =
-        new FloatMenuOption("VF_BoardVehicleGroupFail".Translate(LabelShort), null)
-        {
-          Disabled = true
-        };
-      int r = 0;
-      foreach (VehicleRoleHandler h in handlers)
+      bool enoughRoom = this.HasRoomFor(pawns);
+      string label = enoughRoom ?
+        "VF_BoardVehicleGroup".Translate(LabelShort) :
+        "VF_BoardVehicleGroupFail".Translate(LabelShort, "VF_BoardFailureTooMany".Translate());
+      FloatMenuOption option = new(label, OrderPawns)
       {
-        r += reservationManager.GetReservation<VehicleHandlerReservation>(this)
-        ?.ClaimantsOnHandler(h) ?? 0;
-      }
-
-      options.Add(pawns.Count + r > SeatsAvailable ? opt2 : opt1);
+        Disabled = !enoughRoom
+      };
+      options.Add(option);
     }
 
     FloatMenuMulti floatMenuMap =
-      new FloatMenuMulti(options, pawns, this, pawns[0].LabelCap, Verse.UI.MouseMapPosition())
+      new(options, pawns, this, pawns[0].LabelCap, UI.MouseMapPosition())
       {
         givesColonistOrders = true
       };
     Find.WindowStack.Add(floatMenuMap);
+    return;
+
+    void OrderPawns()
+    {
+      List<IntVec3> cells = this.OccupiedRect().Cells.ToList();
+      foreach (Pawn p in pawns)
+      {
+        if (cells.Contains(p.Position))
+          continue;
+
+        VehicleRoleHandler handler = p.IsColonistPlayerControlled ?
+          GetAnyAvailableHandler() :
+          handlers.FirstOrDefault(handler => handler.AreSlotsAvailableAndReservable &&
+            handler.role.HandlingTypes == HandlingType.None);
+        PromptToBoardVehicle(p, handler);
+      }
+    }
   }
 }

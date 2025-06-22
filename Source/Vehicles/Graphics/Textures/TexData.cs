@@ -30,33 +30,6 @@ public static class TexData
   public static readonly Texture2D RedTex =
     SolidColorMaterials.NewSolidColorTexture(new ColorInt(155, 30, 30).ToColor);
 
-  public static readonly Texture2D MaroonTex =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(60, 30, 30).ToColor);
-
-  public static readonly Texture2D BlueTex =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(35, 50, 185).ToColor);
-
-  public static readonly Texture2D GreenTex =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(0, 115, 40).ToColor);
-
-  public static readonly Texture2D BlueAddedStatBarTexture =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(35, 50, 185, 120).ToColor);
-
-  public static readonly Texture2D GreenAddedStatBarTexture =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(0, 115, 40, 120).ToColor);
-
-  public static readonly Texture2D RedAddedStatBarTexture =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(155, 30, 30, 120).ToColor);
-
-  public static readonly Texture2D OrangeAddedStatBarTexture =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(185, 110, 15, 120).ToColor);
-
-  public static readonly Texture2D RedBrownAddedStatBarTexture =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(60, 30, 30, 120).ToColor);
-
-  public static readonly Texture2D SearchLightTex =
-    SolidColorMaterials.NewSolidColorTexture(new ColorInt(155, 30, 30, 40).ToColor);
-
   public static readonly Texture2D FillableBarTexture =
     SolidColorMaterials.NewSolidColorTexture(0.5f, 0.5f, 0.5f, 0.5f);
 
@@ -67,6 +40,12 @@ public static class TexData
     SolidColorMaterials.NewSolidColorTexture(Color.black);
 
   public static readonly Texture2D ClearBarTexture = BaseContent.ClearTex;
+
+  public static readonly Material LineMatWhite =
+    MaterialPool.MatFrom(GenDraw.LineTexPath, ShaderDatabase.Transparent, Color.white);
+
+  public static readonly Material LineMatRed =
+    MaterialPool.MatFrom(GenDraw.LineTexPath, ShaderDatabase.Transparent, Color.red);
 
   /// <summary>
   /// World Materials with color
@@ -87,9 +66,6 @@ public static class TexData
   public static readonly Material OneSidedWorldLineMatRed =
     MaterialPool.MatFrom(GenDraw.OneSidedLineTexPath, ShaderDatabase.WorldOverlayTransparent,
       Color.red, WorldMaterials.WorldLineRenderQueue);
-
-  public static readonly Material WorldFullMatRed = MaterialPool.MatFrom(SearchLightTex,
-    ShaderDatabase.WorldOverlayTransparent, Color.white, WorldMaterials.WorldLineRenderQueue);
 
   public static readonly Texture2D TutorArrowRight =
     ContentFinder<Texture2D>.Get("UI/Overlays/TutorArrowRight");
@@ -139,44 +115,15 @@ public static class TexData
   public static readonly Color WorkingCondition = new(0.6f, 0.8f, 0.65f);
   public static readonly Color Enhanced = new(0.5f, 0.5f, 0.9f);
 
-  public static Material RangeMat(int radius)
-  {
-    if (radius <= CloseRange)
-    {
-      return VehicleTex.RangeCircle_Close;
-    }
-    else if (radius <= MidRange)
-    {
-      return VehicleTex.RangeCircle_Mid;
-    }
-    else if (radius <= FarRange)
-    {
-      return VehicleTex.RangeCircle_Wide;
-    }
-    else
-    {
-      return VehicleTex.RangeCircle_ExtraWide;
-    }
-  }
-
   public static Texture2D HeatColorPercent(float percent)
   {
-    if (percent <= 0.25)
+    return percent switch
     {
-      return YellowTex;
-    }
-    else if (percent <= 0.5f)
-    {
-      return YellowOrangeTex;
-    }
-    else if (percent <= 0.75f)
-    {
-      return OrangeTex;
-    }
-    else if (percent < 1f)
-    {
-      return OrangeRedTex;
-    }
-    return RedTex;
+      <= 0.25f => YellowTex,
+      <= 0.5f  => YellowOrangeTex,
+      <= 0.75f => OrangeTex,
+      <= 1     => OrangeRedTex,
+      _        => RedTex
+    };
   }
 }

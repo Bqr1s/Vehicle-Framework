@@ -146,7 +146,7 @@ public class VehicleGroup : IDisposable
         new VehicleRole
         {
           key = "Passenger",
-          slots = settings.passengers
+          slots = (int)(settings.passengers + settings.animals)
         }
       ];
     }
@@ -158,8 +158,8 @@ public class VehicleGroup : IDisposable
       vehicleDef.properties.roles.Add(new VehicleRole
       {
         key = "Driver",
-        slots = settings.drivers,
-        slotsToOperate = settings.drivers,
+        slots = (int)settings.drivers,
+        slotsToOperate = (int)settings.drivers,
 
         handlingTypes = HandlingType.Movement
       });
@@ -177,11 +177,19 @@ public class VehicleGroup : IDisposable
     // VehicleDef needs to be complete by this point for PostGeneration events
     VehiclePawn vehicle = VehicleSpawner.GenerateVehicle(vehicleDef, settings.faction);
     VehicleGroup group = new(vehicle);
-    for (int i = 0; i < vehicle.handlers.Sum(handler => handler.role.Slots); i++)
+    for (int i = 0; i < settings.drivers + settings.passengers; i++)
     {
       Pawn colonist = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
       Assert.IsNotNull(colonist);
+      Assert.AreEqual(colonist.Faction, Faction.OfPlayer);
       group.pawns.Add(colonist);
+    }
+    for (int i = 0; i < settings.animals; i++)
+    {
+      Pawn animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Alphabeaver, Faction.OfPlayer);
+      Assert.IsNotNull(animal);
+      Assert.AreEqual(animal.Faction, Faction.OfPlayer);
+      group.pawns.Add(animal);
     }
     return group;
   }
@@ -192,8 +200,9 @@ public class VehicleGroup : IDisposable
 
     // Reverse mapping permissions to def restrictions for easy configuration
     public VehiclePermissions permissions;
-    public int drivers;
-    public int passengers;
+    public uint drivers;
+    public uint passengers;
+    public uint animals;
 
     public Faction faction = Faction.OfPlayer;
 

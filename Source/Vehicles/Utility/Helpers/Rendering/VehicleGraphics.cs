@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using SmashTools;
+using SmashTools.Rendering;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Verse;
@@ -440,58 +441,6 @@ public static class VehicleGraphics
   {
     Widgets.DrawTextureFitted(rect, texture, 1, new Vector2(texture.width, texture.height),
       new Rect(0f, 0f, 1f, 1f), angle, material);
-  }
-
-  /// <summary>
-  /// Render lines from <paramref name="cannonPos"/> given angle and ranges
-  /// </summary>
-  /// <param name="cannonPos"></param>
-  /// <param name="restrictedAngle"></param>
-  /// <param name="minRange"></param>
-  /// <param name="maxRange"></param>
-  /// <param name="theta"></param>
-  /// <param name="additionalAngle"></param>
-  public static void DrawAngleLines(Vector3 cannonPos, Vector2 restrictedAngle, float minRange,
-    float maxRange, float theta, float additionalAngle = 0f)
-  {
-    Vector3 minTargetPos1 =
-      cannonPos.PointFromAngle(minRange, restrictedAngle.x + additionalAngle);
-    Vector3 minTargetPos2 =
-      cannonPos.PointFromAngle(minRange, restrictedAngle.y + additionalAngle);
-
-    Vector3 maxTargetPos1 =
-      cannonPos.PointFromAngle(maxRange, restrictedAngle.x + additionalAngle);
-    Vector3 maxTargetPos2 =
-      cannonPos.PointFromAngle(maxRange, restrictedAngle.y + additionalAngle);
-
-    GenDraw.DrawLineBetween(minTargetPos1, maxTargetPos1);
-    GenDraw.DrawLineBetween(minTargetPos2, maxTargetPos2);
-    if (minRange > 0)
-    {
-      GenDraw.DrawLineBetween(cannonPos, minTargetPos1, SimpleColor.Red);
-      GenDraw.DrawLineBetween(cannonPos, minTargetPos2, SimpleColor.Red);
-    }
-
-    float angleStart = restrictedAngle.x;
-
-    Vector3 lastPointMin = minTargetPos1;
-    Vector3 lastPointMax = maxTargetPos1;
-
-    for (int angle = 0; angle < theta + 1; angle++)
-    {
-      Vector3 targetPointMax =
-        cannonPos.PointFromAngle(maxRange, angleStart + angle + additionalAngle);
-      GenDraw.DrawLineBetween(lastPointMax, targetPointMax);
-      lastPointMax = targetPointMax;
-
-      if (minRange > 0)
-      {
-        Vector3 targetPointMin =
-          cannonPos.PointFromAngle(minRange, angleStart + angle + additionalAngle);
-        GenDraw.DrawLineBetween(lastPointMin, targetPointMin, SimpleColor.Red);
-        lastPointMin = targetPointMin;
-      }
-    }
   }
 
   private enum GUILayer

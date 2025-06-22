@@ -2,6 +2,7 @@
   "profiles": {
     "Debug": {
       "commandName": "Executable",
+      "commandLineArgs": "-experimental-xml-loader -disable-compute-shaders",
       "executablePath": "..\\..\\..\\..\\..\\RimWorld\\RimWorldWin64.exe"
     },
     "Unstable": {

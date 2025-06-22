@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using SmashTools;
+﻿using SmashTools.Patching;
 
 namespace Vehicles
 {
-	public abstract class ConditionalVehiclePatch : ConditionalPatch
-	{
-		public override string SourceId => VehicleHarmony.VehiclesUniqueId;
-	}
+  public abstract class ConditionalVehiclePatch : ConditionalPatch
+  {
+    public override string SourceId => VehicleHarmony.VehiclesUniqueId;
+  }
 }

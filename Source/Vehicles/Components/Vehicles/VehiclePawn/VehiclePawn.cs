@@ -19,28 +19,6 @@ namespace Vehicles
 
     public VehicleDef VehicleDef => def as VehicleDef;
 
-    public Pawn FindPawnWithBestStat(StatDef stat, Predicate<Pawn> pawnValidator = null)
-    {
-      Pawn bestPawn = null;
-      float curValue = -1f;
-      foreach (Pawn pawn in AllPawnsAboard)
-      {
-        if (!pawn.Dead && !pawn.Downed && !pawn.InMentalState &&
-          CaravanUtility.IsOwner(pawn, Faction) && !stat.Worker.IsDisabledFor(pawn) &&
-          (pawnValidator is null || pawnValidator(pawn)))
-        {
-          float statValue = pawn.GetStatValue(stat);
-          if (bestPawn == null || statValue > curValue)
-          {
-            bestPawn = pawn;
-            curValue = statValue;
-          }
-        }
-      }
-
-      return bestPawn;
-    }
-
     public int AverageSkillOfCapablePawns(SkillDef skill)
     {
       if (AllCapablePawns.Count == 0)
@@ -64,7 +42,7 @@ namespace Vehicles
         return;
 
       cargoToLoad ??= [];
-      bills ??= [];
+      boardingAssignments ??= [];
 
       if (!VehicleDef.properties.roles.NullOrEmpty())
       {
@@ -389,7 +367,7 @@ namespace Vehicles
       Scribe_Collections.Look(ref cargoToLoad, nameof(cargoToLoad), lookMode: LookMode.Deep);
 
       Scribe_Collections.Look(ref handlers, nameof(handlers), LookMode.Deep);
-      Scribe_Collections.Look(ref bills, nameof(bills), LookMode.Deep);
+      Scribe_Collections.Look(ref boardingAssignments, nameof(boardingAssignments), LookMode.Deep);
     }
   }
 }

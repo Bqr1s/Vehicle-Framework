@@ -4,6 +4,7 @@ using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using SmashTools.Patching;
 using UnityEngine;
 using Vehicles.Rendering;
 using Verse;
@@ -14,43 +15,45 @@ namespace Vehicles;
 
 internal class Patch_Gizmos : IPatchCategory
 {
-  public void PatchMethods()
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Settlement), nameof(Settlement.GetCaravanGizmos)),
       prefix: null,
       postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(NoAttackSettlementWhenDocked)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Settlement), nameof(Settlement.GetGizmos)),
       prefix: null,
       postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(AddVehicleCaravanGizmoPassthrough)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(FormCaravanComp), nameof(FormCaravanComp.GetGizmos)),
       prefix: null,
       postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(AddVehicleGizmosPassthrough)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanFormingUtility),
         nameof(CaravanFormingUtility.GetGizmos)), prefix: null,
       postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(GizmosForVehicleCaravans)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Designator_Build), nameof(Designator_Build.GizmoOnGUI)),
       prefix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(VehicleMaterialOnBuildGizmo)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(BuildCopyCommandUtility),
         nameof(BuildCopyCommandUtility.BuildCopyCommand)),
       prefix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(VehicleMaterialOnCopyBuildGizmo)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.GetGizmos)),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.GetGizmos)),
       prefix: null,
       postfix: new HarmonyMethod(typeof(Patch_Gizmos),
         nameof(ThingTransferToVehicleGizmo)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Dialog_InfoCard),
         nameof(Dialog_InfoCard.DoWindowContents)),
       prefix: new HarmonyMethod(typeof(Patch_Gizmos),

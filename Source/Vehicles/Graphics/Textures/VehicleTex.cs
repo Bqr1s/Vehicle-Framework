@@ -114,20 +114,6 @@ public static class VehicleTex
 
 #endregion
 
-
-  public static readonly Material RangeCircle_ExtraWide =
-    MaterialPool.MatFrom("UI/RangeField_ExtraWide", ShaderDatabase.MoteGlow);
-
-  public static readonly Material RangeCircle_Wide =
-    MaterialPool.MatFrom("UI/RangeField_Wide", ShaderDatabase.MoteGlow);
-
-  public static readonly Material RangeCircle_Mid =
-    MaterialPool.MatFrom("UI/RangeField_Mid", ShaderDatabase.MoteGlow);
-
-  public static readonly Material RangeCircle_Close =
-    MaterialPool.MatFrom("UI/RangeField_Close", ShaderDatabase.MoteGlow);
-
-
   public static readonly Dictionary<VehicleDef, Texture2D> CachedTextureIcons = [];
   public static readonly Dictionary<VehicleDef, string> CachedTextureIconPaths = [];
   private static readonly Dictionary<(VehicleDef, Rot4), Texture2D> CachedVehicleTextures = [];
@@ -220,15 +206,15 @@ public static class VehicleTex
     Texture2D texWest = ContentFinder<Texture2D>.Get(graphicData.texPath + "_west", false);
 
     CachedVehicleTextures[(vehicleDef, Rot4.North)] = texNorth;
-    if (texEast != null)
+    if (texEast)
     {
       CachedVehicleTextures[(vehicleDef, Rot4.East)] = texEast;
     }
-    if (texSouth != null)
+    if (texSouth)
     {
       CachedVehicleTextures[(vehicleDef, Rot4.South)] = texSouth;
     }
-    if (texWest != null)
+    if (texWest)
     {
       CachedVehicleTextures[(vehicleDef, Rot4.West)] = texWest;
     }

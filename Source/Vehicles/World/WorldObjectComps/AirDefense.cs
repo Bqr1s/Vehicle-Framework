@@ -104,7 +104,8 @@ namespace Vehicles
         Matrix4x4 matrix = default;
         matrix.SetTRS(CenterTile + normalized * AerialVehicleInFlight.TransitionTakeoff, quat, s);
         int layer = WorldCameraManager.WorldLayer;
-        Graphics.DrawMesh(SpotlightMesh, matrix, TexData.WorldFullMatRed, layer);
+        // TODO
+        //Graphics.DrawMesh(SpotlightMesh, matrix, TexData.WorldFullMatRed, layer);
       }
       else if (spotlightAlpha > 0)
       {

@@ -501,8 +501,8 @@ namespace Vehicles
           {
             list.Add("CaravanFoodWillRotSoonWarningDialog".Translate());
           }
-          if (!TransferableUtility.GetPawnsFromTransferables(transferables).NotNullAndAny(
-            (Pawn pawn) => CaravanUtility.IsOwner(pawn, Faction.OfPlayer) &&
+          if (!TransferableUtility.GetPawnsFromTransferables(transferables)
+           .NotNullAndAny((Pawn pawn) => CaravanUtility.IsOwner(pawn, Faction.OfPlayer) &&
               !pawn.skills.GetSkill(SkillDefOf.Social).TotallyDisabled))
           {
             list.Add("CaravanIncapableOfSocial".Translate());
@@ -661,7 +661,7 @@ namespace Vehicles
           MessageTypeDefOf.RejectInput, false);
         return false;
       }
-      CaravanHelper.BoardAllAssignedPawns(pawnsFromTransferables);
+      CaravanHelper.BoardAllAssignedPawns();
       AddItemsFromTransferablesToRandomInventories(pawnsFromTransferables);
       int num = startingTile;
       if (num < 0)
@@ -734,7 +734,7 @@ namespace Vehicles
         return false;
       }
 
-      CaravanHelper.BoardAllAssignedPawns(pawnsFromTransferables);
+      CaravanHelper.BoardAllAssignedPawns();
       AddItemsFromTransferablesToRandomInventories(pawnsFromTransferables);
       VehicleCaravan caravan = CaravanHelper.ExitMapAndCreateVehicleCaravan(pawnsFromTransferables,
         Faction.OfPlayer, CurrentTile, CurrentTile, destinationTile, false);
@@ -1230,9 +1230,7 @@ namespace Vehicles
           !CaravanUtility.ShouldAutoCapture(pawn, Faction.OfPlayer);
         AddToTransferables(pawn, setToTransferMax);
         if (pawn.ParentHolder is VehicleRoleHandler handler)
-        {
-          CaravanHelper.assignedSeats[pawn] = (handler.vehicle, handler);
-        }
+          CaravanHelper.assignedSeats.SetAssignment(new AssignedSeat(pawn, handler));
       }
     }
 

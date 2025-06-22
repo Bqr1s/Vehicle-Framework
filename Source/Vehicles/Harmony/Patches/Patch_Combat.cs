@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
+using SmashTools.Patching;
 using UnityEngine;
 using Verse;
 
@@ -12,32 +13,34 @@ namespace Vehicles;
 
 internal class Patch_Combat : IPatchCategory
 {
-  public void PatchMethods()
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Projectile), "StartingTicksToImpact"),
       postfix: new HarmonyMethod(typeof(Patch_Combat),
         nameof(StartingTicksFromTurret)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Projectile), "CanHit"),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Projectile), "CanHit"),
       prefix: new HarmonyMethod(typeof(Patch_Combat),
         nameof(TurretHitFlags)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Projectile_Explosive), "Impact"),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Projectile_Explosive), "Impact"),
       prefix: new HarmonyMethod(typeof(Patch_Combat),
         nameof(ImpactExplosiveProjectiles)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Projectile), "ImpactSomething"),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Projectile), "ImpactSomething"),
       transpiler: new HarmonyMethod(typeof(Patch_Combat),
         nameof(VehicleProjectileChanceToHit)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.Destroy)),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Thing), nameof(Thing.Destroy)),
       prefix: new HarmonyMethod(typeof(Patch_Combat),
         nameof(ProjectileMapToWorld)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Projectile), "CheckForFreeIntercept"),
       transpiler: new HarmonyMethod(typeof(Patch_Combat),
         nameof(VehicleProjectileInterceptor)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Explosion), "AffectCell"),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Explosion), "AffectCell"),
       prefix: new HarmonyMethod(typeof(Patch_Combat),
         nameof(AffectVehicleInCell)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(DamageWorker), "ExplosionDamageThing"),
       postfix: new HarmonyMethod(typeof(Patch_Combat),
         nameof(VehicleMultipleExplosionInstances)),

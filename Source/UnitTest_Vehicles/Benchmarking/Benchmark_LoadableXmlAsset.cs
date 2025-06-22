@@ -156,7 +156,7 @@ internal class Benchmark_LoadableXmlAsset
 
     public XmlAssetContext()
     {
-      mod = VehicleHarmony.VehicleMCP;
+      mod = VehicleMod.content;
 
       List<string> folders = mod.foldersToLoadDescendingOrder;
       foreach (string folderPath in folders)

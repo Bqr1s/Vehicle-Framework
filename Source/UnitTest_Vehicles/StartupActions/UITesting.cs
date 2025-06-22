@@ -154,7 +154,7 @@ namespace Vehicles
         }
         CameraJumper.TryJump(vehicle);
         Find.Selector.Select(vehicle);
-        vehicle.OpenInAnimatorTemp();
+        vehicle.OpenInNewAnimator();
       });
     }
 

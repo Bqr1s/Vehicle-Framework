@@ -8,6 +8,7 @@ using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using SmashTools.Patching;
 using UnityEngine;
 using Verse;
 using Verse.AI.Group;
@@ -21,23 +22,25 @@ internal class Patch_CaravanHandling : IPatchCategory
   private static readonly List<Pawn> tmpCaravanPawns = [];
   private static readonly List<Thing> tmpAerialVehicleThingsWillToBuy = [];
 
-  public void PatchMethods()
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(MassUtility), nameof(MassUtility.Capacity)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(CapacityOfVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(MassUtility), nameof(MassUtility.CanEverCarryAnything)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(CanCarryIfVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CollectionsMassCalculator),
         nameof(CollectionsMassCalculator.Capacity),
         parameters: [typeof(List<ThingCount>), typeof(StringBuilder)]),
       transpiler: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(PawnCapacityInVehicleTranspiler)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CollectionsMassCalculator),
         nameof(CollectionsMassCalculator.MassUsage),
         parameters:
@@ -46,34 +49,34 @@ internal class Patch_CaravanHandling : IPatchCategory
         ]),
       transpiler: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(IgnorePawnGearAndInventoryMassTranspiler)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(InventoryCalculatorsUtility),
         nameof(InventoryCalculatorsUtility.ShouldIgnoreInventoryOf)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(ShouldIgnoreInventoryPawnInVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(MassUtility), nameof(MassUtility.CanEverCarryAnything)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(CanCarryIfVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(ITab_Pawn_FormingCaravan), "FillTab"),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(FillTabVehicleCaravan)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(ITab_Pawn_FormingCaravan), "DoPeopleAndAnimals"),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(DoPeopleAnimalsAndVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Alert_CaravanIdle), "IdleCaravans"),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(IdleVehicleCaravans)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanArrivalAction_VisitSite), "DoEnter"),
       prefix: null, postfix: null,
       transpiler: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(DoEnterWithShipsTranspiler)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanEnterMapUtility),
         nameof(CaravanEnterMapUtility.Enter),
         [
@@ -82,7 +85,7 @@ internal class Patch_CaravanHandling : IPatchCategory
         ]),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(EnterMapVehiclesCatchAll1)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanEnterMapUtility),
         nameof(CaravanEnterMapUtility.Enter), [
           typeof(Caravan), typeof(Map), typeof(Func<Pawn, IntVec3>),
@@ -91,136 +94,136 @@ internal class Patch_CaravanHandling : IPatchCategory
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(EnterMapVehiclesCatchAll2)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan), nameof(Caravan.AllOwnersDowned)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(AllOwnersDownedVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan),
         nameof(Caravan.AllOwnersHaveMentalBreak)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(AllOwnersMentalBreakVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan), nameof(Caravan.NightResting)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(NoRestForVehicles)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan), nameof(Caravan.PawnsListForReading)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(AllPawnsAndVehiclePassengers)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan), nameof(Caravan.TicksPerMove)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleCaravanTicksPerMove)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan),
         nameof(Caravan.TicksPerMoveExplanation)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleCaravanTicksPerMoveExplanation)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(ForagedFoodPerDayCalculator),
         nameof(ForagedFoodPerDayCalculator.GetBaseForagedNutritionPerDay)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(GetBaseForagedNutritionPerDayInVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(TilesPerDayCalculator),
         nameof(TilesPerDayCalculator.ApproxTilesPerDay),
         [typeof(Caravan), typeof(StringBuilder)]),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(ApproxTilesForVehicles)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Caravan), nameof(Caravan.ContainsPawn)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(ContainsPawnInVehicle)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Caravan), nameof(Caravan.AddPawn)),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Caravan), nameof(Caravan.AddPawn)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(AddPawnInVehicleCaravan)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Caravan), nameof(Caravan.RemovePawn)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(RemovePawnInVehicleCaravan)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Caravan), nameof(Caravan.RemoveAllPawns)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(ClearAllPawnsInVehicleCaravan)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Caravan), nameof(Caravan.IsOwner)),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Caravan), nameof(Caravan.IsOwner)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(IsOwnerOfVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan_PathFollower),
         nameof(Caravan_PathFollower.Moving)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleCaravanMoving)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanTweenerUtility),
         nameof(CaravanTweenerUtility.PatherTweenedPosRoot)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleCaravanTweenedPosRoot)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Caravan_PathFollower),
         nameof(Caravan_PathFollower.MovingNow)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleCaravanMovingNow)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Caravan_Tweener),
         nameof(Caravan_Tweener.TweenerTickInterval)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleCaravanTweenerTick)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(SettlementDefeatUtility),
         nameof(SettlementDefeatUtility.CheckDefeated)),
       transpiler: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(CheckDefeatedWithVehiclesTranspiler)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Tale_DoublePawn), nameof(Tale_DoublePawn.Concerns)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(ConcernNullThing)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Settlement_TraderTracker),
         nameof(Settlement_TraderTracker.ColonyThingsWillingToBuy)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(AerialVehicleInventoryItems)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(Tradeable), nameof(Tradeable.Interactive)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(AerialVehicleSlaveTradeRoomCheck)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Dialog_Trade), "CountToTransferChanged"),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(AerialVehicleCountPawnsToTransfer)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanInventoryUtility),
         nameof(CaravanInventoryUtility.FindPawnToMoveInventoryTo)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(FindVehicleToMoveInventoryTo)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Property(typeof(WITab_Caravan_Health), "Pawns")
        .GetGetMethod(nonPublic: true),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleHealthTabPawns)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Property(typeof(WITab_Caravan_Social), "Pawns")
        .GetGetMethod(nonPublic: true),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(VehicleSocialTabPawns)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanNeedsTabUtility),
         nameof(CaravanNeedsTabUtility.DoRows)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(NoVehiclesNeedNeeds)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanNeedsTabUtility),
         nameof(CaravanNeedsTabUtility.GetSize)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(NoVehiclesNeedNeeds)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(BestCaravanPawnUtility),
         nameof(BestCaravanPawnUtility.FindBestNegotiator)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(FindBestNegotiatorInVehicle)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Settlement_TraderTracker),
         nameof(Settlement_TraderTracker.GiveSoldThingToPlayer)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
@@ -228,31 +231,31 @@ internal class Patch_CaravanHandling : IPatchCategory
       transpiler: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(GiveSoldThingToVehicleTranspiler)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Caravan_NeedsTracker),
         nameof(Caravan_NeedsTracker.TrySatisfyPawnsNeeds)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(TrySatisfyVehicleCaravanNeeds)));
     // TODO 1.6 - recheck if this is needed
-    //VehicleHarmony.Patch(
+    //HarmonyPatcher.Patch(
     //  original: AccessTools.Method(typeof(CaravanUtility), nameof(CaravanUtility.GetCaravan)),
     //  prefix: new HarmonyMethod(typeof(CaravanHandling),
     //    nameof(GetParentCaravan)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanUtility), nameof(CaravanUtility.RandomOwner)),
       prefix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(RandomVehicleOwner)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanMergeUtility), "MergeCaravans"),
       transpiler: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(MergeWithVehicleCaravanTranspiler)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanMergeUtility),
         nameof(CaravanMergeUtility.MergeCommand)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
         nameof(DisableMergeForAerialVehicles)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanArrivalAction_Trade),
         nameof(CaravanArrivalAction_Trade.CanTradeWith)),
       postfix: new HarmonyMethod(typeof(Patch_CaravanHandling),
@@ -339,10 +342,8 @@ internal class Patch_CaravanHandling : IPatchCategory
 
   private static float PawnMassUsageInVehicle(float massUsage, Pawn pawn)
   {
-    if (pawn.IsInVehicle() || CaravanHelper.assignedSeats.ContainsKey(pawn))
-    {
+    if (pawn.IsInVehicle() || CaravanHelper.assignedSeats.IsAssigned(pawn))
       return 0;
-    }
     return massUsage;
   }
 
@@ -350,17 +351,14 @@ internal class Patch_CaravanHandling : IPatchCategory
   {
     if (__result)
     {
-      __result =
-        !pawn.IsInVehicle() &&
-        !CaravanHelper.assignedSeats
-         .ContainsKey(
-            pawn); //Already ignored from gear and inventory calculation, shouldn't subtract again for negative mass usage.
+      // Already ignored from gear and inventory calculation, shouldn't subtract again for negative mass usage.
+      __result = !pawn.IsInVehicle() && !CaravanHelper.assignedSeats.IsAssigned(pawn);
     }
   }
 
   private static float PawnCapacityInVehicle(Pawn pawn, StringBuilder explanation)
   {
-    if (pawn.IsInVehicle() || CaravanHelper.assignedSeats.ContainsKey(pawn))
+    if (pawn.IsInVehicle() || CaravanHelper.assignedSeats.IsAssigned(pawn))
     {
       return 0; //pawns in vehicles or assigned to vehicle don't contribute to capacity
     }
@@ -770,7 +768,7 @@ internal class Patch_CaravanHandling : IPatchCategory
     ref float __result)
   {
     skip = false;
-    if (p.IsInVehicle() || CaravanHelper.assignedSeats.ContainsKey(p))
+    if (p.IsInVehicle() || CaravanHelper.assignedSeats.IsAssigned(p))
     {
       skip = true;
       __result = 0;
@@ -1023,12 +1021,12 @@ internal class Patch_CaravanHandling : IPatchCategory
       thing.PreTraded(TradeAction.PlayerBuys, playerNegotiator, ___settlement);
       if (thing is Pawn pawn && pawn.RaceProps.Humanlike)
       {
-        VehicleRoleHandler handler = aerial.vehicle.NextAvailableHandler(HandlingType.None);
+        VehicleRoleHandler handler = aerial.vehicle.GetNextAvailableHandler(HandlingType.None);
         if (handler == null)
         {
           Log.Error(
             $"Unable to locate available handler for {toGive}. Squeezing into other role to avoid aborted trade.");
-          handler = aerial.vehicle.NextAvailableHandler();
+          handler = aerial.vehicle.GetAnyAvailableHandler();
           handler ??= aerial.vehicle.handlers.RandomElementWithFallback(fallback: null);
 
           if (handler == null)

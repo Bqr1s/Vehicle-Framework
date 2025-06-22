@@ -4,6 +4,7 @@ using System;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using UnityEngine;
 using Verse;
 using Verse.Sound;
@@ -21,6 +22,8 @@ public class VehicleMod : Mod
 
   public static VehiclesModSettings settings;
   public static VehicleMod mod;
+  public static ModMetaData metaData;
+  public static ModContentPack content;
 
   internal static VehicleDef selectedDef;
   private static SettingsSection currentSection;
@@ -47,6 +50,13 @@ public class VehicleMod : Mod
     selectedPatterns ??= [];
 
     CurrentSection = settings.main;
+
+    VehicleMod.content = mod.Content;
+    metaData = content.ModMetaData;
+
+    GameEvent.OnNewGame += GizmoHelper.ResetDesignatorStatuses;
+    GameEvent.OnLoadGame += GizmoHelper.ResetDesignatorStatuses;
+    GameEvent.OnGenerateImpliedDefs += ImpliedDefGeneratorVehicles;
   }
 
   public static bool ModifiableSettings => settings.main.modifiableSettings;
@@ -284,5 +294,30 @@ public class VehicleMod : Mod
     base.WriteSettings();
     selectedNode = null;
     Find.WindowStack.Windows.FirstOrDefault(w => w is Dialog_NodeSettings)?.Close();
+  }
+
+  [PublicAPI]
+  public static void GenerateImpliedDefs<T, D>(bool hotReload)
+    where T : IVehicleDefGenerator<D>, new()
+    where D : Def, new()
+  {
+    T generator = new();
+    foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
+    {
+      if (generator.TryGenerateImpliedDef(vehicleDef, out D impliedDef, hotReload))
+        DefGenerator.AddImpliedDef(impliedDef, hotReload);
+    }
+  }
+
+  /// <summary>
+  /// Autogenerate implied PawnKindDefs for VehicleDefs
+  /// </summary>
+  private static void ImpliedDefGeneratorVehicles(bool hotReload)
+  {
+    GenerateImpliedDefs<GeneratorVehiclePawnKindDef, PawnKindDef>(hotReload);
+    GenerateImpliedDefs<GeneratorVehicleBuildDef, VehicleBuildDef>(hotReload);
+    GenerateImpliedDefs<GeneratorVehicleSkyfallerLeaving, ThingDef>(hotReload);
+    GenerateImpliedDefs<GeneratorVehicleSkyfallerIncoming, ThingDef>(hotReload);
+    GenerateImpliedDefs<GeneratorVehicleSkyfallerCrashing, ThingDef>(hotReload);
   }
 }

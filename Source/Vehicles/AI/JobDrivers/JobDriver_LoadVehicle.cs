@@ -51,7 +51,7 @@ public class JobDriver_LoadVehicle : JobDriver
     yield return Toils_Haul.StartCarryThing(TargetIndex.A);
     yield return Toils_Goto.GotoThing(TargetIndex.B, PathEndMode.Touch)
      .FailOnDespawnedNullOrForbidden(TargetIndex.B);
-    yield return Toils_General.Wait(25, TargetIndex.None).WithProgressBarToilDelay(TargetIndex.B);
+    yield return Toils_General.Wait(25).WithProgressBarToilDelay(TargetIndex.B);
     yield return GiveAsMuchToVehicleAsPossible();
   }
 

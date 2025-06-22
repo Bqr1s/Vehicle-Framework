@@ -50,6 +50,29 @@ namespace Vehicles
     }
 
     /// <summary>
+    /// Verify if <paramref name="vehicle"/> has enough room for <paramref name="pawns"/>
+    /// </summary>
+    /// <param name="vehicle">Vehicle to check.</param>
+    /// <param name="pawns">Pawns being validated for boarding.</param>
+    /// <returns><see langword="true"/> if <paramref name="vehicle"/> has enough room for all <paramref name="pawns"/></returns>
+    public static bool HasRoomFor(this VehiclePawn vehicle, List<Pawn> pawns)
+    {
+      // TODO - account for permissions (eg. pacifist isn't eligible for turret role)
+      VehicleReservationManager reservationMgr = null;
+      if (vehicle.Spawned)
+        reservationMgr = vehicle.Map.GetCachedMapComponent<VehicleReservationManager>();
+      int totalRoom = 0;
+      int reserved = 0;
+      foreach (VehicleRoleHandler handler in vehicle.handlers)
+      {
+        totalRoom += handler.role.Slots;
+        if (reservationMgr?.GetReservation<VehicleHandlerReservation>(vehicle) is { } reservation)
+          reserved += reservation.ClaimantsOnHandler(handler);
+      }
+      return pawns.Count <= (totalRoom - reserved);
+    }
+
+    /// <summary>
     /// Rotates <paramref name="cell"/> for vehicle rect.
     /// </summary>
     ///<remarks>
@@ -700,20 +723,15 @@ namespace Vehicles
     /// <summary>
     /// Determine if <paramref name="cell"/> is able to fit the width of <paramref name="vehicleDef"/>
     /// </summary>
-    /// <param name="vehicleDef"></param>
-    /// <param name="cell"></param>
-    /// <param name="dir"></param>
+    [MustUseReturnValue]
     public static bool WidthStandable(this VehicleDef vehicleDef, Map map, IntVec3 cell)
     {
       CellRect cellRect = CellRect.CenteredOn(cell, vehicleDef.SizePadding);
       foreach (IntVec3 cellCheck in cellRect)
       {
-        if (!cellCheck.InBounds(map) || !GenGridVehicles.Walkable(cellCheck, vehicleDef, map))
-        {
+        if (!cellCheck.InBounds(map) || !cellCheck.Walkable(vehicleDef, map))
           return false;
-        }
       }
-
       return true;
     }
 
@@ -721,10 +739,11 @@ namespace Vehicles
     /// Seats assigned to vehicle in caravan formation
     /// </summary>
     /// <param name="vehicle"></param>
+    [MustUseReturnValue]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CountAssignedToVehicle(this VehiclePawn vehicle)
     {
-      return CaravanHelper.assignedSeats.Where(a => a.Value.vehicle == vehicle).Select(s => s.Key)
-       .Count();
+      return CaravanHelper.assignedSeats.GetAssignments(vehicle).Count;
     }
 
     /// <summary>
@@ -732,6 +751,8 @@ namespace Vehicles
     /// </summary>
     /// <param name="pawn">Pawn to check</param>
     /// <returns>VehiclePawn <paramref name="pawn"/> is in, or null if they aren't in a vehicle.</returns>
+    [MustUseReturnValue]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static VehiclePawn GetVehicle(this Pawn pawn)
     {
       return (pawn.ParentHolder as VehicleRoleHandler)?.vehicle;
@@ -742,6 +763,7 @@ namespace Vehicles
     /// </summary>
     /// <param name="pawn">Pawn to check</param>
     /// <returns>true if <paramref name="pawn"/> is in a vehicle, false otherwise</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsInVehicle(this Pawn pawn)
     {
       return pawn.ParentHolder is VehicleRoleHandler;

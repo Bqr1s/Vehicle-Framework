@@ -119,16 +119,25 @@ namespace Vehicles
 
     public bool CanOperateRole(Pawn pawn)
     {
-      if (role.HandlingTypes > HandlingType.None)
-      {
-        bool manipulation = pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation);
-        bool downed = pawn.Downed;
-        bool dead = pawn.Dead;
-        bool isCrazy = pawn.InMentalState;
-        bool prisoner = pawn.IsPrisoner;
-        return manipulation && !downed && !dead && !isCrazy && !prisoner;
-      }
-      return true;
+      return CanOperateRole(pawn, role.HandlingTypes);
+    }
+
+    public static bool CanOperateRole(Pawn pawn, HandlingType handlingType)
+    {
+      if (handlingType == HandlingType.None)
+        return true;
+
+      if (handlingType.HasFlag(HandlingType.Turret) && pawn.WorkTagIsDisabled(WorkTags.Violent))
+        return false;
+
+      bool manipulation = pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation);
+      bool conscious = pawn.health.capacities.CapableOf(PawnCapacityDefOf.Consciousness);
+      bool toolUser = pawn.RaceProps.ToolUser;
+      bool downed = pawn.Downed;
+      bool dead = pawn.Dead;
+      bool isCrazy = pawn.InMentalState;
+      bool prisoner = pawn.IsPrisoner;
+      return manipulation && conscious && toolUser && !downed && !dead && !isCrazy && !prisoner;
     }
 
     public override string ToString()

@@ -10,7 +10,12 @@ namespace SmashTools.UnitTesting;
 // ReSharper disable all
 #pragma warning disable CS8500
 
+/// <summary>
+/// Verifying that reassigning static readonly fields at runtime results in undefined behavior.
+/// </summary>
 [UnitTest(TestType.MainMenu)]
+[TestDescription(
+  "Reassigning static readonly fields at runtime through either reflection or unsafe code invokes undefined behavior.")]
 [Disabled]
 internal class UnitTest_UnsafeReadOnly
 {

@@ -7,7 +7,7 @@ using AsyncPool =
 namespace SmashTools.UnitTesting;
 
 [UnitTest(TestType.MainMenu)]
-[TestDescription("Global object pool for operations in concurrent contexts.")]
+[TestDescription("Thread safe global object pool.")]
 internal class UnitTest_AsyncPool
 {
   [SetUp, TearDown]

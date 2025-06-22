@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using HarmonyLib;
 using RimWorld;
+using SmashTools.Patching;
 using UnityEngine;
 using Verse;
 using Verse.AI;
@@ -9,40 +10,42 @@ namespace Vehicles;
 
 internal class Patch_Misc : IPatchCategory
 {
-  public void PatchMethods()
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(MapPawns), "PlayerEjectablePodHolder"),
       prefix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(PlayerEjectableVehicles)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Selector), "HandleMapClicks"),
       prefix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(MultiSelectFloatMenu)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(MentalState_Manhunter),
         nameof(MentalState_Manhunter.ForceHostileTo), [typeof(Thing)]), prefix: null,
       postfix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(ManhunterDontAttackVehicles)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(TickManager), nameof(TickManager.Paused)),
       postfix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(PausedFromVehicles)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.PropertyGetter(typeof(TickManager), nameof(TickManager.CurTimeSpeed)),
       postfix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(ForcePauseFromVehicles)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(PawnCapacitiesHandler),
         nameof(PawnCapacitiesHandler.Notify_CapacityLevelsDirty)),
       prefix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(RecheckVehicleHandlerCapacities)));
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Pawn), nameof(Pawn.Kill)),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Pawn), nameof(Pawn.Kill)),
       prefix: new HarmonyMethod(typeof(Patch_Misc),
         nameof(MoveOnDeath)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(PawnUtility),
         nameof(PawnUtility.ShouldSendNotificationAbout)),
       postfix: new HarmonyMethod(typeof(Patch_Misc),

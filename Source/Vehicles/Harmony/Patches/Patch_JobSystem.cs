@@ -1,171 +1,170 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using RimWorld;
+using SmashTools.Patching;
 using Verse;
 using Verse.AI;
-using RimWorld;
-using RimWorld.Planet;
 using OpCodes = System.Reflection.Emit.OpCodes;
-using UnityEngine;
 
-namespace Vehicles
+namespace Vehicles;
+
+internal class Patch_JobSystem : IPatchCategory
 {
-  internal class Patch_JobSystem : IPatchCategory
+  private static bool startingErrorRecoverJob = false;
+
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    private static bool startingErrorRecoverJob = false;
+    HarmonyPatcher.Patch(
+      original: AccessTools.Method(typeof(JobUtility),
+        nameof(JobUtility.TryStartErrorRecoverJob)),
+      prefix: new HarmonyMethod(typeof(Patch_JobSystem),
+        nameof(VehicleErrorRecoverJob)));
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(JobGiver_Wander), "TryGiveJob"),
+      prefix: new HarmonyMethod(typeof(Patch_JobSystem),
+        nameof(VehiclesDontWander)));
+    HarmonyPatcher.Patch(
+      original: AccessTools.Method(typeof(Pawn_JobTracker),
+        nameof(Pawn_JobTracker.CheckForJobOverride)), prefix: null, postfix: null,
+      transpiler: new HarmonyMethod(typeof(Patch_JobSystem),
+        nameof(NoOverrideDamageTakenTranspiler)));
+    HarmonyPatcher.Patch(
+      original: AccessTools
+       .Property(typeof(JobDriver_PrepareCaravan_GatherItems), "Transferables")
+       .GetGetMethod(nonPublic: true),
+      prefix: new HarmonyMethod(typeof(Patch_JobSystem),
+        nameof(TransferablesVehicle)));
+    HarmonyPatcher.Patch(
+      original: AccessTools.Method(typeof(ThingRequest), nameof(ThingRequest.Accepts)),
+      prefix: null,
+      postfix: new HarmonyMethod(typeof(Patch_JobSystem),
+        nameof(AcceptsVehicleRefuelable)));
+  }
 
-    public void PatchMethods()
+  /// <summary>
+  /// Intercept Error Recover handler of no job, and assign idling for vehicle
+  /// </summary>
+  /// <param name="pawn"></param>
+  /// <param name="message"></param>
+  /// <param name="exception"></param>
+  /// <param name="concreteDriver"></param>
+  public static bool VehicleErrorRecoverJob(Pawn pawn, string message, Exception exception = null,
+    JobDriver concreteDriver = null)
+  {
+    if (pawn is VehiclePawn)
     {
-      VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(JobUtility),
-          nameof(JobUtility.TryStartErrorRecoverJob)),
-        prefix: new HarmonyMethod(typeof(Patch_JobSystem),
-          nameof(VehicleErrorRecoverJob)));
-      VehicleHarmony.Patch(original: AccessTools.Method(typeof(JobGiver_Wander), "TryGiveJob"),
-        prefix: new HarmonyMethod(typeof(Patch_JobSystem),
-          nameof(VehiclesDontWander)));
-      VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(Pawn_JobTracker),
-          nameof(Pawn_JobTracker.CheckForJobOverride)), prefix: null, postfix: null,
-        transpiler: new HarmonyMethod(typeof(Patch_JobSystem),
-          nameof(NoOverrideDamageTakenTranspiler)));
-      VehicleHarmony.Patch(
-        original: AccessTools
-         .Property(typeof(JobDriver_PrepareCaravan_GatherItems), "Transferables")
-         .GetGetMethod(nonPublic: true),
-        prefix: new HarmonyMethod(typeof(Patch_JobSystem),
-          nameof(TransferablesVehicle)));
-      VehicleHarmony.Patch(
-        original: AccessTools.Method(typeof(ThingRequest), nameof(ThingRequest.Accepts)),
-        prefix: null,
-        postfix: new HarmonyMethod(typeof(Patch_JobSystem),
-          nameof(AcceptsVehicleRefuelable)));
-    }
-
-    /// <summary>
-    /// Intercept Error Recover handler of no job, and assign idling for vehicle
-    /// </summary>
-    /// <param name="pawn"></param>
-    /// <param name="message"></param>
-    /// <param name="exception"></param>
-    /// <param name="concreteDriver"></param>
-    public static bool VehicleErrorRecoverJob(Pawn pawn, string message, Exception exception = null,
-      JobDriver concreteDriver = null)
-    {
-      if (pawn is VehiclePawn)
+      if (exception != null)
       {
-        if (exception != null)
+        message += $"\n{exception}";
+      }
+      Log.Error(message);
+      if (pawn.jobs != null)
+      {
+        if (pawn.jobs.curJob != null)
         {
-          message += $"\n{exception}";
+          pawn.jobs.EndCurrentJob(JobCondition.Errored, false);
         }
-        Log.Error(message);
-        if (pawn.jobs != null)
+        if (startingErrorRecoverJob)
         {
-          if (pawn.jobs.curJob != null)
-          {
-            pawn.jobs.EndCurrentJob(JobCondition.Errored, false);
-          }
-          if (startingErrorRecoverJob)
-          {
-            Log.Error(
-              $"An error occurred while starting an error recover job. We have to stop now to avoid infinite recursion. This means that the vehicle is now jobless which can cause further bugs. vehicle={pawn}");
-            return false;
-          }
-          startingErrorRecoverJob = true;
-          try
-          {
-            if (pawn.jobs.jobQueue.Count > 0)
-            {
-              Job job = pawn.jobs.jobQueue.Dequeue().job;
-              pawn.jobs.StartJob(job, JobCondition.Succeeded);
-            }
-            else
-            {
-              pawn.jobs.StartJob(new Job(JobDefOf_Vehicles.IdleVehicle, -1),
-                JobCondition.Incompletable);
-            }
-            startingErrorRecoverJob = false;
-          }
-          catch
-          {
-            Log.Error(
-              $"An error occurred when trying to recover the job for {pawn}. Unable to assign idle recovery job.");
-          }
-          finally
-          {
-            startingErrorRecoverJob = false;
-          }
+          Log.Error(
+            $"An error occurred while starting an error recover job. We have to stop now to avoid infinite recursion. This means that the vehicle is now jobless which can cause further bugs. vehicle={pawn}");
+          return false;
         }
-        return false;
-      }
-      return true;
-    }
-
-    public static bool VehiclesDontWander(Pawn pawn, ref Job __result)
-    {
-      if (pawn is VehiclePawn)
-      {
-        __result = new Job(JobDefOf_Vehicles.IdleVehicle);
-        return false;
-      }
-      return true;
-    }
-
-    public static IEnumerable<CodeInstruction> NoOverrideDamageTakenTranspiler(
-      IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
-    {
-      List<CodeInstruction> instructionList = instructions.ToList();
-
-      for (int i = 0; i < instructionList.Count; i++)
-      {
-        CodeInstruction instruction = instructionList[i];
-
-        if (instruction.opcode == OpCodes.Stloc_1)
+        startingErrorRecoverJob = true;
+        try
         {
-          yield return instruction; //STLOC.1
-          instruction = instructionList[++i];
-          Label label = ilg.DefineLabel();
-          Label retlabel = ilg.DefineLabel();
-
-          yield return new CodeInstruction(opcode: OpCodes.Ldloc_0);
-          yield return new CodeInstruction(opcode: OpCodes.Brfalse, retlabel);
-
-          yield return new CodeInstruction(opcode: OpCodes.Ldloca_S, operand: 1);
-          yield return new CodeInstruction(opcode: OpCodes.Call,
-            operand: AccessTools.Property(typeof(ThinkResult), nameof(ThinkResult.IsValid))
-             .GetGetMethod());
-          yield return new CodeInstruction(opcode: OpCodes.Brtrue, label);
-
-          yield return new CodeInstruction(opcode: OpCodes.Ret)
-            { labels = new List<Label> { retlabel } };
-
-          instruction.labels.Add(label);
+          if (pawn.jobs.jobQueue.Count > 0)
+          {
+            Job job = pawn.jobs.jobQueue.Dequeue().job;
+            pawn.jobs.StartJob(job, JobCondition.Succeeded);
+          }
+          else
+          {
+            pawn.jobs.StartJob(new Job(JobDefOf_Vehicles.IdleVehicle, -1),
+              JobCondition.Incompletable);
+          }
+          startingErrorRecoverJob = false;
         }
-
-        yield return instruction;
+        catch
+        {
+          Log.Error(
+            $"An error occurred when trying to recover the job for {pawn}. Unable to assign idle recovery job.");
+        }
+        finally
+        {
+          startingErrorRecoverJob = false;
+        }
       }
+      return false;
     }
+    return true;
+  }
 
-    public static bool TransferablesVehicle(JobDriver_PrepareCaravan_GatherItems __instance,
-      ref List<TransferableOneWay> __result)
+  public static bool VehiclesDontWander(Pawn pawn, ref Job __result)
+  {
+    if (pawn is VehiclePawn)
     {
-      if (__instance.job.lord.LordJob is LordJob_FormAndSendVehicles)
-      {
-        __result = ((LordJob_FormAndSendVehicles)__instance.job.lord.LordJob).transferables;
-        return false;
-      }
-      return true;
+      __result = new Job(JobDefOf_Vehicles.IdleVehicle);
+      return false;
     }
+    return true;
+  }
 
-    public static void AcceptsVehicleRefuelable(Thing t, ref bool __result, ThingRequest __instance)
+  public static IEnumerable<CodeInstruction> NoOverrideDamageTakenTranspiler(
+    IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
+  {
+    List<CodeInstruction> instructionList = instructions.ToList();
+
+    for (int i = 0; i < instructionList.Count; i++)
     {
-      if (t is VehiclePawn vehicle && __instance.group == ThingRequestGroup.Refuelable)
+      CodeInstruction instruction = instructionList[i];
+
+      if (instruction.opcode == OpCodes.Stloc_1)
       {
-        __result = vehicle.CompFueledTravel != null;
+        yield return instruction; //STLOC.1
+        instruction = instructionList[++i];
+        Label label = ilg.DefineLabel();
+        Label retlabel = ilg.DefineLabel();
+
+        yield return new CodeInstruction(opcode: OpCodes.Ldloc_0);
+        yield return new CodeInstruction(opcode: OpCodes.Brfalse, retlabel);
+
+        yield return new CodeInstruction(opcode: OpCodes.Ldloca_S, operand: 1);
+        yield return new CodeInstruction(opcode: OpCodes.Call,
+          operand: AccessTools.Property(typeof(ThinkResult), nameof(ThinkResult.IsValid))
+           .GetGetMethod());
+        yield return new CodeInstruction(opcode: OpCodes.Brtrue, label);
+
+        yield return new CodeInstruction(opcode: OpCodes.Ret)
+          { labels = new List<Label> { retlabel } };
+
+        instruction.labels.Add(label);
       }
+
+      yield return instruction;
+    }
+  }
+
+  public static bool TransferablesVehicle(JobDriver_PrepareCaravan_GatherItems __instance,
+    ref List<TransferableOneWay> __result)
+  {
+    if (__instance.job.lord.LordJob is LordJob_FormAndSendVehicles)
+    {
+      __result = ((LordJob_FormAndSendVehicles)__instance.job.lord.LordJob).transferables;
+      return false;
+    }
+    return true;
+  }
+
+  public static void AcceptsVehicleRefuelable(Thing t, ref bool __result, ThingRequest __instance)
+  {
+    if (t is VehiclePawn vehicle && __instance.group == ThingRequestGroup.Refuelable)
+    {
+      __result = vehicle.CompFueledTravel != null;
     }
   }
 }

@@ -73,7 +73,7 @@ namespace Vehicles
 
       float angle = Find.WorldGrid.GetHeadingFromTo(map.Tile,
         surfaceTile.Rivers.OrderBy(link => link.river.degradeThreshold).First().neighbor);
-      return angle.ClampAndWrap(0, 360) switch
+      return angle.ClampAngle() switch
       {
         < 45  => Rot4.South,
         < 135 => Rot4.East,

@@ -24,7 +24,7 @@ internal static class TestDefGenerator
     {
       defName = $"{defName}_Blueprint",
       label = $"{label ?? defName} Blueprint",
-      modContentPack = VehicleHarmony.VehicleMCP,
+      modContentPack = VehicleMod.content,
       thingClass = typeof(VehicleBuilding),
       terrainAffordanceNeeded = TerrainAffordanceDefOf.Heavy,
       clearBuildingArea = true,
@@ -42,7 +42,7 @@ internal static class TestDefGenerator
     {
       defName = defName,
       label = label ?? $"{defName}_LABEL",
-      modContentPack = VehicleHarmony.VehicleMCP,
+      modContentPack = VehicleMod.content,
       thingClass = typeof(VehiclePawn),
       category = ThingCategory.Pawn,
       tickerType = TickerType.Normal,

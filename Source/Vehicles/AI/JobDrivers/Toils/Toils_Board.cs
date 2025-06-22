@@ -18,12 +18,11 @@ internal class Toils_Board
       Assert.IsNotNull(vehicle);
       if (pawn.GetLord()?.LordJob is LordJob_FormAndSendVehicles lordJob)
       {
-        (VehiclePawn vehicle, VehicleRoleHandler handler) assignedSeat =
-          lordJob.GetVehicleAssigned(pawn);
-        assignedSeat.vehicle.TryAddPawn(pawn, assignedSeat.handler);
+        AssignedSeat assignedSeat = lordJob.GetVehicleAssigned(pawn);
+        assignedSeat.Vehicle.TryAddPawn(pawn, assignedSeat.handler);
         return;
       }
-      vehicle.Notify_Boarded(pawn);
+      vehicle.BoardPawn(pawn);
       ThrowAppropriateHistoryEvent(vehicle.VehicleDef.type, toil.actor);
     };
     toil.defaultCompleteMode = ToilCompleteMode.Instant;

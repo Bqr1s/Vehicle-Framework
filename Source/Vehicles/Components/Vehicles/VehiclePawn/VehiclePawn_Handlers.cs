@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
@@ -13,8 +14,8 @@ namespace Vehicles;
 
 public partial class VehiclePawn
 {
-  //Bills related to boarding VehicleHandler
-  public List<Bill_BoardVehicle> bills = [];
+  // Assigned seat for to boarding role
+  private List<AssignedSeat> boardingAssignments = [];
   public List<VehicleRoleHandler> handlers = [];
 
   /* ----- Caches for VehicleHandlers ----- */
@@ -199,6 +200,7 @@ public partial class VehiclePawn
     }
   }
 
+  [Pure]
   public VehicleRoleHandler GetHandler(string roleKey)
   {
     foreach (VehicleRoleHandler handler in handlers)
@@ -208,99 +210,100 @@ public partial class VehiclePawn
         return handler;
       }
     }
-
     return null;
   }
 
-  public List<VehicleRoleHandler> GetAllHandlersMatch(HandlingType? handlingTypeFlag,
-    string turretKey = "")
+  [Pure]
+  public IEnumerable<VehicleRoleHandler> GetHandlers(HandlingType handlingTypeFlag)
   {
-    if (handlingTypeFlag is null)
-    {
-      return handlers.Where(handler => handler.role.HandlingTypes == HandlingType.None)
-       .ToList();
-    }
-
-    return handlers.FindAll(x =>
-      x.role.HandlingTypes.HasFlag(handlingTypeFlag) &&
-      (handlingTypeFlag != HandlingType.Turret || (!x.role.TurretIds.NullOrEmpty() &&
-        x.role.TurretIds.Contains(turretKey))));
+    if (handlingTypeFlag == HandlingType.None)
+      return handlers.Where(handler => handler.role.HandlingTypes == HandlingType.None);
+    return handlers.Where(handler => handler.role.HandlingTypes.HasFlag(handlingTypeFlag));
   }
 
-  public List<VehicleRoleHandler> GetPriorityHandlers(HandlingType? handlingTypeFlag = null)
-  {
-    return handlers.Where(h =>
-      h.role.HandlingTypes > HandlingType.None && (handlingTypeFlag is null ||
-        h.role.HandlingTypes.HasFlag(handlingTypeFlag.Value))).ToList();
-  }
-
-  public VehicleRoleHandler GetHandlersMatch(Pawn pawn)
-  {
-    return handlers.FirstOrDefault(x => x.thingOwner.Contains(pawn));
-  }
-
-  public VehicleRoleHandler NextAvailableHandler(HandlingType? handlingTypeFlag = null,
-    bool priorityHandlers = false)
+  [Pure]
+  public VehicleRoleHandler GetAnyAvailableHandler()
   {
     foreach (VehicleRoleHandler handler in handlers)
     {
-      if (priorityHandlers && handler.role.HandlingTypes == HandlingType.None)
-        continue;
-      if (handlingTypeFlag != null &&
-        !handler.role.HandlingTypes.HasFlag(handlingTypeFlag)) continue;
-
       if (handler.AreSlotsAvailableAndReservable)
         return handler;
     }
+    return null;
+  }
 
+  [Pure]
+  public VehicleRoleHandler GetNextAvailableHandler(HandlingType handlingTypeFlag)
+  {
+    foreach (VehicleRoleHandler handler in handlers)
+    {
+      // None has an explicit check for no handling types, otherwise HasFlag would
+      // always be true. Use GetAnyAvailableHandler if HandlingType does not matter.
+      if (handlingTypeFlag == HandlingType.None)
+      {
+        if (handler.role.HandlingTypes == HandlingType.None ||
+          handler.AreSlotsAvailableAndReservable)
+          return handler;
+        continue;
+      }
+      if (handler.role.HandlingTypes.HasFlag(handlingTypeFlag) &&
+        handler.AreSlotsAvailableAndReservable)
+        return handler;
+    }
+    return null;
+  }
+
+  [Pure]
+  public VehicleRoleHandler GetHighestPriorityAvailableHandler()
+  {
+    foreach (VehicleRoleHandler handler in handlers.OrderBy(handler => handler))
+    {
+      if (handler.AreSlotsAvailableAndReservable)
+        return handler;
+    }
     return null;
   }
 
   public void GiveLoadJob(Pawn pawn, VehicleRoleHandler handler)
   {
-    if (bills != null && bills.Count > 0)
+    if (boardingAssignments.Count > 0)
     {
-      Bill_BoardVehicle bill = bills.FirstOrDefault(x => x.pawnToBoard == pawn);
-      if (!(bill is null))
+      AssignedSeat seat = boardingAssignments.FirstOrDefault(assignment => assignment.pawn == pawn);
+      if (seat is not null)
       {
-        bill.handler = handler;
+        seat.handler = handler;
         return;
       }
     }
-
-    bills.Add(new Bill_BoardVehicle(pawn, handler));
+    boardingAssignments.Add(new AssignedSeat(pawn, handler));
   }
 
   /// <summary>
   /// Pawn with bill has boarded vehicle.
   /// </summary>
-  /// <remarks>For boarding vehicles outside of the job system, use <see cref="TryAddPawn"/></remarks>
-  /// <param name="pawnToBoard"></param>
-  /// <param name="map"></param>
+  /// <remarks>For boarding vehicles outside of the job system, use <see cref="TryAddPawn(Pawn)"/></remarks>
   /// <returns>Pawn successfully boarded the vehicle</returns>
-  public bool Notify_Boarded(Pawn pawnToBoard)
+  public bool BoardPawn(Pawn pawn)
   {
-    if (bills != null && bills.Count > 0)
+    if (boardingAssignments.Count > 0)
     {
-      Bill_BoardVehicle bill = bills.FirstOrDefault(x => x.pawnToBoard == pawnToBoard);
-      if (bill != null)
+      AssignedSeat seat = boardingAssignments.FirstOrDefault(assignment => assignment.pawn == pawn);
+      if (seat is not null)
       {
-        if (pawnToBoard.IsWorldPawn())
+        if (pawn.IsWorldPawn())
         {
           Log.Error("Tried boarding vehicle with world pawn. Use Notify_BoardedCaravan instead.");
           return false;
         }
 
-        if (!TryAddPawn(pawnToBoard, bill.handler))
+        if (!TryAddPawn(pawn, seat.handler))
         {
           return false;
         }
-
-        bills.Remove(bill);
+        boardingAssignments.Remove(seat);
         return true;
       }
     }
-
     return false;
   }
 

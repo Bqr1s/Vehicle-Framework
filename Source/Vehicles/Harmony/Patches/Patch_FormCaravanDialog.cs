@@ -7,6 +7,7 @@ using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using SmashTools.Patching;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Vehicles.Rendering;
@@ -41,42 +42,96 @@ internal class Patch_FormCaravanDialog : IPatchCategory
     splitCaravanTabEnumType = GenTypes.GetTypeInAnyAssembly("Dialog_SplitCaravan+Tab", "RimWorld");
   }
 
-  public void PatchMethods()
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    VehicleHarmony.Patch(
-      original: AccessTools.Method(typeof(Dialog_FormCaravan), nameof(Dialog_FormCaravan.PostOpen)),
+    HarmonyPatcher.Patch(
+      original: AccessTools.Method(typeof(TransferableUIUtility),
+        "DoCountAdjustInterfaceInternal"),
       prefix: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
-        nameof(CreateTabListPostOpen)));
-    VehicleHarmony.Patch(
+        nameof(CanAdjustPawnTransferable)));
+
+#if MERGED_CARAVAN_FORMATION
+    HarmonyPatcher.Patch(
+      original: AccessTools.Method(typeof(Dialog_FormCaravan), nameof(Dialog_FormCaravan.PostOpen)),
+      transpiler: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
+        nameof(FormCaravanPostOpenTranspiler)));
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Dialog_FormCaravan),
         nameof(Dialog_FormCaravan.PostClose)),
       postfix: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
         nameof(ClearTabListPostClose)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(CaravanUIUtility), "CreateCaravanTransferableWidgets"),
       postfix: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
         nameof(CreateTransferableVehicleWidget)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Dialog_FormCaravan),
         nameof(Dialog_FormCaravan.DoWindowContents)),
       transpiler: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
         nameof(FormCaravanTabsTranspiler)));
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Dialog_FormCaravan),
         nameof(Dialog_FormCaravan.Notify_ChoseRoute)),
       postfix: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
         nameof(BestExitTileForVehicles)));
 
-    VehicleHarmony.Patch(
-      original: AccessTools.Method(typeof(WorldRoutePlanner), nameof(WorldRoutePlanner.Start),
-        parameters: [typeof(Dialog_FormCaravan)]),
-      prefix: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
-        nameof(StartRoutePlanningForVehicles)));
+    //HarmonyPatcher.Patch(
+    //  original: AccessTools.Method(typeof(WorldRoutePlanner), nameof(WorldRoutePlanner.Start),
+    //    parameters: [typeof(Dialog_FormCaravan)]),
+    //  prefix: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
+    //    nameof(StartRoutePlanningForVehicles)));
 
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(Dialog_FormCaravan), "TryReformCaravan"),
       prefix: new HarmonyMethod(typeof(Patch_FormCaravanDialog),
         nameof(ConfirmLeaveVehiclesOnReform)));
+#endif
+  }
+
+  private static void CanAdjustPawnTransferable(Transferable trad, ref bool readOnly)
+  {
+    if (trad.AnyThing is Pawn pawn)
+      readOnly = CaravanHelper.assignedSeats.IsAssigned(pawn) || pawn.IsInVehicle();
+  }
+
+  private static IEnumerable<CodeInstruction> FormCaravanPostOpenTranspiler(
+    IEnumerable<CodeInstruction> instructions)
+  {
+    List<CodeInstruction> instructionList = instructions.ToList();
+
+    // Patch_FormCaravanDialog::CreateTabListPostOpen(this, tabsList);
+    yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
+    yield return new CodeInstruction(opcode: OpCodes.Ldarg_0);
+    yield return new CodeInstruction(opcode: OpCodes.Ldfld,
+      AccessTools.Field(typeof(Dialog_FormCaravan), "tabsList"));
+    yield return new CodeInstruction(opcode: OpCodes.Call,
+      operand: AccessTools.Method(typeof(Patch_FormCaravanDialog), nameof(CreateTabListPostOpen)));
+
+    MethodInfo worldRoutePlannerMethod = AccessTools.Method(typeof(WorldRoutePlanner),
+      nameof(WorldRoutePlanner.Start), parameters: [typeof(Dialog_FormCaravan)]);
+    for (int i = 0; i < instructionList.Count; i++)
+    {
+      CodeInstruction instruction = instructionList[i];
+
+      if (!instructionList.OutOfBounds(i + 2))
+      {
+        CodeInstruction lookAhead = instructionList[i + 2];
+        if (lookAhead.Calls(worldRoutePlannerMethod))
+        {
+          // Call Find::get_WorldRoutePlanner
+          // Ldarg.0
+          // CallVirt WorldRoutePlanner::Start(Dialog_FormCaravan)
+
+          // Jumps to ret
+          i += 3;
+          Assert.IsFalse(instructionList.OutOfBounds(i));
+          instruction = instructionList[i];
+        }
+      }
+      yield return instruction;
+    }
   }
 
   private static void CreateTabListPostOpen(Dialog_FormCaravan __instance,
@@ -103,19 +158,24 @@ internal class Patch_FormCaravanDialog : IPatchCategory
   }
 
   private static void CreateTransferableVehicleWidget(List<TransferableOneWay> transferables,
-    string thingCountTip,
-    IgnorePawnsInventoryMode ignorePawnInventoryMass, Func<float> availableMassGetter,
-    bool ignoreSpawnedCorpsesGearAndInventoryMass, PlanetTile tile,
-    bool playerPawnsReadOnly = false)
+    PlanetTile tile)
   {
-    vehiclesTransfer = new TransferableVehicleWidget(null, null, null, thingCountTip,
-      drawMass: true,
-      ignorePawnInventoryMass: ignorePawnInventoryMass, includePawnsMassInMassUsage: false,
-      availableMassGetter: availableMassGetter, extraHeaderSpace: 0,
-      ignoreSpawnedCorpseGearAndInventoryMass: ignoreSpawnedCorpsesGearAndInventoryMass, tile: tile,
-      drawMarketValue: true);
-    vehiclesTransfer.AddSection("VF_Vehicles".Translate(),
-      transferables.Where(t => t.AnyThing is VehiclePawn));
+    List<TransferableOneWay> vehicles = [];
+    List<TransferableOneWay> pawns = [];
+    foreach (TransferableOneWay transferable in transferables)
+    {
+      switch (transferable.AnyThing)
+      {
+        case VehiclePawn:
+          vehicles.Add(transferable);
+        break;
+        case Pawn and not VehiclePawn:
+          pawns.Add(transferable);
+        break;
+      }
+    }
+    vehiclesTransfer =
+      new TransferableVehicleWidget("VF_Vehicles".Translate(), vehicles, pawns, tile: tile);
   }
 
   private static IEnumerable<CodeInstruction> FormCaravanTabsTranspiler(

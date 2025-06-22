@@ -157,7 +157,7 @@ namespace Vehicles
     /// <param name="vehicle"></param>
     /// <param name="faction"></param>
     /// <param name="trader"></param>
-    public static Pawn FindBestNegotiator(VehiclePawn vehicle, Faction faction = null,
+    public static Pawn FindBestNegotiator(this VehiclePawn vehicle, Faction faction = null,
       TraderKindDef trader = null)
     {
       Predicate<Pawn> pawnValidator = null;
@@ -170,6 +170,35 @@ namespace Vehicles
         };
       }
       return vehicle.FindPawnWithBestStat(StatDefOf.TradePriceImprovement, pawnValidator);
+    }
+
+    /// <summary>
+    /// Find pawn with best <param name="stat"> value.</param>
+    /// </summary>
+    /// <param name="vehicle"></param>
+    /// <param name="stat"></param>
+    /// <param name="pawnValidator"></param>
+    public static Pawn FindPawnWithBestStat(this VehiclePawn vehicle, StatDef stat,
+      Predicate<Pawn> pawnValidator)
+    {
+      Pawn bestPawn = null;
+      float curValue = -1f;
+      foreach (Pawn pawn in vehicle.AllPawnsAboard)
+      {
+        if (!pawn.Dead && !pawn.Downed && !pawn.InMentalState &&
+          CaravanUtility.IsOwner(pawn, vehicle.Faction) && !stat.Worker.IsDisabledFor(pawn) &&
+          (pawnValidator is null || pawnValidator(pawn)))
+        {
+          float statValue = pawn.GetStatValue(stat);
+          if (bestPawn == null || statValue > curValue)
+          {
+            bestPawn = pawn;
+            curValue = statValue;
+          }
+        }
+      }
+
+      return bestPawn;
     }
 
     /// <summary>

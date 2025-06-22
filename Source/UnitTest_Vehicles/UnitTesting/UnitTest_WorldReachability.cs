@@ -51,7 +51,7 @@ internal sealed class UnitTest_WorldReachability
       for (int tile = 0; tile < Find.WorldGrid.TilesCount; tile++)
       {
         int id = regionGrid.GetRegionId(tile);
-        regions.AddOrInsert(id, tile);
+        regions.AddOrAppend(id, tile);
       }
 
       int totalCount = 0;

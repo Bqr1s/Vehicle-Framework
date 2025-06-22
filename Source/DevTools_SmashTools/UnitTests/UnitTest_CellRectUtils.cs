@@ -1,13 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using DevTools.UnitTesting;
-using UnityEngine.Assertions;
 using Verse;
 
 namespace SmashTools.UnitTesting;
 
 [UnitTest(TestType.MainMenu)]
-[TestDescription("Ext_CellRect extension methods.")]
+[TestCategory(TestGroup.Utils)]
+[TestDescription("CellRect extension methods.")]
 internal class UnitTest_CellRectUtils
 {
   [Test]

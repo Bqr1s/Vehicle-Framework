@@ -12,7 +12,7 @@ namespace Vehicles.Rendering;
 [UsedImplicitly(ImplicitUseTargetFlags.Members)]
 public class Command_CooldownAction : Command_Turret
 {
-  private const float IdlerExpiryTime = 5;
+  private const float IdlerTimeExpiry = 5; // seconds
 
   protected const float TurretGizmoPadding = 5;
 
@@ -123,7 +123,7 @@ public class Command_CooldownAction : Command_Turret
       }
     }
 
-    if (subGizmo.IsValid) subGizmo.onClick();
+    if (subGizmo is { IsValid: true }) subGizmo.onClick();
 
     if (haltTurret)
     {
@@ -225,8 +225,9 @@ public class Command_CooldownAction : Command_Turret
             BlitRequest request = new(vehicle)
               { rot = Rot8.North };
             request.blitTargets.Add(turret);
-            rtIdler ??= new RenderTextureIdler(VehicleGui.CreateRenderTexture(turretRect, request),
-              IdlerExpiryTime);
+            rtIdler ??=
+              new RenderTextureIdler(VehicleGui.CreateRenderTextureBuffer(turretRect, request),
+                IdlerTimeExpiry);
             VehicleGui.Blit(rtIdler.GetWrite(), turretRect, request,
               iconScale: turret.def.gizmoIconScale * iconDrawScale, forceCentering: false);
             textureDirty = false;
@@ -312,31 +313,28 @@ public class Command_CooldownAction : Command_Turret
 
   protected virtual VehicleTurret.SubGizmo DrawTopBar(Rect rect, ref bool mouseOver)
   {
-    VehicleTurret.SubGizmo clickedGizmo = VehicleTurret.SubGizmo.None;
+    VehicleTurret.SubGizmo clickedGizmo = null;
 
     Rect subGizmoRect = new(rect.x, rect.y, rect.height, rect.height);
     foreach (VehicleTurret.SubGizmo subGizmo in turret.SubGizmos)
     {
-      using (new TextBlock(Color.white))
+      using TextBlock colorBlock = new(Color.white);
+      if (!disabled)
       {
-        if (!disabled)
+        TooltipHandler.TipRegion(subGizmoRect, subGizmo.tooltip);
+        if (subGizmo.canClick() && Mouse.IsOver(subGizmoRect))
         {
-          TooltipHandler.TipRegion(subGizmoRect, subGizmo.tooltip);
-          if (subGizmo.canClick() && Mouse.IsOver(subGizmoRect))
+          mouseOver = true;
+          GUI.color = GenUI.SubtleMouseoverColor;
+          if (Widgets.ButtonInvisible(subGizmoRect))
           {
-            mouseOver = true;
-            GUI.color = GenUI.SubtleMouseoverColor; //MouseoverColor
-            if (Widgets.ButtonInvisible(subGizmoRect))
-            {
-              clickedGizmo = subGizmo;
-            }
+            clickedGizmo = subGizmo;
           }
         }
-        subGizmo.drawGizmo(subGizmoRect);
-        subGizmoRect.x += SubIconSize;
       }
+      subGizmo.drawGizmo(subGizmoRect);
+      subGizmoRect.x += SubIconSize;
     }
-
     return clickedGizmo;
   }
 

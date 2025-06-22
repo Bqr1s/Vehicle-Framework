@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <LanguageData>
-  <VF_EnterVehicle>Board {0} as {1}  [{2}]</VF_EnterVehicle>
+  <VF_BoardVehicle>Board as {0}  [{1}]</VF_BoardVehicle>
   <VF_BoardVehicleGroup>Board {0}</VF_BoardVehicleGroup>
-  <VF_BoardVehicleGroupFail>Board {0} (Too many selected)</VF_BoardVehicleGroupFail>
+  <VF_BoardVehicleGroupFail>Cannot board {0}. {1}</VF_BoardVehicleGroupFail>
+  <VF_BoardFailureTooMany>Too many selected</VF_BoardFailureTooMany>
+  <VF_BoardFailureNonCombatant>{0} is incapable of violence</VF_BoardFailureNonCombatant>
   
   <VF_ActivityIconOnBoardShip>Onboard {0}</VF_ActivityIconOnBoardShip>
   <VF_IsIncapableOfRamming>Ram {0}</VF_IsIncapableOfRamming>

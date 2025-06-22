@@ -1,19 +1,22 @@
 ﻿using HarmonyLib;
 using SmashTools;
 using Verse;
+using SmashTools.Patching;
 
 namespace Vehicles;
 
 internal class Patch_Areas : IPatchCategory
 {
-  public void PatchMethods()
+  PatchSequence IPatchCategory.PatchAt => PatchSequence.Mod;
+
+  void IPatchCategory.PatchMethods()
   {
-    VehicleHarmony.Patch(
+    HarmonyPatcher.Patch(
       original: AccessTools.Method(typeof(AreaManager), nameof(AreaManager.AddStartingAreas)),
       postfix: new HarmonyMethod(typeof(Patch_Areas),
         nameof(AddVehicleAreas)));
     // Back compatibility for maps that were not saved with these area types
-    VehicleHarmony.Patch(original: AccessTools.Method(typeof(Map), nameof(Map.FinalizeInit)),
+    HarmonyPatcher.Patch(original: AccessTools.Method(typeof(Map), nameof(Map.FinalizeInit)),
       postfix: new HarmonyMethod(typeof(Patch_Areas),
         nameof(BackfillVehicleAreas)));
   }
