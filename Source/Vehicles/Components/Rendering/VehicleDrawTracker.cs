@@ -1,70 +1,109 @@
-﻿using UnityEngine;
-using Verse;
-using RimWorld;
+﻿using System;
+using System.Collections.Generic;
+using JetBrains.Annotations;
 using SmashTools;
 using SmashTools.Animations;
+using SmashTools.Rendering;
+using UnityEngine;
+using Verse;
 
-namespace Vehicles
+namespace Vehicles.Rendering;
+
+[PublicAPI]
+public class VehicleDrawTracker
 {
-	public class VehicleDrawTracker
-	{
-		private VehiclePawn vehicle;
+  private readonly VehiclePawn vehicle;
 
-		public VehicleTweener tweener;
-		private VehicleRenderer renderer;
-		public PawnUIOverlay ui; //reimplement for better control over vehicle overlays (names should show despite animal Prefs set to none, traders inside should transfer question mark, etc.)
-		public VehicleTrackMaker trackMaker; //reimplement for vehicle specific "footprints"
-		public Vehicle_RecoilTracker rTracker;
+  public readonly VehicleRenderer renderer;
 
-		public VehicleDrawTracker(VehiclePawn vehicle)
-		{
-			this.vehicle = vehicle;
-			tweener = new VehicleTweener(vehicle);
-			renderer = new VehicleRenderer(vehicle);
-			ui = new PawnUIOverlay(vehicle);
-			trackMaker = new VehicleTrackMaker(vehicle);
-			rTracker = new Vehicle_RecoilTracker();
-		}
+  [AnimationProperty, TweakField]
+  public GraphicOverlayRenderer overlayRenderer;
 
-		public Vector3 DrawPos
-		{
-			get
-			{
-				tweener.PreDrawPosCalculation();
-				Vector3 vector = tweener.TweenedPos;
-				vector.y = vehicle.def.Altitude;
+  public readonly VehicleTweener tweener;
 
-				if (rTracker.Recoil > 0f)
-				{
-					vector = Ext_Math.PointFromAngle(vector, rTracker.Recoil, rTracker.Angle);
-				}
-				return vector;
-			}
-		}
+  // TODO - Reimplement for vehicle specific "footprints"
+  public VehicleTrackMaker trackMaker;
+  public Vehicle_RecoilTracker recoilTracker;
 
-		public void ProcessPostTickVisuals(int ticksPassed)
-		{
-			if (!vehicle.Spawned)
-			{
-				return;
-			}
-			renderer.ProcessPostTickVisuals(ticksPassed);
-			trackMaker.ProcessPostTickVisuals(ticksPassed);
-			rTracker.ProcessPostTickVisuals(ticksPassed);
-		}
+  private readonly List<IParallelRenderer> parallelRenderers = [];
 
-		public void Draw(ref readonly TransformData transform) => renderer.RenderVehicle(in transform);
+  public VehicleDrawTracker(VehiclePawn vehicle)
+  {
+    this.vehicle = vehicle;
+    tweener = new VehicleTweener(vehicle);
+    renderer = new VehicleRenderer(vehicle);
+    overlayRenderer = new GraphicOverlayRenderer(vehicle);
+    trackMaker = new VehicleTrackMaker(vehicle);
+    recoilTracker = new Vehicle_RecoilTracker();
 
-		// TODO - remove in 1.6
-		public void DrawAt(Vector3 loc, float extraRotation)
-		{
-			TransformData transform = new(loc, vehicle.FullRotation, extraRotation);
-			renderer.RenderVehicle(in transform);
-		}
+    AddRenderer(renderer);
+  }
 
-		public void Notify_Spawned()
-		{
-			tweener.ResetTweenedPosToRoot();
-		}
-	}
+  private bool RenderersInitialized { get; set; }
+
+  public Vector3 DrawPos
+  {
+    get
+    {
+      tweener.PreDrawPosCalculation();
+      Vector3 vector = tweener.TweenedPos;
+      vector.y = vehicle.def.Altitude;
+
+      if (recoilTracker.Recoil > 0f)
+      {
+        vector = vector.PointFromAngle(recoilTracker.Recoil, recoilTracker.Angle);
+      }
+      return vector;
+    }
+  }
+
+  public void AddRenderer(IParallelRenderer parallelRenderer)
+  {
+    parallelRenderer.SetDirty();
+    parallelRenderers.Add(parallelRenderer);
+  }
+
+  public void RemoveRenderer(IParallelRenderer parallelRenderer)
+  {
+    parallelRenderers.Remove(parallelRenderer);
+  }
+
+  public void DynamicDrawPhaseAt(DrawPhase phase, in Vector3 drawLoc, Rot8 rot, float rotation)
+  {
+    TransformData transformData = new(drawLoc, rot, rotation);
+    foreach (IParallelRenderer parallelRenderer in parallelRenderers)
+    {
+      switch (phase)
+      {
+        case DrawPhase.EnsureInitialized:
+          // Only initialize on request
+          if (parallelRenderer.IsDirty)
+          {
+            parallelRenderer.DynamicDrawPhaseAt(phase, in transformData);
+            parallelRenderer.IsDirty = false;
+          }
+        break;
+        case DrawPhase.ParallelPreDraw:
+        case DrawPhase.Draw:
+          parallelRenderer.DynamicDrawPhaseAt(phase, in transformData);
+        break;
+        default:
+          throw new NotImplementedException(nameof(DrawPhase));
+      }
+    }
+  }
+
+  public void ProcessPostTickVisuals(int ticksPassed)
+  {
+    if (!vehicle.Spawned)
+      return;
+    trackMaker.ProcessPostTickVisuals(ticksPassed);
+    recoilTracker.ProcessPostTickVisuals(ticksPassed);
+  }
+
+  public void Notify_Spawned()
+  {
+    tweener.ResetTweenedPosToRoot();
+    LongEventHandler.ExecuteWhenFinished(overlayRenderer.Init);
+  }
 }

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using RimWorld;
 using Verse;
-using UnityEngine;
 
 namespace Vehicles
 {
@@ -42,18 +39,20 @@ namespace Vehicles
       CellRect occupiedRect = this.OccupiedRect();
       foreach (IntVec3 cell in occupiedRect)
       {
-        if (Map.thingGrid.ThingAt(cell, ThingCategory.Pawn) is Pawn pawn && pawn is not VehiclePawn)
+        if (Map.thingGrid.ThingAt(cell, ThingCategory.Pawn) is Pawn pawn and not VehiclePawn)
         {
           if (pawn.Faction.HostileTo(Faction) ||
             Rand.Chance(VehicleDamager.FriendlyFireChance(this, pawn)))
           {
             (float pawnDamage, float vehicleDamage) = CalculateImpactDamage(pawn, this, moveSpeed);
-            Pawn culprit = GetPriorityHandlers(HandlingTypeFlags.Movement)
-            ?.FirstOrDefault(handler => handler.handlers.Any)?.handlers.InnerListForReading
-             .FirstOrDefault();
+            // Find first driver
+            Pawn culprit = GetHandlers(HandlingType.Movement)
+             .FirstOrDefault(handler => handler.thingOwner.Any)?.thingOwner.InnerListForReading
+             .First();
+            // If no driver, the vehicle is the culprit
+            culprit ??= this;
             IntVec3 position = pawn.Position;
-            DamageWorker.DamageResult result =
-              pawn.TakeDamage(new DamageInfo(DamageDefOf.Blunt, pawnDamage, instigator: culprit));
+            pawn.TakeDamage(new DamageInfo(DamageDefOf.Blunt, pawnDamage, instigator: culprit));
             TryTakeDamage(
               new DamageInfo(DamageDefOf.Blunt, vehicleDamage, instigator: pawn,
                 instigatorGuilty: false), position, out _);

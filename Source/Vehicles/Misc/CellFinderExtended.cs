@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using DevTools;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 
@@ -14,7 +14,7 @@ namespace Vehicles
   {
     private static List<IntVec3> mapEdgeCells;
     private static IntVec3 mapEdgeCellsSize;
-    private static List<VehicleRegion> workingRegions = new List<VehicleRegion>();
+    private static readonly List<VehicleRegion> workingRegions = [];
 
     public static bool TryFindRandomEdgeCell(Rot4 dir, Map map, Predicate<IntVec3> validator,
       int offset, out IntVec3 result)
@@ -50,7 +50,7 @@ namespace Vehicles
        .Cast<Thing>().ToList();
       if (hostFaction == Faction.OfPlayer)
       {
-        thingsOnMap.AddRange(map.listerBuildings.allBuildingsColonist.Cast<Thing>());
+        thingsOnMap.AddRange(map.listerBuildings.allBuildingsColonist);
       }
       else
       {
@@ -94,7 +94,7 @@ namespace Vehicles
     {
       List<IntVec3> cellsToCheck = CellRect.WholeMap(map).GetEdgeCells(dir).ToList();
       bool riverSpawn = Find.World.CoastDirectionAt(map.Tile) != dir &&
-        !Find.WorldGrid[map.Tile].Rivers.NullOrEmpty();
+        !Find.WorldGrid[map.Tile.tileId].Rivers.NullOrEmpty();
       int padding = (pawn.def.size.z / 2) > 4 ? (pawn.def.size.z / 2 + 1) : 4;
       int startIndex = cellsToCheck.Count / 2;
 
@@ -185,7 +185,7 @@ namespace Vehicles
       workingRegions.Clear();
       float radSquared = radius * radius;
       VehicleRegionTraverser.BreadthFirstTraverse(root, map, vehicleDef,
-        (VehicleRegion from, VehicleRegion to) => to.Allows(traverseParms, true)
+        (VehicleRegion from, VehicleRegion to) => to.Allows(traverseParms)
           && (radius > 1000f || to.extentsClose.ClosestDistSquaredTo(root) <= radSquared)
           && (regionValidator == null || regionValidator(to)),
         delegate(VehicleRegion region)
@@ -402,8 +402,8 @@ namespace Vehicles
       Assert.IsTrue(vehicle.Spawned, "Trying to find exit spot for despawned vehicle.");
 
       Map map = vehicle.Map;
-      VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
+      VehiclePathingSystem mapping = map.GetCachedMapComponent<VehiclePathingSystem>();
+      VehiclePathingSystem.VehiclePathData pathData = mapping[vehicle.VehicleDef];
 
       Danger maxDanger = Danger.Some;
       IntVec3 cell;
@@ -424,16 +424,16 @@ namespace Vehicles
         {
           case 0:
             cell.x = 0;
-            break;
+          break;
           case 1:
             cell.x = map.Size.x - 1;
-            break;
+          break;
           case 2:
             cell.z = 0;
-            break;
+          break;
           case 3:
             cell.z = map.Size.z - 1;
-            break;
+          break;
         }
 
         cell = cell.PadForHitbox(map, vehicle.VehicleDef);
@@ -462,8 +462,8 @@ namespace Vehicles
 
       cell = IntVec3.Invalid;
       Map map = vehicle.Map;
-      VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
-      VehicleMapping.VehiclePathData pathData = mapping[vehicle.VehicleDef];
+      VehiclePathingSystem mapping = map.GetCachedMapComponent<VehiclePathingSystem>();
+      VehiclePathingSystem.VehiclePathData pathData = mapping[vehicle.VehicleDef];
       if (!pathData.VehicleReachability.CanReachMapEdge(vehicle.Position,
         TraverseParms.For(vehicle)))
       {

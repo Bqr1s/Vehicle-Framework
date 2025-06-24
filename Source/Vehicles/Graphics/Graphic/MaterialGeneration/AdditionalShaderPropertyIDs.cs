@@ -5,6 +5,8 @@ namespace Vehicles
   public static class AdditionalShaderPropertyIDs
   {
     private static readonly string PatternTexName = "_PatternTex";
+
+    // TODO - just use _Color default property name
     private static readonly string ColorOneName = "_ColorOne";
     private static readonly string ColorThreeName = "_ColorThree";
     private static readonly string SkinTexName = "_SkinTex";

@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Threading;
-using DevTools;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using RegionResult = Vehicles.VehicleRegionMaker.RegionResult;
 
@@ -22,7 +22,7 @@ namespace Vehicles
 
     private VehicleRegionGrid regionGrid;
 
-    public VehicleRegionAndRoomUpdater(VehicleMapping mapping, VehicleDef createdFor)
+    public VehicleRegionAndRoomUpdater(VehiclePathingSystem mapping, VehicleDef createdFor)
       : base(mapping, createdFor)
     {
     }
@@ -147,12 +147,12 @@ namespace Vehicles
     private void RegenerateNewVehicleRegions()
     {
       newRegions.Clear();
-      VehicleMapping.VehiclePathData pathData = mapping[createdFor];
+      VehiclePathingSystem.VehiclePathData pathData = mapping[createdFor];
       foreach (IntVec3 cell in pathData.VehicleRegionDirtyer.DirtyCells)
       {
         if (!cell.InBounds(mapping.map))
         {
-          Assert.Fail("Dirtied invalid cell.");
+          Trace.Fail($"Dirtied invalid cell at {cell}");
           continue;
         }
 

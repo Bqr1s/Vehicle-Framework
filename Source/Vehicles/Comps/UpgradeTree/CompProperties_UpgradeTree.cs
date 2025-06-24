@@ -71,7 +71,7 @@ namespace Vehicles
                 GraphicOverlay graphicOverlay =
                   GraphicOverlay.Create(graphicDataOverlay, vehicleDef);
                 graphicOverlay.data.graphicData.RecacheLayerOffsets();
-                overlays.AddOrInsert(node, graphicOverlay);
+                overlays.AddOrAppend(node, graphicOverlay);
               }
             }
           }
@@ -81,12 +81,7 @@ namespace Vehicles
 
     public List<GraphicOverlay> TryGetOverlays(UpgradeNode node)
     {
-      if (!overlays.NullOrEmpty())
-      {
-        return overlays.TryGetValue(node, null);
-      }
-
-      return null;
+      return overlays?.TryGetValue(node);
     }
   }
 }

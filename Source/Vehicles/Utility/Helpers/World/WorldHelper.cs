@@ -9,20 +9,15 @@ using SmashTools;
 
 namespace Vehicles
 {
-  //REDO - Rivers
   public static class WorldHelper
   {
     private static readonly List<Thing> inventoryItems = [];
 
-    public static bool RiverIsValid(int tile, List<Pawn> vehicles) => true;
-
     public static List<Thing> AllInventoryItems(AerialVehicleInFlight aerialVehicle)
     {
       inventoryItems.Clear();
-      List<Pawn> pawnsListForReading = aerialVehicle.vehicle.AllPawnsAboard;
-      for (int i = 0; i < pawnsListForReading.Count; i++)
+      foreach (Pawn pawn in aerialVehicle.vehicle.AllPawnsAboard)
       {
-        Pawn pawn = pawnsListForReading[i];
         inventoryItems.AddRange(pawn.inventory.innerContainer);
       }
       inventoryItems.AddRange(aerialVehicle.vehicle.inventory.innerContainer);
@@ -31,20 +26,16 @@ namespace Vehicles
 
     public static float RiverCostAt(int tile, VehiclePawn vehicle)
     {
-      BiomeDef biome = Find.WorldGrid[tile].biome;
       RiverDef river = Find.WorldGrid[tile].Rivers.MaxBy(r => r.river.widthOnWorld).river;
-      if (vehicle.VehicleDef.properties.customRiverCosts.TryGetValue(river, out float cost))
-      {
-        return cost;
-      }
-      return WorldVehiclePathGrid.ImpassableMovementDifficulty;
+      return vehicle.VehicleDef.properties.customRiverCosts.TryGetValue(river,
+        WorldVehiclePathGrid.ImpassableMovementDifficulty);
     }
 
     /// <summary>
     /// Biggest river in a tile
     /// </summary>
     /// <param name="list"></param>
-    public static Tile.RiverLink BiggestRiverOnTile(List<Tile.RiverLink> list)
+    public static SurfaceTile.RiverLink BiggestRiverOnTile(List<SurfaceTile.RiverLink> list)
     {
       return list.MaxBy(riverlink => ModSettingsHelper.RiverMultiplier(riverlink.river));
     }
@@ -65,8 +56,6 @@ namespace Vehicles
     /// <summary>
     /// Get Heading between 2 points on World
     /// </summary>
-    /// <param name="map"></param>
-    /// <param name="target"></param>
     public static float TryFindHeading(Vector3 source, Vector3 target)
     {
       float heading = Find.WorldGrid.GetHeadingFromTo(source, target);
@@ -75,10 +64,8 @@ namespace Vehicles
 
     public static WorldObject WorldObjectAt(int tile)
     {
-      List<WorldObject> worldObjects = Find.WorldObjects.AllWorldObjects;
-      for (int i = 0; i < worldObjects.Count; i++)
+      foreach (WorldObject worldObject in Find.WorldObjects.AllWorldObjects)
       {
-        WorldObject worldObject = worldObjects[i];
         if (worldObject.Tile == tile)
         {
           return worldObject;
@@ -149,16 +136,19 @@ namespace Vehicles
     /// <param name="tile"></param>
     public static int BestGotoDestForVehicle(VehicleCaravan caravan, int tile)
     {
-      bool CaravanReachable(int t) => caravan.UniqueVehicleDefsInCaravan()
-         .All(v => WorldVehiclePathGrid.Instance.Passable(t, v)) &&
-        WorldVehiclePathGrid.Instance.reachability.CanReach(caravan, t);
-
       if (CaravanReachable(tile))
       {
         return tile;
       }
-      GenWorldClosest.TryFindClosestTile(tile, CaravanReachable, out int result, 50, true);
+      GenWorldClosest.TryFindClosestTile(tile, CaravanReachable, out PlanetTile result, 50);
       return result;
+
+      bool CaravanReachable(PlanetTile planetTile)
+      {
+        return caravan.UniqueVehicleDefsInCaravan()
+           .All(vehicleDef => WorldVehiclePathGrid.Instance.Passable(planetTile, vehicleDef)) &&
+          WorldVehiclePathGrid.Instance.reachability.CanReach(caravan, planetTile);
+      }
     }
 
     /// <summary>
@@ -167,7 +157,7 @@ namespace Vehicles
     /// <param name="vehicle"></param>
     /// <param name="faction"></param>
     /// <param name="trader"></param>
-    public static Pawn FindBestNegotiator(VehiclePawn vehicle, Faction faction = null,
+    public static Pawn FindBestNegotiator(this VehiclePawn vehicle, Faction faction = null,
       TraderKindDef trader = null)
     {
       Predicate<Pawn> pawnValidator = null;
@@ -183,11 +173,37 @@ namespace Vehicles
     }
 
     /// <summary>
-    /// Find best negotiator in Vehicle for trading on the World Map
+    /// Find pawn with best <param name="stat"> value.</param>
     /// </summary>
     /// <param name="vehicle"></param>
-    /// <param name="faction"></param>
-    /// <param name="trader"></param>
+    /// <param name="stat"></param>
+    /// <param name="pawnValidator"></param>
+    public static Pawn FindPawnWithBestStat(this VehiclePawn vehicle, StatDef stat,
+      Predicate<Pawn> pawnValidator)
+    {
+      Pawn bestPawn = null;
+      float curValue = -1f;
+      foreach (Pawn pawn in vehicle.AllPawnsAboard)
+      {
+        if (!pawn.Dead && !pawn.Downed && !pawn.InMentalState &&
+          CaravanUtility.IsOwner(pawn, vehicle.Faction) && !stat.Worker.IsDisabledFor(pawn) &&
+          (pawnValidator is null || pawnValidator(pawn)))
+        {
+          float statValue = pawn.GetStatValue(stat);
+          if (bestPawn == null || statValue > curValue)
+          {
+            bestPawn = pawn;
+            curValue = statValue;
+          }
+        }
+      }
+
+      return bestPawn;
+    }
+
+    /// <summary>
+    /// Find best negotiator in Vehicle for trading on the World Map
+    /// </summary>
     public static Pawn FindBestNegotiator(VehicleCaravan caravan, Faction faction = null,
       TraderKindDef trader = null)
     {
@@ -213,8 +229,7 @@ namespace Vehicles
       for (int tile = 0; tile < Find.WorldGrid.TilesCount; tile++)
       {
         Vector3 pos = Find.WorldGrid.GetTileCenter(tile);
-        if (Ext_Math.SphericalDistance(worldCoord, pos) <=
-          0.75f) //0.25 tile length margin of error for quicker calculation
+        if (Ext_Math.SphericalDistance(worldCoord, pos) <= 0.75f)
         {
           return tile;
         }
@@ -225,10 +240,8 @@ namespace Vehicles
     /// <summary>
     /// Change <paramref name="tile"/> if tile is within CoastRadius of a coast <see cref="VehiclesModSettings"/>
     /// </summary>
-    /// <param name="tile"></param>
-    /// <param name="faction"></param>
     /// <returns>new tileID if a nearby coast is found or <paramref name="tile"/> if not found</returns>
-    public static int PushSettlementToCoast(int tile, Faction faction)
+    public static PlanetTile PushSettlementToCoast(PlanetTile tile, Faction faction)
     {
       if (VehicleMod.CoastRadius <= 0)
       {
@@ -237,21 +250,21 @@ namespace Vehicles
 
       if (Find.World.CoastDirectionAt(tile).IsValid)
       {
-        if (Find.WorldGrid[tile].biome.canBuildBase && !(faction is null))
+        if (Find.WorldGrid[tile].PrimaryBiome.canBuildBase && faction is not null)
         {
-          DebugHelper.tiles.Add(new Pair<int, int>(tile, 0));
+          DebugHelper.tiles.Add((tile, 0));
         }
         return tile;
       }
 
-      List<int> neighbors = new List<int>();
+      List<int> neighbors = [];
       return Ext_World.BFS(tile, neighbors, VehicleMod.CoastRadius,
         result: delegate(int currentTile, int currentRadius)
         {
           if (Find.World.CoastDirectionAt(currentTile).IsValid)
           {
-            if (Find.WorldGrid[currentTile].biome.canBuildBase &&
-              Find.WorldGrid[currentTile].biome.implemented &&
+            if (Find.WorldGrid[currentTile].PrimaryBiome.canBuildBase &&
+              Find.WorldGrid[currentTile].PrimaryBiome.implemented &&
               Find.WorldGrid[currentTile].hilliness != Hilliness.Impassable)
             {
               if (DebugProperties.debug && faction is not null)
@@ -260,7 +273,7 @@ namespace Vehicles
               }
               if (faction != null)
               {
-                DebugHelper.tiles.Add(new Pair<int, int>(currentTile, currentRadius));
+                DebugHelper.tiles.Add((currentTile, currentRadius));
               }
               return true;
             }
@@ -272,10 +285,6 @@ namespace Vehicles
     /// <summary>
     /// Convert <paramref name="pos"/> to matrix in World space
     /// </summary>
-    /// <param name="pos"></param>
-    /// <param name="size"></param>
-    /// <param name="altOffset"></param>
-    /// <param name="counterClockwise"></param>
     public static Matrix4x4 GetWorldQuadAt(Vector3 pos, float size, float altOffset,
       bool counterClockwise = false)
     {
@@ -290,22 +299,15 @@ namespace Vehicles
         vector = normalized;
       }
       Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector);
-      Vector3 s = new Vector3(size, 1f, size);
-      Matrix4x4 matrix = default(Matrix4x4);
+      Vector3 s = new(size, 1f, size);
+      Matrix4x4 matrix = default;
       matrix.SetTRS(pos + normalized * altOffset, q, s);
       return matrix;
     }
 
     /// <summary>
-    /// Alternative to <see cref="WorldRendererUtility.DrawQuadTangentialToPlanet(Vector3, float, float, Material, bool, bool, MaterialPropertyBlock)"/> that rotates by -90 degrees for vehicle icons
+    /// Alternative to <see cref="WorldRendererUtility.DrawQuadTangentialToPlanet"/> that rotates by -90 degrees for vehicle icons
     /// </summary>
-    /// <param name="pos"></param>
-    /// <param name="size"></param>
-    /// <param name="altOffset"></param>
-    /// <param name="material"></param>
-    /// <param name="counterClockwise"></param>
-    /// <param name="useSkyboxLayer"></param>
-    /// <param name="propertyBlock"></param>
     public static void DrawQuadTangentialToPlanet(Vector3 pos, float size, float altOffset,
       Material material, bool counterClockwise = false, bool useSkyboxLayer = false,
       MaterialPropertyBlock propertyBlock = null)
@@ -328,7 +330,7 @@ namespace Vehicles
       }
       Quaternion q = Quaternion.LookRotation(Vector3.Cross(vector, Vector3.up), vector) *
         Quaternion.Euler(0, -90f, 0);
-      Vector3 s = new Vector3(size, 1f, size);
+      Vector3 s = new(size, 1f, size);
       Matrix4x4 matrix = default;
       matrix.SetTRS(pos + normalized * altOffset, q, s);
       int layer = useSkyboxLayer ?

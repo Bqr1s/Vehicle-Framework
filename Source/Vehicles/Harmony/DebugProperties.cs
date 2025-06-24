@@ -5,15 +5,14 @@ namespace Vehicles;
 
 internal static class DebugProperties
 {
-  // Enhanced debugging state which will enable many costly
-  // debugging features.
+  // Enhanced debugging state which will enable many costly debugging features.
   internal static readonly bool debug = false;
 
   internal static readonly bool drawPaths = false;
 
   internal static readonly bool drawAllRegions = false;
 
-  internal static readonly (string defName, DebugRegionType regionType) regionDebugging =
+  private static readonly (string defName, DebugRegionType regionType) regionDebugging =
     ("VF_TestMarshal", DebugRegionType.Regions | DebugRegionType.Links);
 
   internal static void Init()
@@ -25,18 +24,18 @@ internal static class DebugProperties
     Trace.IsFalse(debug);
     typeof(DebugProperties).SetStaticFieldsDefault();
 #else
-      if (!debug)
-      {
-        Ext_Type.SetStaticFieldsDefault(typeof(DebugProperties));
-        return;
-      }
+    if (!debug)
+    {
+      typeof(DebugProperties).SetStaticFieldsDefault();
+      return;
+    }
 
-      DebugHelper.Local.VehicleDef =
- DefDatabase<VehicleDef>.GetNamedSilentFail(regionDebugging.defName);
-      if (DebugHelper.Local.VehicleDef != null)
-      {
-        DebugHelper.Local.DebugType = regionDebugging.regionType;
-      }
+    DebugHelper.Local.VehicleDef =
+      DefDatabase<VehicleDef>.GetNamedSilentFail(regionDebugging.defName);
+    if (DebugHelper.Local.VehicleDef != null)
+    {
+      DebugHelper.Local.DebugType = regionDebugging.regionType;
+    }
 #endif
   }
 }

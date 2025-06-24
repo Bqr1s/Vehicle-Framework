@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using DevTools;
 using RimWorld;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 
@@ -77,15 +77,8 @@ namespace Vehicles
         Job job = JobMaker.MakeJob(JobDefOf.Goto, result);
         job.locomotionUrgency = urgency;
         job.checkOverrideOnExpire = true;
-        if (overrideInstancedExpiryInterval > 0)
-        {
-          job.instancedExpiryInterval = overrideInstancedExpiryInterval;
-        }
-        else
-        {
-          job.expiryInterval =
-            (overrideExpiryInterval > 0) ? overrideExpiryInterval : ExpiryInterval;
-        }
+        job.expiryInterval =
+          (overrideExpiryInterval > 0) ? overrideExpiryInterval : ExpiryInterval;
         job.collideWithPawns = true;
         return job;
       }

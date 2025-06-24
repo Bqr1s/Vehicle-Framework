@@ -1,13 +1,8 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading;
-using System.Runtime.CompilerServices;
-using Verse;
 using SmashTools;
-using Verse.Noise;
 using SmashTools.Performance;
-using UnityEngine;
+using Verse;
 
 namespace Vehicles
 {
@@ -24,7 +19,7 @@ namespace Vehicles
     // or directly called from PathingHelper (w/ multithreading disabled)
     private readonly HashSet<VehicleRegion> regionsToDirty = [];
 
-    public VehicleRegionDirtyer(VehicleMapping mapping, VehicleDef createdFor) : base(mapping,
+    public VehicleRegionDirtyer(VehiclePathingSystem mapping, VehicleDef createdFor) : base(mapping,
       createdFor)
     {
     }
@@ -66,7 +61,7 @@ namespace Vehicles
       }
 
       foreach (VehicleRegion region in mapping[createdFor].VehicleRegionGrid
-       .AllRegions_NoRebuild_InvalidAllowed)
+       .AllRegionsNoRebuildInvalidAllowed)
       {
         SetRegionDirty(region, addCellsToDirtyCells: false);
       }

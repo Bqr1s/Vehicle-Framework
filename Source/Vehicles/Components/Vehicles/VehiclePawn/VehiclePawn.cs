@@ -4,43 +4,20 @@ using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using SmashTools.Animations;
+using SmashTools.Rendering;
 using UnityEngine;
+using Vehicles.Rendering;
 using Verse;
 
 namespace Vehicles
 {
-  public partial class VehiclePawn : Pawn, IInspectable, IAnimationTarget, IAnimator,
+  public partial class VehiclePawn : Pawn, IInspectable, IThingHolderTickable,
+                                     IAnimationTarget, IAnimator, ITransformable,
                                      IEventManager<VehicleEventDef>, IMaterialCacheTarget
   {
-    public bool Initialized { get; private set; }
-
     public EventManager<VehicleEventDef> EventRegistry { get; set; }
 
     public VehicleDef VehicleDef => def as VehicleDef;
-
-    public Pawn FindPawnWithBestStat(StatDef stat, Predicate<Pawn> pawnValidator = null)
-    {
-      Pawn pawn = null;
-      float num = -1f;
-      List<Pawn> pawnsListForReading = AllPawnsAboard;
-      for (int i = 0; i < pawnsListForReading.Count; i++)
-      {
-        Pawn pawn2 = pawnsListForReading[i];
-        if (!pawn2.Dead && !pawn2.Downed && !pawn2.InMentalState &&
-          CaravanUtility.IsOwner(pawn2, Faction) && !stat.Worker.IsDisabledFor(pawn2) &&
-          (pawnValidator is null || pawnValidator(pawn2)))
-        {
-          float statValue = pawn2.GetStatValue(stat, true);
-          if (pawn == null || statValue > num)
-          {
-            pawn = pawn2;
-            num = statValue;
-          }
-        }
-      }
-
-      return pawn;
-    }
 
     public int AverageSkillOfCapablePawns(SkillDef skill)
     {
@@ -65,17 +42,17 @@ namespace Vehicles
         return;
 
       cargoToLoad ??= [];
-      bills ??= [];
+      boardingAssignments ??= [];
 
       if (!VehicleDef.properties.roles.NullOrEmpty())
       {
         foreach (VehicleRole role in VehicleDef.properties.roles)
         {
-          handlers.Add(new VehicleHandler(this, role));
+          handlers.Add(new VehicleRoleHandler(this, role));
         }
       }
-
       RecacheComponents();
+      RecacheMovementPermissions();
     }
 
     public override void PostMapInit()
@@ -85,12 +62,15 @@ namespace Vehicles
 
     public virtual void PostGenerationSetup()
     {
+      this.RegisterEvents();
       InitializeVehicle();
       ageTracker.AgeBiologicalTicks = 0;
       ageTracker.AgeChronologicalTicks = 0;
       ageTracker.BirthAbsTicks = 0;
-      health.Reset();
+      //health.Reset();
       statHandler.InitializeComponents();
+      RegenerateUnsavedComponents();
+
       if (Faction != Faction.OfPlayer && VehicleDef.npcProperties != null)
       {
         GenerateInventory();
@@ -114,6 +94,101 @@ namespace Vehicles
           {
             inventory.innerContainer.TryAdd(thing);
           }
+        }
+      }
+    }
+
+    public void RegisterEvents()
+    {
+      if (EventRegistry != null && EventRegistry.Initialized())
+        return; //Disallow re-registering events
+
+      this.FillEvents_Def();
+
+      this.AddEvent(VehicleEventDefOf.CargoAdded, statHandler.MarkAllDirty);
+      this.AddEvent(VehicleEventDefOf.CargoRemoved, statHandler.MarkAllDirty);
+      this.AddEvent(VehicleEventDefOf.PawnEntered, RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnExited, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnRemoved, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnChangedSeats, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnKilled, vehiclePather.RecalculatePermissions,
+        RecachePawnCount);
+      this.AddEvent(VehicleEventDefOf.PawnCapacitiesDirty, vehiclePather.RecalculatePermissions);
+      this.AddEvent(VehicleEventDefOf.IgnitionOff, vehiclePather.RecalculatePermissions);
+      this.AddEvent(VehicleEventDefOf.HealthChanged, vehiclePather.RecalculatePermissions);
+      this.AddEvent(VehicleEventDefOf.DamageTaken, statHandler.MarkAllDirty, Notify_TookDamage);
+      this.AddEvent(VehicleEventDefOf.Repaired, statHandler.MarkAllDirty);
+      this.AddEvent(VehicleEventDefOf.OutOfFuel, delegate
+      {
+        if (Spawned)
+        {
+          vehiclePather.PatherFailed();
+          ignition.Drafted = false;
+        }
+      });
+      this.AddEvent(VehicleEventDefOf.UpgradeCompleted, ResetRenderStatus,
+        RecacheMovementPermissions);
+      this.AddEvent(VehicleEventDefOf.UpgradeRefundCompleted, ResetRenderStatus,
+        RecacheMovementPermissions);
+      if (!VehicleDef.events.NullOrEmpty())
+      {
+        foreach ((VehicleEventDef vehicleEventDef, List<DynamicDelegate<VehiclePawn>> methods) in
+          VehicleDef.events)
+        {
+          if (!methods.NullOrEmpty())
+          {
+            foreach (DynamicDelegate<VehiclePawn> method in methods)
+            {
+              this.AddEvent(vehicleEventDef, () => method.Invoke(null, this));
+            }
+          }
+        }
+      }
+
+      if (!VehicleDef.statEvents.NullOrEmpty())
+      {
+        foreach (StatCache.EventLister eventLister in VehicleDef.statEvents)
+        {
+          foreach (VehicleEventDef eventDef in eventLister.eventDefs)
+          {
+            this.AddEvent(eventDef,
+              () => statHandler.MarkStatDirty(eventLister.statDef));
+          }
+        }
+      }
+
+      //One Shots
+      if (!VehicleDef.soundOneShotsOnEvent.NullOrEmpty())
+      {
+        foreach (VehicleSoundEventEntry<VehicleEventDef> soundEventEntry in VehicleDef
+         .soundOneShotsOnEvent)
+        {
+          this.AddEvent(soundEventEntry.key, () => this.PlayOneShotOnVehicle(soundEventEntry),
+            soundEventEntry.removalKey);
+        }
+      }
+
+      //Sustainers
+      if (!VehicleDef.soundSustainersOnEvent.NullOrEmpty())
+      {
+        foreach (VehicleSustainerEventEntry<VehicleEventDef> soundEventEntry in VehicleDef
+         .soundSustainersOnEvent)
+        {
+          this.AddEvent(soundEventEntry.start, () => this.StartSustainerOnVehicle(soundEventEntry),
+            soundEventEntry.removalKey);
+          this.AddEvent(soundEventEntry.stop, () => this.StopSustainerOnVehicle(soundEventEntry),
+            soundEventEntry.removalKey);
+        }
+      }
+
+      foreach (ThingComp comp in AllComps)
+      {
+        if (comp is VehicleComp vehicleComp)
+        {
+          vehicleComp.EventRegistration();
         }
       }
     }
@@ -144,31 +219,27 @@ namespace Vehicles
     protected virtual void RegenerateUnsavedComponents()
     {
       vehicleAI = new VehicleAI(this);
-      vDrawer = new VehicleDrawTracker(this);
-      overlayRenderer = new GraphicOverlayRenderer(this);
+      drawTracker = new VehicleDrawTracker(this);
       sustainers ??= new VehicleSustainers(this);
     }
 
     public override void SpawnSetup(Map map, bool respawningAfterLoad)
     {
-      this.RegisterEvents(); //Must register before comps call SpawnSetup to allow comps to access Registry
+      // Must register before comps call SpawnSetup to allow comps to access Registry
+      this.RegisterEvents();
       base.SpawnSetup(map, respawningAfterLoad);
 
-      if (!UnityData.IsInMainThread)
-      {
-        LongEventHandler.ExecuteWhenFinished(overlayRenderer.Init);
-      }
-      else
-      {
-        overlayRenderer.Init();
-      }
-
+#if ANIMATOR
       if (VehicleDef.drawProperties.controller != null)
       {
         animator ??= new AnimationManager(this, VehicleDef.drawProperties.controller);
         animator.SetBool(PropertyIds.Disabled, CanMove);
         animator.PostLoad();
       }
+#endif
+
+      if (PropertyBlock == null)
+        LongEventHandler.ExecuteWhenFinished(() => PropertyBlock = new MaterialPropertyBlock());
 
       // Ensure SustainerTarget and sustainer manager is given a clean slate to work with
       ReleaseSustainerTarget();
@@ -192,7 +263,7 @@ namespace Vehicles
         CompVehicleTurrets turretComp = CompVehicleTurrets;
         if (turretComp != null)
         {
-          foreach (VehicleTurret turret in turretComp.turrets)
+          foreach (VehicleTurret turret in turretComp.Turrets)
           {
             turret.autoTargeting = true;
             turret.AutoTarget = true;
@@ -201,6 +272,7 @@ namespace Vehicles
       }
 
       RecachePawnCount();
+      RecacheMovementPermissions();
 
       foreach (Pawn pawn in AllPawnsAboard)
       {
@@ -222,23 +294,34 @@ namespace Vehicles
 
       UpdateRotationAndAngle();
 
-      Drawer.Notify_Spawned();
+      DrawTracker.Notify_Spawned();
       InitializeHitbox();
-      Map.GetCachedMapComponent<VehicleMapping>().RequestGridsFor(this);
+      Map.GetCachedMapComponent<VehiclePathingSystem>().RequestGridsFor(this);
       ReclaimPosition();
       Map.GetCachedMapComponent<ListerVehiclesRepairable>().NotifyVehicleSpawned(this);
       ResetRenderStatus();
-
-      Initialized = true;
     }
 
     public override void ExposeData()
     {
+      // Needs to occur before comps so vehicle can initialize managers before comps access them
+      switch (Scribe.mode)
+      {
+        case LoadSaveMode.LoadingVars:
+          RecacheComponents();
+        break;
+        case LoadSaveMode.PostLoadInit:
+          this.EnsureUncachedCompList();
+          PostLoad();
+        break;
+      }
+
       base.ExposeData();
 
       Scribe_Collections.Look(ref activatableComps, nameof(activatableComps),
-        lookMode: LookMode.Deep);
-      activatableComps ??= new List<ActivatableThingComp>();
+        lookMode: LookMode.Deep, this);
+      activatableComps ??= [];
+
       if (Scribe.mode == LoadSaveMode.LoadingVars)
       {
         SyncActivatableComps();
@@ -252,12 +335,11 @@ namespace Vehicles
         }
       }
 
-      Scribe_Deep.Look(ref vehiclePather, nameof(vehiclePather), [this]);
-      Scribe_Deep.Look(ref ignition, nameof(ignition), [this]);
-      Scribe_Deep.Look(ref statHandler, nameof(statHandler), [this]);
+      Scribe_Deep.Look(ref vehiclePather, nameof(vehiclePather), this);
+      Scribe_Deep.Look(ref ignition, nameof(ignition), this);
+      Scribe_Deep.Look(ref statHandler, nameof(statHandler), this);
       Scribe_Deep.Look(ref sharedJob, nameof(sharedJob));
-      Scribe_Deep.Look(ref animator, nameof(animator),
-        [this, VehicleDef.drawProperties.controller]);
+      Scribe_Deep.Look(ref animator, nameof(animator), this, VehicleDef.drawProperties.controller);
 
       Scribe_Values.Look(ref angle, nameof(angle));
       Scribe_Values.Look(ref reverse, nameof(reverse));
@@ -285,13 +367,7 @@ namespace Vehicles
       Scribe_Collections.Look(ref cargoToLoad, nameof(cargoToLoad), lookMode: LookMode.Deep);
 
       Scribe_Collections.Look(ref handlers, nameof(handlers), LookMode.Deep);
-      Scribe_Collections.Look(ref bills, nameof(bills), LookMode.Deep);
-
-      if (Scribe.mode == LoadSaveMode.PostLoadInit)
-      {
-        this.EnsureUncachedCompList();
-        PostLoad();
-      }
+      Scribe_Collections.Look(ref boardingAssignments, nameof(boardingAssignments), LookMode.Deep);
     }
   }
 }

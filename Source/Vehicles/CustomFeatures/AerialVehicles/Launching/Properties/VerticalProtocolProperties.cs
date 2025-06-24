@@ -7,34 +7,38 @@ using UnityEngine;
 
 namespace Vehicles
 {
-	public class VerticalProtocolProperties : LaunchProtocolProperties
-	{
-		public int maxTicksVertical;
+  public class VerticalProtocolProperties : LaunchProtocolProperties
+  {
+    public int maxTicksVertical;
 
-		public List<GraphicDataLayered> additionalTexturesVertical;
-		public List<AnimationEvent<LaunchProtocol>> eventsVertical;
+    public List<AnimationEvent<LaunchProtocol>> eventsVertical;
 
-		/* ----- Shadows ----- */
-		[GraphEditable]
-		public LinearCurve shadowSizeXVerticalCurve;
-		[GraphEditable]
-		public LinearCurve shadowSizeZVerticalCurve;
-		[GraphEditable]
-		public LinearCurve shadowAlphaVerticalCurve;
-		/* --------------------*/
+    /* ----- Shadows ----- */
+    [GraphEditable]
+    public LinearCurve shadowSizeXVerticalCurve;
 
-		/* ----- Graphics ----- */
-		[GraphEditable(FunctionOfT = true)]
-		public LinearCurve offsetVerticalCurve;
-		[GraphEditable]
-		public LinearCurve xPositionVerticalCurve;
-		[GraphEditable]
-		public LinearCurve zPositionVerticalCurve;
-		[GraphEditable]
-		public LinearCurve rotationVerticalCurve;
+    [GraphEditable]
+    public LinearCurve shadowSizeZVerticalCurve;
 
-		[GraphEditable(Prefix = "FleckVTOL")]
-		public FleckData fleckDataVertical;
-		/* ---------------------*/
-	}
+    [GraphEditable]
+    public LinearCurve shadowAlphaVerticalCurve;
+    /* --------------------*/
+
+    /* ----- Graphics ----- */
+    [GraphEditable(FunctionOfT = true)]
+    public LinearCurve offsetVerticalCurve;
+
+    [GraphEditable]
+    public LinearCurve xPositionVerticalCurve;
+
+    [GraphEditable]
+    public LinearCurve zPositionVerticalCurve;
+
+    [GraphEditable]
+    public LinearCurve rotationVerticalCurve;
+
+    [GraphEditable(Prefix = "FleckVTOL")]
+    public FleckData fleckDataVertical;
+    /* ---------------------*/
+  }
 }

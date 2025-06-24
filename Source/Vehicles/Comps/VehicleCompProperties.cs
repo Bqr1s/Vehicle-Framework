@@ -1,20 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using Verse;
-using RimWorld;
 
-namespace Vehicles
+namespace Vehicles;
+
+[VehicleSettingsClass]
+public abstract class VehicleCompProperties : CompProperties
 {
-	public abstract class VehicleCompProperties : CompProperties
-	{
-		public virtual IEnumerable<VehicleStatDef> StatCategoryDefs()
-		{
-			yield break;
-		}
+  public virtual IEnumerable<VehicleStatDef> StatCategoryDefs()
+  {
+    yield break;
+  }
 
-		public virtual void PostDefDatabase()
-		{
-		}
-	}
+  public virtual void PostDefDatabase()
+  {
+  }
 }

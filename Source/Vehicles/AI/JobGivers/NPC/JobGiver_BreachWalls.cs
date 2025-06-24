@@ -1,10 +1,9 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading;
-using DevTools;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
+using UnityEngine.Assertions;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -52,14 +51,14 @@ namespace Vehicles
       {
         return null;
       }
-      VehicleMapping mapping = MapComponentCache<VehicleMapping>.GetComponent(vehicle.Map);
-      using (PawnPath pawnPath = mapping[vehicleDef].VehiclePathFinder.FindVehiclePath(
+      VehiclePathingSystem mapping = MapComponentCache<VehiclePathingSystem>.GetComponent(vehicle.Map);
+      using (VehiclePath vehiclePath = mapping[vehicleDef].VehiclePathFinder.FindPath(
         vehicle.Position, cell,
         TraverseParms.For(vehicle, mode: TraverseMode.PassAllDestroyableThings),
         CancellationToken.None))
       {
         Thing thing =
-          PathingHelper.FirstBlockingBuilding(vehicle, pawnPath);
+          PathingHelper.FirstBlockingBuilding(vehicle, vehiclePath);
         if (thing != null && TryFindCombatPosition(vehicle, out IntVec3 firingPos))
         {
           vehicle.mindState.breachingTarget = new BreachingTargetData(thing, firingPos);

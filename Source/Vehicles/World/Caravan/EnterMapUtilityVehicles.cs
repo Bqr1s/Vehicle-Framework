@@ -64,46 +64,30 @@ namespace Vehicles
 
     private static Rot4 CalculateEdgeToSpawnBoatOn(Map map)
     {
-      if (!Find.World.CoastDirectionAt(map.Tile).IsValid)
+      if (Find.World.CoastDirectionAt(map.Tile) is { IsValid: true } coastDir)
+        return coastDir;
+
+      SurfaceTile surfaceTile = Find.WorldGrid.Surface[map.Tile];
+      if (surfaceTile is null || surfaceTile.Rivers.NullOrEmpty())
+        return Rot4.Invalid;
+
+      float angle = Find.WorldGrid.GetHeadingFromTo(map.Tile,
+        surfaceTile.Rivers.OrderBy(link => link.river.degradeThreshold).First().neighbor);
+      return angle.ClampAngle() switch
       {
-        if (!Find.WorldGrid[map.Tile]?.Rivers.NullOrEmpty() ?? false)
-        {
-          List<Tile.RiverLink> rivers = Find.WorldGrid[map.Tile].Rivers;
-
-          float angle = Find.WorldGrid.GetHeadingFromTo(map.Tile, (from r1 in rivers
-            orderby -r1.river.degradeThreshold
-            select r1).First().neighbor);
-          if (angle < 45)
-          {
-            return Rot4.South;
-          }
-          else if (angle < 135)
-          {
-            return Rot4.East;
-          }
-          else if (angle < 225)
-          {
-            return Rot4.North;
-          }
-          else if (angle < 315)
-          {
-            return Rot4.West;
-          }
-          else
-          {
-            return Rot4.South;
-          }
-        }
-      }
-
-      return Find.World.CoastDirectionAt(map.Tile);
+        < 45  => Rot4.South,
+        < 135 => Rot4.East,
+        < 225 => Rot4.North,
+        < 315 => Rot4.West,
+        _     => throw new ArgumentException("ClampAndWrap did not return valid 0:360 value")
+      };
     }
 
     private static IntVec3 FindCenterCell(Map map, VehicleDef vehicleDef,
       Predicate<IntVec3> extraCellValidator)
     {
       TraverseParms traverseParms =
-        TraverseParms.For(TraverseMode.NoPassClosedDoors, Danger.Deadly, false);
+        TraverseParms.For(TraverseMode.NoPassClosedDoors);
       Predicate<IntVec3> baseValidator = (IntVec3 x) =>
         GenGridVehicles.Standable(x, vehicleDef, map) && !x.Fogged(map) &&
         map.reachability.CanReachMapEdge(x, traverseParms);
@@ -154,7 +138,7 @@ namespace Vehicles
     {
       IntVec3 root;
       Rot4 rot = Rot4.Random;
-      if (vehicleDef.vehicleType == VehicleType.Sea)
+      if (vehicleDef.type == VehicleType.Sea)
       {
         rot = CalculateEdgeToSpawnBoatOn(map);
       }

@@ -1,7 +1,7 @@
 ﻿using System.Linq;
-using DevTools;
 using HarmonyLib;
 using RimWorld;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles
@@ -22,7 +22,7 @@ namespace Vehicles
       {
         defaultLabel = "CommandTrade".Translate(),
         defaultDesc = "CommandTradeDesc".Translate(),
-        icon = VehicleTex.TradeCommandTex,
+        icon = TexData.TradeCommandTex,
         action = delegate()
         {
           if (Find.WorldObjects.SettlementAt(aerialVehicle.Tile) is
@@ -71,7 +71,7 @@ namespace Vehicles
 
     public static void ResetDesignatorStatuses()
     {
-      Assert.IsTrue(Current.ProgramState == ProgramState.Playing);
+      Assert.IsTrue(Current.ProgramState is ProgramState.Playing);
       foreach (VehicleDef vehicleDef in DefDatabase<VehicleDef>.AllDefsListForReading)
       {
         VehicleEnabled.For enabled = SettingsCache.TryGetValue(vehicleDef, typeof(VehicleDef),

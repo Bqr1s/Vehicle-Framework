@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using UnityEngine;
-using Verse;
-using Verse.AI;
-using Verse.Sound;
 using RimWorld;
 using SmashTools;
+using UnityEngine;
+using Verse;
+using Verse.Sound;
 
 namespace Vehicles
 {
@@ -21,26 +19,17 @@ namespace Vehicles
 
     public override bool IsTargeting => action != null;
 
-    public bool TargeterValid
+    private bool TargeterValid
     {
       get
       {
         if (vehicle is null || vehicle.Map != Find.CurrentMap || vehicle.Destroyed)
-        {
           return false;
-        }
 
         if (Turret is null || Turret.ComponentDisabled)
-        {
           return false;
-        }
 
-        if (!Find.Selector.IsSelected(vehicle))
-        {
-          return false;
-        }
-
-        return true;
+        return Find.Selector.IsSelected(vehicle);
       }
     }
 
@@ -63,15 +52,11 @@ namespace Vehicles
 
     public override void StopTargeting()
     {
-      if (actionWhenFinished != null)
-      {
-        Action action = actionWhenFinished;
-        actionWhenFinished = null;
-        action();
-      }
+      actionWhenFinished?.Invoke();
 
       Turret = null;
       action = null;
+      actionWhenFinished = null;
     }
 
     public void StopTargeting(bool canceled)
@@ -101,15 +86,16 @@ namespace Vehicles
           if (action != null)
           {
             LocalTargetInfo obj = CurrentTargetUnderMouse();
-            if (obj.Cell.InBounds(map) && TargetingHelper.TargetMeetsRequirements(Turret, obj))
+            if (obj.Cell.InBounds(map) &&
+              TargetingHelper.TargetMeetsRequirements(Turret, obj, out _))
             {
               action(obj);
-              SoundDefOf.Tick_High.PlayOneShotOnCamera(null);
+              SoundDefOf.Tick_High.PlayOneShotOnCamera();
               StopTargeting(false);
             }
             else
             {
-              SoundDefOf.ClickReject.PlayOneShotOnCamera(null);
+              SoundDefOf.ClickReject.PlayOneShotOnCamera();
             }
           }
         }
@@ -118,7 +104,7 @@ namespace Vehicles
           KeyBindingDefOf.Cancel.KeyDownEvent)
         {
           StopTargeting(true);
-          SoundDefOf.CancelMode.PlayOneShotOnCamera(null);
+          SoundDefOf.CancelMode.PlayOneShotOnCamera();
           Event.current.Use();
         }
       }
@@ -128,7 +114,7 @@ namespace Vehicles
     {
       if (action != null)
       {
-        if (TargetingHelper.TargetMeetsRequirements(Turret, CurrentTargetUnderMouse()))
+        if (TargetingHelper.TargetMeetsRequirements(Turret, CurrentTargetUnderMouse(), out _))
         {
           Texture2D icon = mouseAttachment ?? TexCommand.Attack;
           GenUI.DrawMouseAttachment(icon);
@@ -141,27 +127,22 @@ namespace Vehicles
       if (IsTargeting)
       {
         LocalTargetInfo mouseTarget = CurrentTargetUnderMouse();
-        if (TargetingHelper.TargetMeetsRequirements(Turret, mouseTarget))
+        if (TargetingHelper.TargetMeetsRequirements(Turret, mouseTarget, out _))
         {
           GenDraw.DrawTargetHighlight(mouseTarget);
-          if (Turret.CurrentFireMode.spreadRadius > 1)
+          if (Turret.CurrentFireMode.forcedMissRadius > 1)
           {
-            GenDraw.DrawRadiusRing(mouseTarget.Cell, Turret.CurrentFireMode.spreadRadius);
+            GenDraw.DrawRadiusRing(mouseTarget.Cell, Turret.CurrentFireMode.forcedMissRadius);
           }
 
           if (mouseTarget != Turret.vehicle)
           {
-            Turret.AlignToAngleRestricted((float)Turret.TurretLocation.ToIntVec3()
-             .AngleToCell(mouseTarget.Cell));
+            float angle = Turret.TurretLocation.AngleToPoint(mouseTarget.Thing?.DrawPos ??
+              mouseTarget.Cell.ToVector3Shifted());
+            Turret.AlignToAngleRestricted(angle);
           }
         }
       }
-    }
-
-    [Obsolete("Use TargetingHelper.TargetMeetsRequirements instead.", error: true)]
-    public static bool TargetMeetsRequirements(VehicleTurret turret, LocalTargetInfo target)
-    {
-      return TargetingHelper.TargetMeetsRequirements(turret, target);
     }
 
     protected override LocalTargetInfo CurrentTargetUnderMouse()

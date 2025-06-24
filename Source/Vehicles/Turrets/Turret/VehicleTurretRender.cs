@@ -1,264 +1,134 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
+﻿using JetBrains.Annotations;
+using SmashTools;
 using UnityEngine;
 using Verse;
-using SmashTools;
 
-namespace Vehicles
+namespace Vehicles;
+
+[PublicAPI]
+public class VehicleTurretRender : ITweakFields
 {
-	public class VehicleTurretRender : ITweakFields
-	{
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? north;// = RotationalOffset.Default;
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? east;// = RotationalOffset.Default;
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? south;// = RotationalOffset.Default;
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? west;// = RotationalOffset.Default;
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? northEast;// = RotationalOffset.Default;
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? southEast;// = RotationalOffset.Default;
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? southWest;// = RotationalOffset.Default;
-		[TweakField(SettingsType = UISettingsType.FloatBox)]
-		private Vector2? northWest;// = RotationalOffset.Default;
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? north;
 
-		string ITweakFields.Label => "Render Properties";
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? east;
 
-		string ITweakFields.Category => string.Empty;
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? south;
 
-		public Vector2 North => north ?? Vector2.zero;
-		public Vector2 East => east ?? Vector2.zero;
-		public Vector2 South => south ?? Vector2.zero;
-		public Vector2 West => west ?? Vector2.zero;
-		public Vector2 NorthEast => northEast ?? Vector2.zero;
-		public Vector2 SouthEast => southEast ?? Vector2.zero;
-		public Vector2 SouthWest => southWest ?? Vector2.zero;
-		public Vector2 NorthWest => northWest ?? Vector2.zero;
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? west;
 
-		/// <summary>
-		/// Init from CompProperties
-		/// </summary>
-		public VehicleTurretRender()
-		{
-		}
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? northEast;
 
-		public VehicleTurretRender(VehicleTurretRender reference)
-		{
-			if (reference != null)
-			{
-				north = reference.north;
-				east = reference.east;
-				south = reference.south;
-				west = reference.west;
-				northEast = reference.northEast;
-				southEast = reference.southEast;
-				southWest = reference.southWest;
-				northWest = reference.northWest;
-			}
-			PostLoad();
-		}
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? southEast;
 
-		public void OnFieldChanged()
-		{
-			RecacheOffsets();
-		}
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? southWest;
 
-		/// <summary>
-		/// Reflection call from vanilla
-		/// </summary>
-		public void PostLoad()
-		{
-			RecacheOffsets();
-		}
+  [TweakField(SettingsType = UISettingsType.FloatBox)]
+  public Vector2? northWest;
 
-		private void RecacheOffsets()
-		{
-			if (!north.HasValue)
-			{
-				if (south.HasValue)
-				{
-					north = Rotate(south.Value, 180);
-				}
-				else
-				{
-					north = Vector2.zero;
-				}
-			}
-			if (!south.HasValue)
-			{
-				south = Rotate(north.Value, 180);
-			}
-			if (!east.HasValue)
-			{
-				if (west.HasValue)
-				{
-					east = Flip(west.Value, true, false);
-				}
-				else
-				{
-					east = Rotate(north.Value, 90);
-				}
-			}
-			if (!west.HasValue)
-			{
-				if (east.HasValue)
-				{
-					west = Flip(east.Value, true, false);
-				}
-				else
-				{
-					west = Rotate(north.Value, 270);
-				}
-			}
-			if (!northEast.HasValue)
-			{
-				northEast = Rotate(north.Value, -45);
-			}
-			if (!northWest.HasValue)
-			{
-				northWest = Rotate(north.Value, 45);
-			}
-			if (!southEast.HasValue)
-			{
-				southEast = Rotate(south.Value, 45);
-			}
-			if (!southWest.HasValue)
-			{
-				southWest = Rotate(south.Value, -45);
-			}
-		}
+  string ITweakFields.Label => "Render Properties";
 
-		public Vector2 Rotate(Vector2 offset, float angle)
-		{
-			if (angle % 45 != 0)
-			{
-				SmashLog.Error($"Cannot rotate <type>VehicleTurretRender.offset</type> with an angle non-multiple of 45.");
-				return offset;
-			}
-			return offset.RotatedBy(angle);
-		}
+  string ITweakFields.Category => string.Empty;
 
-		public Vector2 Flip(Vector2 offset, bool flipX, bool flipY)
-		{
-			Vector2 newOffset = offset;
-			if (flipX)
-			{
-				newOffset.x *= -1;
-			}
-			if (flipY)
-			{
-				newOffset.y *= -1;
-			}
-			return newOffset;
-		}
+  /// <summary>
+  /// Init from CompProperties
+  /// </summary>
+  public VehicleTurretRender()
+  {
+  }
 
-		public Vector2 OffsetFor(Rot8 rot)
-		{
-			return rot.AsInt switch
-			{
-				0 => North,
-				1 => East,
-				2 => South,
-				3 => West,
-				4 => NorthEast,
-				5 => SouthEast,
-				6 => SouthWest,
-				7 => NorthWest,
-				_ => Vector2.zero,
-			};
-		}
+  public VehicleTurretRender(VehicleTurretRender reference)
+  {
+    if (reference != null)
+    {
+      north = reference.north;
+      east = reference.east;
+      south = reference.south;
+      west = reference.west;
+      northEast = reference.northEast;
+      southEast = reference.southEast;
+      southWest = reference.southWest;
+      northWest = reference.northWest;
+    }
+    PostLoad();
+  }
 
-		public override string ToString()
-		{
-			return $"north: {north} east: {east} south: {south} west: {west} NE: {northEast} SE: {southEast} SW: {southWest} NW: {northWest}";
-		}
+  public void OnFieldChanged()
+  {
+    RecacheOffsets();
+  }
 
-		public class RotationalOffset : ITweakFields
-		{
-			[TweakField(SettingsType = UISettingsType.FloatBox)]
-			private Vector2? offset;
+  /// <summary>
+  /// Reflection call from vanilla
+  /// </summary>
+  public void PostLoad()
+  {
+    RecacheOffsets();
+  }
 
-			public RotationalOffset(Vector2? offset)
-			{
-				this.offset = offset;
-				Rot = Rot8.Invalid;
-			}
+  public void RecacheOffsets()
+  {
+    north ??= south.HasValue ? Rotate(south.Value, 180) : Vector2.zero;
+    south ??= Rotate(north.Value, 180);
+    east ??= west.HasValue ? Flip(west.Value, true, false) : Rotate(north.Value, -90);
+    west ??= east.HasValue ? Flip(east.Value, true, false) : Rotate(north.Value, 90);
+    northEast ??= Rotate(north.Value, -45);
+    northWest ??= Rotate(north.Value, 45);
+    southEast ??= Rotate(south.Value, 45);
+    southWest ??= Rotate(south.Value, -45);
+  }
 
-			public Rot8 Rot { get; set; }
+  // NOTE - Verse extension rotates CCW, angle must be negative for CW rotation
+  private static Vector2 Rotate(Vector2 offset, float angle)
+  {
+    if (angle % 45 != 0)
+    {
+      Log.Error(
+        "Cannot rotate VehicleTurretRender.offset with an angle non-multiple of 45.");
+      return offset;
+    }
+    return offset.RotatedBy(angle);
+  }
 
-			public Vector2 Offset => offset ?? Vector2.zero;
+  private static Vector2 Flip(Vector2 offset, bool flipX, bool flipY)
+  {
+    Vector2 newOffset = offset;
+    if (flipX)
+    {
+      newOffset.x *= -1;
+    }
+    if (flipY)
+    {
+      newOffset.y *= -1;
+    }
+    return newOffset;
+  }
 
-			public bool IsValid => offset != null;
+  public Vector2 OffsetFor(Rot8 rot)
+  {
+    return rot.AsInt switch
+    {
+      0 => north ?? Vector2.zero,
+      1 => east ?? Vector2.zero,
+      2 => south ?? Vector2.zero,
+      3 => west ?? Vector2.zero,
+      4 => northEast ?? Vector2.zero,
+      5 => southEast ?? Vector2.zero,
+      6 => southWest ?? Vector2.zero,
+      7 => northWest ?? Vector2.zero,
+      _ => Vector2.zero,
+    };
+  }
 
-			public static RotationalOffset Default => new RotationalOffset(null);
-
-			string ITweakFields.Label => Rot.ToStringNamed();
-
-			string ITweakFields.Category => string.Empty;
-
-			public void OnFieldChanged()
-			{
-			}
-
-			public RotationalOffset Rotate(float angle)
-			{
-				if (angle % 45 != 0)
-				{
-					SmashLog.Error($"Cannot rotate <type>RotationalOffset</type> with angle a non-multiple of 45.");
-					return Default;
-				}
-				offset = Offset.RotatedBy(angle);
-				return new RotationalOffset(offset)
-				{
-					Rot = angle < 0 ? Rot.Rotated(Mathf.Abs(angle), RotationDirection.Counterclockwise) : Rot.Rotated(angle, RotationDirection.Clockwise)
-				};
-			}
-
-			public RotationalOffset Flip(bool flipX, bool flipY)
-			{
-				Vector2 newOffset = Offset;
-				if (flipX)
-				{
-					newOffset.x *= -1;
-				}
-				if (flipY)
-				{
-					newOffset.y *= -1;
-				}
-				return new RotationalOffset(newOffset);
-			}
-
-			public static RotationalOffset FromString(string entry)
-			{
-				entry = entry.TrimStart(new char[] { '(' }).TrimEnd(new char[] { ')' });
-				string[] data = entry.Split(new char[] { ',' });
-				if (data.Length != 2)
-				{
-					Log.Warning($"RotationalOffset parses into Vector2. xml = {entry}");
-				}
-				try
-				{
-					CultureInfo invariantCulture = CultureInfo.InvariantCulture;
-					float offsetX = Convert.ToSingle(data[0], invariantCulture);
-					float offsetY = Convert.ToSingle(data[1], invariantCulture);
-					return new RotationalOffset(new Vector2(offsetX, offsetY));
-				}
-				catch (Exception ex)
-				{
-					SmashLog.Error($"{entry} is not a valid <struct>RotationalOffset</struct> format. Exception: {ex}");
-					return Default;
-				}
-			}
-
-			public override string ToString()
-			{
-				return offset.ToString();
-			}
-		}
-	}
+  public override string ToString()
+  {
+    return
+      $"north: {north} east: {east} south: {south} west: {west} NE: {northEast} SE: {southEast} SW: {southWest} NW: {northWest}";
+  }
 }

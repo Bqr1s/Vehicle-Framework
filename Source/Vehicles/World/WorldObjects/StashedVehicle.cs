@@ -1,262 +1,255 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Verse;
 
-namespace Vehicles
+namespace Vehicles;
+
+public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder
 {
-	public class StashedVehicle : DynamicDrawnWorldObject, IThingHolder, ILoadReferenceable
-	{
-		public ThingOwner<Thing> stash = new ThingOwner<Thing>();
+  private ThingOwner<Thing> stash = [];
 
-		private static readonly Dictionary<VehicleDef, int> vehicleCounts = new Dictionary<VehicleDef, int>();
+  private static readonly StringBuilder inspectStringBuilder = new();
+  private static readonly Dictionary<VehicleDef, int> vehicleCounts = [];
 
-		private Material cachedMaterial;
-		private float transitionSize;
+  private Material cachedMaterial;
 
-		public List<VehiclePawn> Vehicles { get; private set; }
+  public IEnumerable<VehiclePawn> Vehicles => stash.InnerListForReading
+   .Where(thing => thing is VehiclePawn).Cast<VehiclePawn>();
 
-		public override Material Material
-		{
-			get
-			{
-				if (cachedMaterial is null)
-				{
-					Color color;
-					if (Faction != null)
-					{
-						color = Faction.Color;
-					}
-					else
-					{
-						color = Color.white;
-					}
-					VehiclePawn largestVehicle = Vehicles.MaxBy(vehicle => vehicle.VehicleDef.Size.Magnitude);
-					string texPath = VehicleTex.CachedTextureIconPaths.TryGetValue(largestVehicle.VehicleDef, VehicleTex.DefaultVehicleIconTexPath);
-					cachedMaterial = MaterialPool.MatFrom(texPath, ShaderDatabase.WorldOverlayTransparentLit, color, WorldMaterials.WorldObjectRenderQueue);
-				}
-				return cachedMaterial;
-			}
-		}
+  public override Material Material
+  {
+    get
+    {
+      if (cachedMaterial is null)
+      {
+        Color color = Faction?.Color ?? Color.white;
+        VehiclePawn largestVehicle = Vehicles.MaxBy(vehicle => vehicle.VehicleDef.Size.Magnitude);
+        string texPath = VehicleTex.CachedTextureIconPaths.TryGetValue(largestVehicle.VehicleDef,
+          VehicleTex.DefaultVehicleIconTexPath);
+        cachedMaterial = MaterialPool.MatFrom(texPath, ShaderDatabase.WorldOverlayTransparentLit,
+          color, WorldMaterials.WorldObjectRenderQueue);
+      }
+      return cachedMaterial;
+    }
+  }
 
-		public override void Draw()
-		{
-			if (!this.HiddenBehindTerrainNow())
-			{
-				float averageTileSize = Find.WorldGrid.averageTileSize;
-				float transitionPct = ExpandableWorldObjectsUtility.TransitionPct;
+  public override void Draw()
+  {
+    if (!this.HiddenBehindTerrainNow())
+    {
+      WorldHelper.DrawQuadTangentialToPlanet(DrawPos, 0.7f * Find.WorldGrid.AverageTileSize, 0.015f,
+        Material);
+    }
+  }
 
-				float drawPct = (1 + (transitionPct * Find.WorldCameraDriver.AltitudePercent * ExpandingResize)) * transitionSize;
-				
-				if (VehicleMod.settings.main.dynamicWorldDrawing && transitionPct <= 0)
-				{
-					//TODO - Rework when dynamic drawing is fixed, currently permanently disabled so this code will never be reached
-					Vector3 normalized = DrawPos.normalized;
-					Vector3 direction = Vector3.Cross(normalized, Vector3.down);
-					Quaternion quat = Quaternion.LookRotation(direction, normalized) * Quaternion.Euler(0f, 90f, 0f);
-					Vector3 size = new Vector3(averageTileSize * 0.7f * drawPct, 1, averageTileSize * 0.7f * drawPct);
+  public VehicleCaravan Notify_CaravanArrived(Caravan caravan)
+  {
+    if (caravan is VehicleCaravan vehicleCaravan)
+    {
+      if (vehicleCaravan.AerialVehicle || Vehicles.Any(vehicle => !vehicle.VehicleDef.canCaravan))
+      {
+        Messages.Message(
+          "Unable to retrieve vehicle, aerial vehicles can't merge with other vehicle caravans.",
+          MessageTypeDefOf.RejectInput, historical: false);
+        return null;
+      }
+    }
 
-					Matrix4x4 matrix = default;
-					matrix.SetTRS(DrawPos + normalized, quat, size);
-					//Graphics.DrawMesh(MeshPool.plane10, matrix, VehicleMat, WorldCameraManager.WorldLayer);
-					//RenderGraphicOverlays(normalized, direction, size);
-				}
-				else
-				{
-					WorldHelper.DrawQuadTangentialToPlanet(DrawPos, 0.7f * averageTileSize, 0.015f, Material);
-				}
-			}
-		}
+    // Use separate list, caravan must relinquish ownership of pawns in order to add them to a new caravan
+    List<Pawn> pawns = caravan.pawns.InnerListForReading.ToList();
+    caravan.RemoveAllPawns();
 
-		public VehicleCaravan Notify_CaravanArrived(Caravan caravan)
-		{
-			if (caravan is VehicleCaravan vehicleCaravan)
-			{
-				if (vehicleCaravan.AerialVehicle || Vehicles.Any(vehicle => !vehicle.VehicleDef.canCaravan))
-				{
-					Messages.Message($"Unable to retrieve vehicle, aerial vehicles can't merge with other vehicle caravans.", MessageTypeDefOf.RejectInput, historical: false);
-					return null;
-				}
-			}
+    List<VehiclePawn> vehicles = [];
+    foreach (Thing thing in stash.InnerListForReading.ToList())
+    {
+      if (thing is VehiclePawn vehicle)
+      {
+        stash.Remove(thing);
+        vehicles.Add(vehicle);
+      }
+    }
+    RoleHelper.Distribute(vehicles, pawns);
+    // Pawns that were distributed between vehicles will not be part of the formation, but are
+    // instead nested within the vehicle. Any remaining dismounted pawns + vehicles must be joined
+    pawns.AddRange(vehicles);
 
-			// Use separate list, caravan must relinquish ownership of pawns in order to add them to a new caravan
-			List<Pawn> pawns = caravan.pawns.InnerListForReading.ToList();
-			caravan.RemoveAllPawns();
+    VehicleCaravan mergedCaravan =
+      CaravanHelper.MakeVehicleCaravan(pawns, caravan.Faction, caravan.Tile, true);
 
-			List<VehiclePawn> vehicles = new List<VehiclePawn>();
-			foreach (Thing thing in stash.InnerListForReading.ToList())
-			{
-				if (thing is VehiclePawn vehicle)
-				{
-					stash.Remove(thing);
-					vehicles.Add(vehicle);
-				}
-			}
-			RoleHelper.Distribute(vehicles, pawns);
-			// Pawns that were distributed between vehicles will not be part of the formation, but are
-			// instead nested within the vehicle. Any remaining dismounted pawns + vehicles must be joined
-			pawns.AddRange(vehicles);
+    for (int i = stash.Count - 1; i >= 0; i--)
+    {
+      mergedCaravan.AddPawnOrItem(stash[i], true);
+    }
+    stash.Clear();
 
-			VehicleCaravan mergedCaravan = CaravanHelper.MakeVehicleCaravan(pawns, caravan.Faction, caravan.Tile, true);
+    Destroy();
+    caravan.Destroy();
 
-			for (int i = stash.Count - 1; i >= 0; i--)
-			{
-				mergedCaravan.AddPawnOrItem(stash[i], true);
-			}
+    return mergedCaravan;
+  }
 
-			Destroy();
+  public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Caravan caravan)
+  {
+    foreach (FloatMenuOption floatMenuOption in base.GetFloatMenuOptions(caravan))
+    {
+      yield return floatMenuOption;
+    }
+    foreach (FloatMenuOption floatMenuOption in CaravanArrivalAction_StashedVehicle
+     .GetFloatMenuOptions(caravan, this))
+    {
+      yield return floatMenuOption;
+    }
+  }
 
-			caravan.Destroy();
+  public override string GetInspectString()
+  {
+    inspectStringBuilder.Clear();
+    vehicleCounts.Clear();
+    {
+      foreach (VehiclePawn vehicle in Vehicles)
+      {
+        if (!vehicleCounts.TryAdd(vehicle.VehicleDef, 1))
+          vehicleCounts[vehicle.VehicleDef]++;
+      }
 
-			return mergedCaravan;
-		}
+      foreach ((VehicleDef vehicleDef, int count) in vehicleCounts)
+      {
+        inspectStringBuilder.AppendLine($"{count} {vehicleDef.LabelCap}");
+      }
+    }
+    vehicleCounts.Clear();
 
-		public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Caravan caravan)
-		{
-			foreach (FloatMenuOption floatMenuOption in base.GetFloatMenuOptions(caravan))
-			{
-				yield return floatMenuOption;
-			}
-			foreach (FloatMenuOption floatMenuOption in CaravanArrivalAction_StashedVehicle.GetFloatMenuOptions(caravan, this))
-			{
-				yield return floatMenuOption;
-			}
-		}
+    inspectStringBuilder.Append(base.GetInspectString());
+    return inspectStringBuilder.ToString();
+  }
 
-		public override string GetInspectString()
-		{
-			StringBuilder stringBuilder = new StringBuilder();
+  public override void Destroy()
+  {
+    base.Destroy();
+    stash.ClearAndDestroyContentsOrPassToWorld();
+    foreach (VehiclePawn vehicle in Vehicles)
+      Find.WorldPawns.RemoveAndDiscardPawnViaGC(vehicle);
+  }
 
-			vehicleCounts.Clear();
-			{
-				foreach (VehiclePawn vehicle in Vehicles)
-				{
-					if (vehicleCounts.ContainsKey(vehicle.VehicleDef))
-					{
-						vehicleCounts[vehicle.VehicleDef]++;
-					}
-					else
-					{
-						vehicleCounts[vehicle.VehicleDef] = 1;
-					}
-				}
+  public override void ExposeData()
+  {
+    base.ExposeData();
 
-				foreach ((VehicleDef vehicleDef, int count) in vehicleCounts)
-				{
-					stringBuilder.AppendLine($"{count} {vehicleDef.LabelCap}");
-				}
-			}
-			vehicleCounts.Clear();
+    Scribe_Deep.Look(ref stash, nameof(stash), this);
+  }
 
-			stringBuilder.Append(base.GetInspectString());
-			return stringBuilder.ToString();
-		}
+  public void GetChildHolders(List<IThingHolder> outChildren)
+  {
+    ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, GetDirectlyHeldThings());
+  }
 
-		private void RecacheVehicles()
-		{
-			Vehicles = stash.InnerListForReading.Where(thing => thing is VehiclePawn).Cast<VehiclePawn>().ToList();
-		}
+  public ThingOwner GetDirectlyHeldThings()
+  {
+    return stash;
+  }
 
-		public override void SpawnSetup()
-		{
-			base.SpawnSetup();
-			RecacheVehicles();
-		}
+  public static StashedVehicle Create(VehicleCaravan vehicleCaravan, out Caravan caravan,
+    List<TransferableOneWay> transferables = null)
+  {
+    const float MinTimeoutDays = 15;
+    const float MaxTimeoutDays = 30;
+    const float MinVehicleSize = 1;
+    const float MaxVehicleSize = 10;
 
-		public override void ExposeData()
-		{
-			base.ExposeData();
+    caravan = null;
+    if (vehicleCaravan.VehiclesListForReading.NullOrEmpty())
+    {
+      Log.Error("No vehicles in vehicle caravan for stashed vehicle.");
+      return null;
+    }
 
-			Scribe_Deep.Look(ref stash, nameof(stash), new object[] { this });
-		}
+    StashedVehicle stashedVehicle =
+      (StashedVehicle)WorldObjectMaker.MakeWorldObject(WorldObjectDefOfVehicles.StashedVehicle);
+    stashedVehicle.Tile = vehicleCaravan.Tile;
 
-		public void GetChildHolders(List<IThingHolder> outChildren)
-		{
-			ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, GetDirectlyHeldThings());
-		}
+    // Calculate days before removal from world map
+    VehiclePawn largestVehicle =
+      vehicleCaravan.VehiclesListForReading.MaxBy(vehicle => vehicle.VehicleDef.Size.Magnitude);
+    float t = Ext_Math.ReverseInterpolate(largestVehicle.VehicleDef.Size.Magnitude, MinVehicleSize,
+      MaxVehicleSize);
+    float timeoutDays = Mathf.Lerp(MinTimeoutDays, MaxTimeoutDays, t);
+    stashedVehicle.GetComponent<TimeoutComp>()
+     .StartTimeout(Mathf.CeilToInt(timeoutDays * GenDate.TicksPerDay));
 
-		public ThingOwner GetDirectlyHeldThings()
-		{
-			return stash;
-		}
+    List<Pawn> inventoryCandidates = [];
 
-		public static StashedVehicle Create(VehicleCaravan vehicleCaravan, out Caravan caravan, List<TransferableOneWay> transferables = null)
-		{
-			caravan = null;
-			if (vehicleCaravan.VehiclesListForReading.NullOrEmpty())
-			{
-				Log.Error("No vehicles in vehicle caravan for stashed vehicle.");
-				return null;
-			}
+    caravan = CaravanMaker.MakeCaravan([], vehicleCaravan.Faction, vehicleCaravan.Tile, true);
 
-			StashedVehicle stashedVehicle = (StashedVehicle)WorldObjectMaker.MakeWorldObject(WorldObjectDefOfVehicles.StashedVehicle);
-			stashedVehicle.Tile = vehicleCaravan.Tile;
+    foreach (VehiclePawn vehicle in vehicleCaravan.VehiclesListForReading)
+    {
+      foreach (VehicleRoleHandler handler in vehicle.handlers)
+      {
+        for (int i = handler.thingOwner.Count - 1; i >= 0; i--)
+        {
+          Pawn pawn = handler.thingOwner[i];
+          inventoryCandidates.Add(pawn);
+          // We need to remove then add, so that the vehicle registers that the pawn was taken
+          // out of the vehicle handler (and also triggers the PawnRemoved event)
+          vehicle.TryRemovePawn(pawn, handler);
+          caravan.AddPawn(pawn, true);
+        }
+      }
+      for (int i = vehicle.inventory.innerContainer.Count - 1; i >= 0; i--)
+      {
+        Thing thing = vehicle.inventory.innerContainer[i];
+        if (thing is Pawn)
+          vehicle.inventory.innerContainer.TryTransferToContainer(thing, caravan.pawns);
+      }
+    }
 
-			//Calculate days before removal from map
-			VehiclePawn largestVehicle = vehicleCaravan.VehiclesListForReading.MaxBy(vehicle => vehicle.VehicleDef.Size.Magnitude);
-			float t = Ext_Math.ReverseInterpolate(largestVehicle.VehicleDef.Size.Magnitude, 1, 10);
-			float timeoutDays = 25 * Mathf.Lerp(1.2f, 0.8f, t); //20 to 30 days depending on size of vehicle
-			stashedVehicle.GetComponent<TimeoutComp>().StartTimeout(Mathf.CeilToInt(timeoutDays * 60000));
+    if (!transferables.NullOrEmpty())
+    {
+      //Transfer all contents
+      foreach (TransferableOneWay transferable in transferables)
+      {
+        TransferableUtility.TransferNoSplit(transferable.things, transferable.CountToTransfer,
+          delegate(Thing thing, int numToTake)
+          {
+            Pawn ownerOf = CaravanInventoryUtility.GetOwnerOf(vehicleCaravan, thing);
+            if (ownerOf is null)
+            {
+              Log.Error($"Error while stashing vehicle. {thing} has no owner.");
+            }
+            else
+            {
+              CaravanInventoryUtility.MoveInventoryToSomeoneElse(ownerOf, thing,
+                inventoryCandidates, vehicleCaravan.pawns.InnerListForReading,
+                numToTake);
+            }
+          });
+      }
+    }
 
-			List<Pawn> pawns = vehicleCaravan.PawnsListForReading.Where(pawn => pawn is not VehiclePawn).ToList();
-			List<Pawn> vehicles = new List<Pawn>();
-			List<Pawn> inventoryPawns = new List<Pawn>();
+    // Transfer vehicles to stashed vehicle object
+    for (int i = vehicleCaravan.pawns.Count - 1; i >= 0; i--)
+    {
+      Pawn vehicle = vehicleCaravan.pawns[i];
+      if (!vehicleCaravan.pawns.TryTransferToContainer(vehicle, stashedVehicle.stash,
+        canMergeWithExistingStacks: false))
+      {
+        Trace.Fail($"Unable to transfer {vehicle} to stash. Moving to new caravan instead.");
+        vehicleCaravan.RemovePawn(vehicle);
+        caravan.AddPawn(vehicle, true);
+      }
+    }
+    // Ensure cached vehicle list is up-to-date otherwise old references will get destroyed
+    // with the caravan
+    vehicleCaravan.RecacheVehicles();
 
-			foreach (VehiclePawn vehicle in vehicleCaravan.VehiclesListForReading)
-			{
-				vehicles.Add(vehicle);
-				foreach (VehicleHandler handler in vehicle.handlers)
-				{
-					pawns.AddRange(handler.handlers);
-				}
-				foreach (Thing thing in vehicle.inventory.innerContainer)
-				{
-					if (thing is Pawn pawn)
-					{
-						inventoryPawns.Add(pawn);
-					}
-				}
-			}
-
-			caravan = CaravanMaker.MakeCaravan([], vehicleCaravan.Faction, vehicleCaravan.Tile, true);
-			caravan.pawns.TryAddRangeOrTransfer(pawns, canMergeWithExistingStacks: false);
-			caravan.pawns.TryAddRangeOrTransfer(inventoryPawns, canMergeWithExistingStacks: false);
-
-			if (!transferables.NullOrEmpty())
-			{
-				//Transfer all contents
-				foreach (TransferableOneWay transferable in transferables)
-				{
-					TransferableUtility.TransferNoSplit(transferable.things, transferable.CountToTransfer, delegate (Thing thing, int numToTake)
-					{
-						Pawn ownerOf = CaravanInventoryUtility.GetOwnerOf(vehicleCaravan, thing);
-						if (ownerOf is null)
-						{
-							Log.Error($"Error while stashing vehicle. {thing} has no owner.");
-						}
-						else
-						{
-							CaravanInventoryUtility.MoveInventoryToSomeoneElse(ownerOf, thing, pawns, vehicles, numToTake);
-						}
-					}, true, true);
-				}
-			}
-			
-			//Transfer vehicles to stashed vehicle object
-			for (int i = vehicles.Count - 1; i >= 0; i--)
-			{
-				Pawn vehiclePawn = vehicles[i];
-				stashedVehicle.stash.TryAddOrTransfer(vehiclePawn, false);
-			}
-			Find.WorldObjects.Add(stashedVehicle);
-			vehicleCaravan.RemoveAllPawns();
-			vehicleCaravan.Destroy();
-			return stashedVehicle;
-		}
-	}
+    Find.WorldObjects.Add(stashedVehicle);
+    Assert.IsTrue(vehicleCaravan.pawns.Count == 0);
+    vehicleCaravan.Destroy();
+    return stashedVehicle;
+  }
 }

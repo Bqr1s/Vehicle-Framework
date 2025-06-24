@@ -1,12 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using DevTools;
-using DevTools.UnitTesting;
 using LudeonTK;
 using RimWorld;
 using SmashTools;
 using SmashTools.Performance;
-using SmashTools.UnitTesting;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles;
@@ -15,11 +14,13 @@ public class DeferredGridGeneration
 {
   private const int DaysUnusedForRemoval = 3;
 
-  private readonly VehicleMapping mapping;
+  private readonly VehiclePathingSystem mapping;
 
   private readonly GridCounter pathGridCounter = new();
 
-  public DeferredGridGeneration(VehicleMapping mapping)
+  private bool PassDisabled { get; set; }
+
+  public DeferredGridGeneration(VehiclePathingSystem mapping)
   {
     this.mapping = mapping;
   }
@@ -104,7 +105,7 @@ public class DeferredGridGeneration
   {
     if (!longOperation.IsValid)
     {
-      Assert.Fail("Trying to send long op to thread but it's already invalid.");
+      Trace.Fail("Trying to send long op to thread but it's already invalid.");
       longOperation.ReturnToPool();
       return;
     }
@@ -117,7 +118,7 @@ public class DeferredGridGeneration
   /// Runs DoIncrementalPass multiple times to reach minimum days unused for removal on all unused
   /// vehicles.
   /// </summary>
-  public void DoPass()
+  internal void DoPass()
   {
     for (int i = 0; i < DaysUnusedForRemoval; i++)
     {
@@ -136,8 +137,11 @@ public class DeferredGridGeneration
         def => mapping[def].Suspended));
   }
 
-  public void DoIncrementalPass()
+  internal void DoIncrementalPass()
   {
+    if (PassDisabled)
+      return;
+
     Assert.IsTrue(pathGridCounter.Count == 0);
     foreach (Pawn pawn in mapping.map.mapPawns.AllPawns)
     {
@@ -170,7 +174,7 @@ public class DeferredGridGeneration
 
     foreach (VehicleDef vehicleDef in mapping.GridOwners.AllOwners)
     {
-      VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
+      VehiclePathingSystem.VehiclePathData pathData = mapping[vehicleDef];
       if (!pathData.VehiclePathGrid.Enabled && !mapping.GridOwners.TryForfeitOwnership(vehicleDef))
       {
         ReleaseRegionGrid(vehicleDef);
@@ -201,7 +205,7 @@ public class DeferredGridGeneration
 
   private void GeneratePathGridFor(VehicleDef vehicleDef)
   {
-    VehicleMapping.VehiclePathData pathData = mapping[vehicleDef];
+    VehiclePathingSystem.VehiclePathData pathData = mapping[vehicleDef];
 
     if (pathData.VehiclePathGrid.Enabled)
       return;
@@ -212,15 +216,19 @@ public class DeferredGridGeneration
   private void GenerateRegionGridFor(VehicleDef vehicleDef)
   {
     VehicleDef ownerDef = mapping.GridOwners.GetOwner(vehicleDef);
-    VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
 
+    // Region grid has already been initialized
+    if (!mapping[vehicleDef].Suspended)
+      return;
+
+    VehiclePathingSystem.VehiclePathData pathData = mapping[ownerDef];
     pathData.VehicleRegionAndRoomUpdater.Init();
     pathData.VehicleRegionAndRoomUpdater.RebuildAllVehicleRegions();
   }
 
   private void ReleasePathGrid(VehicleDef ownerDef)
   {
-    VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
+    VehiclePathingSystem.VehiclePathData pathData = mapping[ownerDef];
     if (!pathData.VehiclePathGrid.Enabled)
       return;
 
@@ -234,14 +242,10 @@ public class DeferredGridGeneration
 
   private void ReleaseRegionGrid(VehicleDef ownerDef)
   {
-    VehicleMapping.VehiclePathData pathData = mapping[ownerDef];
+    VehiclePathingSystem.VehiclePathData pathData = mapping[ownerDef];
     if (pathData.Suspended)
       return;
 
-#if DEV_TOOLS
-    Assert.IsTrue(UnitTestManager.RunningUnitTests,
-      "Failed to release region grid from path grid ownership transfer outside of unit test scenario.");
-#endif
     pathData.VehicleRegionAndRoomUpdater.Release();
 
 #if DEBUG
@@ -268,7 +272,7 @@ public class DeferredGridGeneration
   {
     foreach (Map map in Find.Maps)
     {
-      VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+      VehiclePathingSystem mapping = map.GetCachedMapComponent<VehiclePathingSystem>();
       mapping.deferredGridGeneration.DoPass();
     }
   }
@@ -310,6 +314,22 @@ public class DeferredGridGeneration
     public void OnPassComplete()
     {
       activelyUsed.Clear();
+    }
+  }
+
+  public readonly struct PassDisabler : IDisposable
+  {
+    private readonly DeferredGridGeneration gridGeneration;
+
+    public PassDisabler(DeferredGridGeneration gridGeneration)
+    {
+      this.gridGeneration = gridGeneration;
+      this.gridGeneration.PassDisabled = true;
+    }
+
+    void IDisposable.Dispose()
+    {
+      gridGeneration.PassDisabled = false;
     }
   }
 

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using DevTools;
 using SmashTools;
 using SmashTools.Performance;
+using UnityEngine.Assertions;
 using Verse;
 
 namespace Vehicles
@@ -16,7 +16,7 @@ namespace Vehicles
   public class ThreadDisabler : IDisposable
   {
     // True = thread was active before disabling
-    private readonly Dictionary<Map, bool> threadStates = [];
+    private Dictionary<Map, bool> threadStates = [];
 
     public ThreadDisabler()
     {
@@ -25,7 +25,7 @@ namespace Vehicles
 
       foreach (Map map in Find.Maps)
       {
-        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+        VehiclePathingSystem mapping = map.GetCachedMapComponent<VehiclePathingSystem>();
         if (mapping.ThreadAlive)
         {
           threadStates[map] = !mapping.dedicatedThread.IsSuspended;
@@ -41,12 +41,13 @@ namespace Vehicles
 
       foreach (Map map in Find.Maps)
       {
-        VehicleMapping mapping = map.GetCachedMapComponent<VehicleMapping>();
+        VehiclePathingSystem mapping = map.GetCachedMapComponent<VehiclePathingSystem>();
         if (mapping.ThreadAlive && threadStates.TryGetValue(map, out bool wasActive))
         {
           mapping.dedicatedThread.IsSuspended = !wasActive;
         }
       }
+      GC.SuppressFinalize(this);
     }
   }
 }

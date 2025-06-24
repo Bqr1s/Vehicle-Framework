@@ -1,19 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using DevTools.UnitTesting;
+using System.Text;
 using HarmonyLib;
 using RimWorld;
 using SmashTools;
+using SmashTools.Patching;
+using UnityEngine.Assertions;
 using UpdateLogTool;
 using Verse;
 
 namespace Vehicles;
 
 [StaticConstructorOnStartup]
-internal static class VehicleHarmony
+public static class VehicleHarmony
 {
   // Project Start Date: 7 DEC 2019
 
@@ -21,35 +20,34 @@ internal static class VehicleHarmony
   public const string VehiclesLabel = "Vehicle Framework";
   internal const string LogLabel = "[VehicleFramework]";
 
-  internal static ModMetaData VehicleMMD;
-  internal static ModContentPack VehicleMCP;
-
-  private static string methodPatching = string.Empty;
-
   internal static List<UpdateLog> updates = [];
 
-  private static Harmony Harmony { get; } = new(VehiclesUniqueId);
-
-  internal static string VersionPath => Path.Combine(VehicleMMD.RootDir.FullName, "Version.txt");
+  internal static string VersionPath =>
+    Path.Combine(VehicleMod.metaData.RootDir.FullName, "Version.txt");
 
   internal static string BuildDatePath =>
-    Path.Combine(VehicleMMD.RootDir.FullName, "BuildDate.txt");
+    Path.Combine(VehicleMod.metaData.RootDir.FullName, "BuildDate.txt");
 
   public static List<VehicleDef> AllMoveableVehicleDefs { get; internal set; }
 
   static VehicleHarmony()
   {
-    //harmony.PatchAll(Assembly.GetExecutingAssembly());
-    //Harmony.DEBUG = true;
+    Assert.IsTrue(UnityData.IsInMainThread);
 
-    VehicleMCP = VehicleMod.mod.Content;
-    VehicleMMD = ModLister.GetActiveModWithIdentifier(VehiclesUniqueId, ignorePostfix: true);
+    Log.Message($"{LogLabel} v{VehicleMod.metaData.ModVersion}");
 
-    Log.Message($"<color=orange>{LogLabel}</color> version {VehicleMMD.ModVersion}");
-
-    Harmony.PatchAll();
-
-    RunAllPatches();
+    List<ConditionalPatch.Result> compatPatches = ConditionalPatches.GetPatches(VehiclesUniqueId);
+    if (!compatPatches.NullOrEmpty())
+    {
+      StringBuilder reportBuilder = new();
+      foreach (ConditionalPatch.Result result in compatPatches)
+      {
+        reportBuilder.AppendLine(
+          $"[{VehiclesUniqueId}] Applying compatibility patch for {result.PackageId}. Active: {result.Active.ToStringYesNo()}");
+      }
+      if (reportBuilder.Length > 0)
+        Log.Message(reportBuilder.ToString());
+    }
 
     Utilities.InvokeWithLogging(ResolveAllReferences);
     Utilities.InvokeWithLogging(PostDefDatabaseCalls);
@@ -72,63 +70,13 @@ internal static class VehicleHarmony
     Utilities.InvokeWithLogging(RegisterTweakFieldsInEditor);
     Utilities.InvokeWithLogging(PatternDef.GenerateMaterials);
 
-    Utilities.InvokeWithLogging(RegisterVehicleAreas);
-
     DebugProperties.Init();
-
-#if DEV_TOOLS
-    UnitTestManager.OnUnitTestStateChange += SuppressDebugLogging;
-#endif
-  }
-
-  private static void RunAllPatches()
-  {
-    List<IPatchCategory> patchCategories = [];
-    foreach (Assembly assembly in VehicleMCP.assemblies.loadedAssemblies)
-    {
-      foreach (Type type in assembly.GetTypes())
-      {
-        if (type.HasInterface(typeof(IPatchCategory)))
-        {
-          IPatchCategory patch = (IPatchCategory)Activator.CreateInstance(type, null);
-          patchCategories.Add(patch);
-        }
-      }
-    }
-
-    foreach (IPatchCategory patch in patchCategories)
-    {
-      try
-      {
-        patch.PatchMethods();
-      }
-      catch
-      {
-        SmashLog.Error($"Failed to Patch <type>{patch.GetType().FullName}</type>. " +
-          $"Method=\"{methodPatching}\"");
-        throw;
-      }
-    }
-
-    if (Prefs.DevMode)
-    {
-      SmashLog.Message(
-        $"<color=orange>{LogLabel}</color> <success>{Harmony.GetPatchedMethods().Count()} " +
-        $"patches successfully applied.</success>");
-    }
-  }
-
-  public static void Patch(MethodBase original, HarmonyMethod prefix = null,
-    HarmonyMethod postfix = null,
-    HarmonyMethod transpiler = null, HarmonyMethod finalizer = null)
-  {
-    methodPatching = original?.Name ?? $"Null\", Previous = \"{methodPatching}";
-    Harmony.Patch(original, prefix, postfix, transpiler, finalizer);
   }
 
   private static void ResolveAllReferences()
   {
-    foreach (var defFields in VehicleMod.settings.upgrades.upgradeSettings.Values)
+    foreach (Dictionary<SaveableField, SavedField<object>> defFields in VehicleMod.settings.upgrades
+     .upgradeSettings.Values)
     {
       foreach (SaveableField field in defFields.Keys)
       {
@@ -155,9 +103,9 @@ internal static class VehicleHarmony
       }
     }
 
-    foreach (VehicleTurretDef turretDef in DefDatabase<VehicleTurretDef>.AllDefsListForReading)
+    foreach (VehicleTurretDef def in DefDatabase<VehicleTurretDef>.AllDefsListForReading)
     {
-      turretDef.PostDefDatabase();
+      def.PostDefDatabase();
     }
   }
 
@@ -249,16 +197,5 @@ internal static class VehicleHarmony
     EditWindow_TweakFields.RegisterField(
       AccessTools.Field(typeof(GraphicDataRGB), nameof(GraphicData.drawOffsetWest)),
       string.Empty, string.Empty, UISettingsType.FloatBox);
-  }
-
-  private static void RegisterVehicleAreas()
-  {
-    Ext_Map.RegisterArea<Area_Road>();
-    Ext_Map.RegisterArea<Area_RoadAvoidal>();
-  }
-
-  private static void SuppressDebugLogging(bool value)
-  {
-    VehicleMod.settings.debug.debugLogging = false;
   }
 }

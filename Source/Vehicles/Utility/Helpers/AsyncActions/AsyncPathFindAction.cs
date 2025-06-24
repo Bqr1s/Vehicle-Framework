@@ -1,38 +1,42 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-using Verse;
-using SmashTools;
+using System.Threading;
 using SmashTools.Performance;
+using PathRequestStatus = Vehicles.VehiclePathFollower.PathRequestStatus;
 
 namespace Vehicles
 {
-	public class AsyncPathFindAction : AsyncAction
-	{
-		private VehiclePawn vehicle;
+  public class AsyncPathFindAction : AsyncAction
+  {
+    private VehiclePawn vehicle;
+    private CancellationToken token;
 
-		public override bool IsValid => vehicle != null && vehicle.Spawned && vehicle.vehiclePather.Moving && vehicle.vehiclePather.CalculatingPath;
+    public override bool IsValid => !token.IsCancellationRequested && vehicle is
+    {
+      Spawned: true, vehiclePather.Moving: true,
+      vehiclePather.RequestStatus: PathRequestStatus.Calculating
+    };
 
-		public void Set(VehiclePawn vehicle)
-		{
-			this.vehicle = vehicle;
-		}
+    public void Set(VehiclePawn vehicle, in CancellationToken token)
+    {
+      this.vehicle = vehicle;
+      this.token = token;
+    }
 
-		public override void Invoke()
-		{
-			vehicle.vehiclePather.TrySetNewPath_Delayed();
-		}
+    public override void Invoke()
+    {
+      vehicle.vehiclePather.GeneratePath(token);
+    }
 
-		public override void ReturnToPool()
-		{
-			vehicle = null;
-			AsyncPool<AsyncPathFindAction>.Return(this);
-		}
+    public override void ReturnToPool()
+    {
+      vehicle = null;
+      AsyncPool<AsyncPathFindAction>.Return(this);
+    }
 
-		public override void ExceptionThrown(Exception ex)
-		{
-			vehicle.vehiclePather.CalculatingPath = false;
-		}
-	}
+    public override void ExceptionThrown(Exception ex)
+    {
+      // Clear destination targeted so request doesn't just get requeued again.
+      vehicle.vehiclePather.PatherFailed();
+    }
+  }
 }

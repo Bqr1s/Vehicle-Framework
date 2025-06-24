@@ -1,8 +1,8 @@
 ### ASSERT_ENABLED
 Enable all asserts even outside release.
 
-### UNIT_TESTING
-Unit tests enabled for use. This will add various events to the test manager on startup and possibly apply patches.
+### HIERARCHAL_PATHFINDING
+Enables experimental HPA* for vehicle pathfinding
 
 ### UPGRADES_TAB
 Add 'Upgrades' tab to VF mod settings

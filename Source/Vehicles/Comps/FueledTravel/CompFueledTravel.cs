@@ -4,689 +4,691 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using HarmonyLib;
+using JetBrains.Annotations;
 using RimWorld;
 using SmashTools;
 using UnityEngine;
+using Vehicles.Rendering;
 using Verse;
 using Verse.AI;
 
-namespace Vehicles
+namespace Vehicles;
+
+[HeaderTitle(Label = nameof(CompFueledTravel))]
+[UsedImplicitly]
+[StaticConstructorOnStartup]
+public class CompFueledTravel : VehicleComp, IRefundable
 {
-  [HeaderTitle(Label = nameof(CompFueledTravel))]
-  public class CompFueledTravel : VehicleComp, IRefundable
+  private const float FuelPerLeak = 1;
+  private const float TicksPerLeakCheck = 120;
+  private const float MaxTicksPerLeak = 400;
+
+  private const float EfficiencyTickMultiplier = 1f / GenDate.TicksPerDay;
+  private const float EfficiencyIdleMultiplier = 0.5f;
+  private const float CellOffsetIntVec3ToVector3 = 0.5f;
+  private const float TicksToCharge = 120;
+
+  // Same as TransferableOneWayWidget::DrawNutritionEatenPerDay
+  private static readonly Color fuelPerDayColor = new(1f, 0.5f, 0f);
+
+  private static readonly Texture2D electricPowerTex =
+    ContentFinder<Texture2D>.Get("UI/Overlays/NeedsPower");
+
+  private static readonly MethodInfo powerNetMethod;
+
+  public bool allowAutoRefuel = true;
+  private float fuel;
+  private float targetFuelPercent = 1;
+
+  private bool terminateMotes;
+  private Vector3 motePosition;
+  private float offsetX;
+  private float offsetZ;
+
+  // PowerNet::ChangeStoredEnergy(float)
+  private Action<float> changeStoredEnergy;
+  private CompPower connectedPower;
+  private bool postLoadReconnect;
+
+  private readonly Gizmo_RefuelableFuelTravel refuelGizmo;
+
+  static CompFueledTravel()
   {
-    public const float FuelPerLeak = 1;
-    public const float TicksPerLeakCheck = 120;
-    public const float MaxTicksPerLeak = 400;
+    powerNetMethod = AccessTools.Method(typeof(PowerNet), "ChangeStoredEnergy");
+  }
 
-    public const float EfficiencyTickMultiplier = 1f / GenDate.TicksPerDay;
-    public const float EfficiencyIdleMultiplier = 0.5f;
-    public const float CellOffsetIntVec3ToVector3 = 0.5f;
-    public const float TicksToCharge = 120;
+  public CompFueledTravel()
+  {
+    refuelGizmo = new Gizmo_RefuelableFuelTravel(this, false);
+  }
 
-    private static MethodInfo powerNetMethod;
+  private List<(VehicleComponent component, Reactor_FuelLeak fuelLeak)> FuelComponents { get; set; }
 
-    [Unsaved]
-    private bool leaking;
+  public bool FuelLeaking { get; private set; }
 
-    private float fuel;
-    private float targetFuelLevel; //TODO 1.6 - remove
-    private float targetFuelPercent = -1;
+  public CompProperties_FueledTravel Props => props as CompProperties_FueledTravel;
 
-    private bool terminateMotes = false;
-    private Vector3 motePosition;
-    private float offsetX;
-    private float offsetZ;
+  public override bool TickByRequest => true;
 
-    private CompPower connectedPower;
-    private bool postLoadReconnect;
+  public float Fuel => fuel;
 
-    public List<(VehicleComponent component, Reactor_FuelLeak fuelLeak)> FuelComponents
+  public float FuelPercent => Fuel / FuelCapacity;
+
+  public bool EmptyTank => Fuel <= 0f;
+
+  public bool FullTank => Mathf.Approximately(fuel, TargetFuelLevel);
+
+  public int FuelCountToFull => Mathf.CeilToInt(TargetFuelLevel - Fuel);
+
+  public float TargetFuelPercent
+  {
+    get { return targetFuelPercent; }
+    set { targetFuelPercent = value; }
+  }
+
+  public float TargetFuelLevel => targetFuelPercent * FuelCapacity;
+
+  private float FuelPercentOfTarget => TargetFuelLevel == 0 ? 0 : fuel / TargetFuelLevel;
+
+  // Fuel Consumption
+  public float ConsumptionRatePerTick => FuelEfficiency * EfficiencyTickMultiplier;
+
+  public float ConsumptionRateWorldPerTick =>
+    ConsumptionRatePerTick * Props.fuelConsumptionWorldMultiplier;
+
+  public FuelConsumptionCondition FuelCondition => Props.fuelConsumptionCondition;
+
+  public bool ShouldAutoRefuelNow => FuelPercentOfTarget <= Props.autoRefuelPercent &&
+    !FullTank && TargetFuelLevel > 0f && ShouldAutoRefuelNowIgnoringFuelPct;
+
+  private bool ShouldAutoRefuelNowIgnoringFuelPct => allowAutoRefuel && !Vehicle.Drafted &&
+    !Vehicle.IsBurning() &&
+    parent.Map.designationManager.DesignationOn(Vehicle,
+      DesignationDefOf_Vehicles.DisassembleVehicle) == null;
+
+  // Electric
+  public bool Charging => connectedPower != null && !FullTank &&
+    connectedPower.PowerNet.CurrentStoredEnergy() > Props.chargeRate;
+
+  public IEnumerable<(ThingDef thingDef, float count)> Refunds
+  {
+    get
     {
-      get;
-      private set;
-    }
-
-    public CompProperties_FueledTravel Props => props as CompProperties_FueledTravel;
-
-    public override bool TickByRequest => true;
-
-    //Fuel Tank
-    public float Fuel => fuel;
-
-    public float FuelPercent => Fuel / FuelCapacity;
-
-    public bool EmptyTank => Fuel <= 0f;
-
-    public bool FullTank => Mathf.Approximately(fuel, TargetFuelLevel);
-
-    public int FuelCountToFull => Mathf.CeilToInt(TargetFuelLevel - Fuel);
-
-    public float TargetFuelPercent
-    {
-      get { return targetFuelPercent; }
-      set
+      if (!Props.ElectricPowered)
       {
-        if (targetFuelPercent != value)
+        yield return (Props.fuelType, Fuel);
+      }
+    }
+  }
+
+  protected virtual float ChargeRate
+  {
+    get
+    {
+      float chargeRate = SettingsCache.TryGetValue(Vehicle.VehicleDef,
+        typeof(CompProperties_FueledTravel),
+        nameof(CompProperties_FueledTravel.chargeRate),
+        Props.chargeRate);
+      chargeRate =
+        Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.ChargeRate, chargeRate);
+      return chargeRate;
+    }
+  }
+
+  protected virtual float DischargeRate
+  {
+    get
+    {
+      float dischargeRate = SettingsCache.TryGetValue(Vehicle.VehicleDef,
+        typeof(CompProperties_FueledTravel),
+        nameof(CompProperties_FueledTravel.dischargeRate),
+        Props.dischargeRate);
+      dischargeRate =
+        Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.DischargeRate,
+          dischargeRate);
+      return dischargeRate;
+    }
+  }
+
+  public virtual float FuelEfficiency
+  {
+    get
+    {
+      float consumptionRate = SettingsCache.TryGetValue(Vehicle.VehicleDef,
+        typeof(CompProperties_FueledTravel),
+        nameof(CompProperties_FueledTravel.fuelConsumptionRate), Props.fuelConsumptionRate);
+      consumptionRate =
+        Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.FuelConsumptionRate,
+          consumptionRate);
+      return consumptionRate;
+    }
+  }
+
+  public virtual float FuelCapacity
+  {
+    get
+    {
+      float fuelCapacity = SettingsCache.TryGetValue(Vehicle.VehicleDef,
+        typeof(CompProperties_FueledTravel), nameof(CompProperties_FueledTravel.fuelCapacity),
+        Props.fuelCapacity);
+      fuelCapacity =
+        Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.FuelCapacity,
+          fuelCapacity);
+      return fuelCapacity;
+    }
+  }
+
+  /// Flying fuel consumption is handled in <see cref="AerialVehicleInFlight.SpendFuel"/>
+  private bool ShouldConsumeNow => !EmptyTank && Vehicle.Spawned && (ConsumeWhenDrafted ||
+    ConsumeWhenMoving || ConsumeAlways);
+
+  private bool ConsumeAlways => FuelCondition.HasFlag(FuelConsumptionCondition.Always);
+
+  private bool ConsumeWhenDrafted => Vehicle.Spawned &&
+    FuelCondition.HasFlag(FuelConsumptionCondition.Drafted) && Vehicle.Drafted;
+
+  private bool ConsumeWhenMoving
+  {
+    get
+    {
+      if (FuelCondition.HasFlag(FuelConsumptionCondition.Moving))
+      {
+        if (Vehicle.Spawned && Vehicle.vehiclePather.Moving)
         {
-          targetFuelPercent = value;
-        }
-      }
-    }
-
-    public float TargetFuelLevel => targetFuelPercent * FuelCapacity;
-
-    public float FuelPercentOfTarget
-    {
-      get
-      {
-        if (TargetFuelLevel == 0)
-        {
-          return 0;
-        }
-
-        return fuel / TargetFuelLevel;
-      }
-    }
-
-    public bool FuelLeaking => leaking;
-
-    //Fuel Consumption
-    public float ConsumptionRatePerTick => FuelEfficiency * EfficiencyTickMultiplier;
-    public FuelConsumptionCondition FuelCondition => Props.fuelConsumptionCondition;
-
-    public bool ShouldAutoRefuelNow => FuelPercentOfTarget <= Props.autoRefuelPercent &&
-      !FullTank && TargetFuelLevel > 0f && !Vehicle.Drafted && ShouldAutoRefuelNowIgnoringFuelPct;
-
-    public bool ShouldAutoRefuelNowIgnoringFuelPct => !Vehicle.IsBurning() &&
-      parent.Map.designationManager.DesignationOn(Vehicle,
-        DesignationDefOf_Vehicles.DisassembleVehicle) == null;
-
-    //Electric
-    private bool Charging => connectedPower != null && !FullTank &&
-      connectedPower.PowerNet.CurrentStoredEnergy() > Props.chargeRate;
-
-    public IEnumerable<(ThingDef thingDef, float count)> Refunds
-    {
-      get
-      {
-        if (!Props.electricPowered)
-        {
-          yield return (Props.fuelType, Fuel);
-        }
-      }
-    }
-
-    // TODO 1.6 - Remove and just use the private field
-    public static MethodInfo PowerNetMethod
-    {
-      get
-      {
-        if (powerNetMethod is null)
-        {
-          powerNetMethod = AccessTools.Method(typeof(PowerNet), "ChangeStoredEnergy");
-        }
-
-        return powerNetMethod;
-      }
-    }
-
-    public virtual float ChargeRate
-    {
-      get
-      {
-        float chargeRate = Props.chargeRate;
-        chargeRate =
-          Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.ChargeRate, chargeRate);
-        return chargeRate;
-      }
-    }
-
-    public virtual float DischargeRate
-    {
-      get
-      {
-        float
-          dischargeRate =
-            Props.dischargeRate; // SettingsCache.TryGetValue(Vehicle.VehicleDef, typeof(CompProperties_FueledTravel), nameof(CompProperties_FueledTravel.dischargeRate), Props.dischargeRate);
-        dischargeRate =
-          Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.DischargeRate,
-            dischargeRate);
-        return dischargeRate;
-      }
-    }
-
-    public virtual float FuelEfficiency
-    {
-      get
-      {
-        float consumptionRate = SettingsCache.TryGetValue(Vehicle.VehicleDef,
-          typeof(CompProperties_FueledTravel),
-          nameof(CompProperties_FueledTravel.fuelConsumptionRate), Props.fuelConsumptionRate);
-        consumptionRate =
-          Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.FuelConsumptionRate,
-            consumptionRate);
-        return consumptionRate;
-      }
-    }
-
-    public virtual float FuelCapacity
-    {
-      get
-      {
-        float fuelCapacity = SettingsCache.TryGetValue(Vehicle.VehicleDef,
-          typeof(CompProperties_FueledTravel), nameof(CompProperties_FueledTravel.fuelCapacity),
-          Props.fuelCapacity);
-        fuelCapacity =
-          Vehicle.statHandler.GetStatOffset(VehicleStatUpgradeCategoryDefOf.FuelCapacity,
-            fuelCapacity);
-        return fuelCapacity;
-      }
-    }
-
-    ///Flying fuel consumption is handled in <see cref="AerialVehicleInFlight.SpendFuel"/>
-    public bool ShouldConsumeNow => (!EmptyTank && Vehicle.Spawned) && ConsumeWhenDrafted ||
-      ConsumeWhenMoving || ConsumeAlways;
-
-    public bool ConsumeAlways => FuelCondition.HasFlag(FuelConsumptionCondition.Always);
-
-    public bool ConsumeWhenDrafted => Vehicle.Spawned &&
-      FuelCondition.HasFlag(FuelConsumptionCondition.Drafted) && Vehicle.Drafted;
-
-    public bool ConsumeWhenMoving
-    {
-      get
-      {
-        if (FuelCondition.HasFlag(FuelConsumptionCondition.Moving))
-        {
-          if (Vehicle.Spawned && Vehicle.vehiclePather.Moving)
-          {
-            return true;
-          }
-
-          if (Vehicle.GetVehicleCaravan() is VehicleCaravan caravan &&
-            caravan.vehiclePather.MovingNow)
-          {
-            return true;
-          }
+          return true;
         }
 
-        return false;
-      }
-    }
-
-    public virtual Thing ClosestFuelAvailable(Pawn pawn)
-    {
-      if (Props.electricPowered)
-      {
-        return null;
-      }
-
-      Predicate<Thing> validator = (Thing x) =>
-        !x.IsForbidden(pawn) && pawn.CanReserve(x, 1, -1, null, false) && x.def == Props.fuelType;
-      return GenClosest.ClosestThingReachable(pawn.Position, pawn.Map,
-        ThingRequest.ForDef(Props.fuelType), PathEndMode.ClosestTouch, TraverseParms.For(pawn,
-          Danger.Deadly, TraverseMode.ByPawn,
-          false), 9999f, validator, null, 0, -1, false, RegionType.Set_Passable, false);
-    }
-
-    public override bool CanDraft(out string failReason, out bool allowDevMode)
-    {
-      allowDevMode = false;
-      if (EmptyTank)
-      {
-        failReason = "VF_OutOfFuel".Translate(Vehicle);
-        return false;
-      }
-
-      return base.CanDraft(out failReason, out allowDevMode);
-    }
-
-    public virtual void Refuel(List<Thing> fuelThings)
-    {
-      int countToFull = FuelCountToFull;
-      while (countToFull > 0 && fuelThings.Count > 0)
-      {
-        Thing thing = fuelThings.Pop();
-        int count = Mathf.Min(countToFull, thing.stackCount);
-        Refuel(count);
-        thing.SplitOff(count).Destroy(DestroyMode.Vanish);
-        countToFull -= count;
-      }
-    }
-
-    public virtual void Refuel(float amount)
-    {
-      if (fuel >= FuelCapacity)
-      {
-        return;
-      }
-
-      fuel += amount;
-      Vehicle.EventRegistry?[VehicleEventDefOf.Refueled].ExecuteEvents();
-      if (fuel >= FuelCapacity)
-      {
-        fuel = FuelCapacity;
-      }
-    }
-
-    /// <summary>
-    /// Only for Incident spawning / AI spawning. Will randomize fuel levels later (REDO)
-    /// </summary>
-    private void RefuelHalfway()
-    {
-      ConsumeFuel(float.MaxValue);
-      Refuel(FuelCapacity / 2f);
-    }
-
-    public virtual void ConsumeFuel(float amount)
-    {
-      if (fuel <= 0f)
-      {
-        return;
-      }
-
-      fuel -= amount;
-      if (fuel <= 0f)
-      {
-        fuel = 0f;
-        Vehicle.EventRegistry[VehicleEventDefOf.OutOfFuel].ExecuteEvents();
-      }
-    }
-
-    public virtual void ConsumeFuelWorld()
-    {
-      if (fuel <= 0f) return;
-
-      float fuelToConsume = ConsumptionRatePerTick * Props.fuelConsumptionWorldMultiplier;
-      VehicleCaravan caravan = Vehicle.GetVehicleCaravan();
-      if (!caravan.vehiclePather.Moving) fuelToConsume *= EfficiencyIdleMultiplier;
-
-      fuel -= fuelToConsume;
-      if (fuel <= 0f)
-      {
-        fuel = 0f;
-        Vehicle.EventRegistry[VehicleEventDefOf.OutOfFuel].ExecuteEvents();
-      }
-    }
-
-    public override void PostDraw()
-    {
-      base.PostDraw();
-      if (EmptyTank)
-      {
-        if (Props.electricPowered)
+        if (Vehicle.GetVehicleCaravan() is { } caravan && caravan.vehiclePather.MovingNow)
         {
-          parent.Map.overlayDrawer.DrawOverlay(parent, OverlayTypes.NeedsPower);
-        }
-        else
-        {
-          parent.Map.overlayDrawer.DrawOverlay(parent, OverlayTypes.OutOfFuel);
+          return true;
         }
       }
+
+      return false;
+    }
+  }
+
+  public virtual Thing ClosestFuelAvailable(Pawn pawn)
+  {
+    if (Props.ElectricPowered)
+      return null;
+    return GenClosest.ClosestThingReachable(pawn.Position, pawn.Map,
+      ThingRequest.ForDef(Props.fuelType), PathEndMode.ClosestTouch, TraverseParms.For(pawn),
+      validator: Validator);
+
+    bool Validator(Thing thing)
+    {
+      return !thing.IsForbidden(pawn) && pawn.CanReserve(thing) && thing.def == Props.fuelType;
+    }
+  }
+
+  public override AcceptanceReport CanMove(FloatMenuContext context)
+  {
+    if (EmptyTank)
+      return "VF_OutOfFuel".Translate(Vehicle);
+    return true;
+  }
+
+  public override AcceptanceReport CanDraft()
+  {
+    if (EmptyTank)
+      return "VF_OutOfFuel".Translate(Vehicle);
+    return true;
+  }
+
+  public virtual void Refuel(List<Thing> fuelThings)
+  {
+    int countToFull = FuelCountToFull;
+    while (countToFull > 0 && fuelThings.Count > 0)
+    {
+      Thing thing = fuelThings.Pop();
+      int count = Mathf.Min(countToFull, thing.stackCount);
+      Refuel(count);
+      thing.SplitOff(count).Destroy();
+      countToFull -= count;
+    }
+  }
+
+  public virtual void Refuel(float amount)
+  {
+    if (fuel >= FuelCapacity)
+      return;
+
+    fuel += amount;
+    Vehicle.EventRegistry?[VehicleEventDefOf.Refueled].ExecuteEvents();
+    if (fuel >= FuelCapacity)
+    {
+      fuel = FuelCapacity;
+    }
+  }
+
+  /// <summary>
+  /// Only for Incident spawning / AI spawning. Will randomize fuel levels later (REDO)
+  /// </summary>
+  private void RefuelHalfway()
+  {
+    ConsumeFuel(float.MaxValue);
+    Refuel(FuelCapacity / 2f);
+  }
+
+  public virtual void ConsumeFuel(float amount)
+  {
+    if (fuel <= 0f)
+      return;
+
+    fuel -= amount;
+    if (fuel <= 0f)
+    {
+      fuel = 0f;
+      Vehicle.EventRegistry[VehicleEventDefOf.OutOfFuel].ExecuteEvents();
+    }
+  }
+
+  public virtual void ConsumeFuelWorld()
+  {
+    if (fuel <= 0f)
+      return;
+
+    float fuelToConsume = ConsumptionRateWorldPerTick;
+    VehicleCaravan caravan = Vehicle.GetVehicleCaravan();
+    if (!caravan.vehiclePather.Moving) fuelToConsume *= EfficiencyIdleMultiplier;
+
+    fuel -= fuelToConsume;
+    if (fuel <= 0f)
+    {
+      fuel = 0f;
+      Vehicle.EventRegistry[VehicleEventDefOf.OutOfFuel].ExecuteEvents();
+    }
+  }
+
+  public override void PostDraw()
+  {
+    base.PostDraw();
+    if (EmptyTank)
+    {
+      parent.Map.overlayDrawer.DrawOverlay(parent,
+        Props.ElectricPowered ? OverlayTypes.NeedsPower : OverlayTypes.OutOfFuel);
+    }
+  }
+
+  public override float CompStatCard(Rect rect)
+  {
+    Widgets.DrawHighlightIfMouseover(rect);
+    rect.SplitVertically(rect.width / 2, out Rect labelRect, out Rect valueRect);
+    using TextBlock fontBlock = new(GameFont.Small);
+    //TooltipHandler.TipRegionByKey(rect, fuel tooltip here...);
+
+    float fuelConsumption = ConsumptionRateWorldPerTick;
+    float fuelPerDay = 0;
+    if (fuelConsumption > 0)
+    {
+      // Conversion for tiles per day
+      fuelPerDay = fuelConsumption * GenDate.TicksPerDay;
+    }
+    using (new TextBlock(TextAnchor.MiddleLeft))
+    {
+      Widgets.Label(labelRect, Props.GizmoLabel);
+    }
+    using (new TextBlock(TextAnchor.MiddleRight /*, fuelPerDayColor*/))
+    {
+      string fuelPerDayText = "VF_PerDay".Translate();
+      float width = Text.CalcSize(fuelPerDayText).x;
+      Rect fuelSuffixRect = valueRect;
+      fuelSuffixRect.xMin = fuelSuffixRect.xMax - width;
+      Widgets.Label(fuelSuffixRect, fuelPerDayText);
+      Rect fuelIconRect = valueRect with { width = valueRect.height };
+      fuelIconRect.x = fuelSuffixRect.x - fuelIconRect.width;
+      if (Props.ElectricPowered)
+      {
+        GUI.DrawTexture(fuelIconRect, electricPowerTex);
+      }
+      else
+      {
+        Widgets.DefIcon(fuelIconRect, Props.fuelType);
+        TooltipHandler.TipRegion(fuelIconRect, Props.fuelType.LabelCap);
+      }
+      valueRect.xMax = fuelIconRect.xMin;
+      Widgets.Label(valueRect, $"{fuelPerDay:0.#}");
+    }
+    return Text.LineHeight;
+  }
+
+  public override IEnumerable<Gizmo> CompGetGizmosExtra()
+  {
+    foreach (Gizmo gizmo in base.CompGetGizmosExtra())
+    {
+      yield return gizmo;
     }
 
-    public override IEnumerable<Gizmo> CompGetGizmosExtra()
+    if (Find.Selector.SelectedObjects.Count == 1)
     {
-      foreach (Gizmo gizmo in base.CompGetGizmosExtra())
-      {
-        yield return gizmo;
-      }
+      yield return refuelGizmo;
+    }
 
-      if (Find.Selector.SingleSelectedThing == parent)
-      {
-        yield return new Gizmo_RefuelableFuelTravel(this, false);
-      }
-
-      if (Props.electricPowered)
-      {
-        yield return new Command_Toggle
-        {
-          hotKey = KeyBindingDefOf.Command_TogglePower,
-          icon = VehicleTex.FlickerIcon,
-          defaultLabel = "VF_ElectricFlick".Translate(),
-          defaultDesc = "VF_ElectricFlickDesc".Translate(),
-          isActive = (() => Charging),
-          toggleAction = delegate()
-          {
-            if (!Charging)
-            {
-              TryConnectPower();
-            }
-            else
-            {
-              DisconnectPower();
-            }
-          }
-        };
-      }
-
+    if (DebugSettings.ShowDevGizmos)
+    {
       foreach (Gizmo gizmo in DevModeGizmos())
       {
         yield return gizmo;
       }
     }
+  }
 
-    public override IEnumerable<Gizmo> CompCaravanGizmos()
+  public override IEnumerable<Gizmo> CompCaravanGizmos()
+  {
+    yield return new Gizmo_RefuelableFuelTravel(this, true);
+
+    if (DebugSettings.ShowDevGizmos)
     {
-      yield return new Gizmo_RefuelableFuelTravel(this, true);
-
-      if (DebugSettings.ShowDevGizmos)
+      yield return new Command_Action
       {
-        yield return new Command_Action
-        {
-          defaultLabel = $"Vehicle Dev: [{Vehicle.Label}] Set fuel to 0.",
-          action = delegate() { ConsumeFuel(float.MaxValue); }
-        };
-        yield return new Command_Action
-        {
-          defaultLabel = $"Vehicle Dev: [{Vehicle.Label}] Set fuel to max.",
-          action = delegate() { Refuel(FuelCapacity); }
-        };
+        defaultLabel = $"Vehicle Dev: [{Vehicle.Label}] Set fuel to 0.",
+        action = delegate { ConsumeFuel(float.MaxValue); }
+      };
+      yield return new Command_Action
+      {
+        defaultLabel = $"Vehicle Dev: [{Vehicle.Label}] Set fuel to max.",
+        action = delegate { Refuel(FuelCapacity); }
+      };
+    }
+  }
+
+  public virtual IEnumerable<Gizmo> DevModeGizmos()
+  {
+    yield return new Command_Action
+    {
+      defaultLabel = "Debug: Set fuel to 0",
+      action = delegate { ConsumeFuel(float.MaxValue); }
+    };
+    yield return new Command_Action
+    {
+      defaultLabel = "Debug: Set fuel to half",
+      action = RefuelHalfway
+    };
+    yield return new Command_Action
+    {
+      defaultLabel = "Debug: Set fuel to max",
+      action = delegate { Refuel(FuelCapacity); }
+    };
+    yield return new Command_Action
+    {
+      defaultLabel = "Debug: Set fuel to 99.99%",
+      action = delegate
+      {
+        ConsumeFuel(float.MaxValue);
+        Refuel(FuelCapacity * 0.999999f);
+      }
+    };
+  }
+
+  public override IEnumerable<FloatMenuOption> CompFloatMenuOptions(Pawn selPawn)
+  {
+    yield return new FloatMenuOption("Refuel".Translate().ToString(),
+      delegate
+      {
+        Job job = new(JobDefOf_Vehicles.RefuelVehicle, parent, ClosestFuelAvailable(selPawn));
+        selPawn.jobs.TryTakeOrderedJob(job, JobTag.DraftedOrder);
+      });
+  }
+
+  public override void CompCaravanInspectString(StringBuilder stringBuilder)
+  {
+    if (EmptyTank)
+    {
+      stringBuilder.AppendLine("VF_OutOfFuel".Translate(Vehicle));
+    }
+  }
+
+  private void RevalidateConsumptionStatus()
+  {
+    if (ShouldConsumeNow || Charging)
+    {
+      StartTicking();
+    }
+    else
+    {
+      StopTicking();
+    }
+  }
+
+  [UsedImplicitly]
+  protected void ChangeStoredEnergy(float extra)
+  {
+    if (changeStoredEnergy == null && connectedPower.PowerNet != null)
+    {
+      changeStoredEnergy =
+        AccessTools.MethodDelegate<Action<float>>(powerNetMethod, connectedPower.PowerNet,
+          virtualCall: false);
+    }
+    changeStoredEnergy?.Invoke(extra);
+  }
+
+  public override void CompTick()
+  {
+    float fuelToConsume = ConsumptionRatePerTick;
+    if (!Vehicle.vehiclePather.Moving) fuelToConsume *= EfficiencyIdleMultiplier;
+    ConsumeFuel(fuelToConsume);
+
+    // TODO - Remove when animation system is finalized
+    if (!terminateMotes && !Props.motesGenerated.NullOrEmpty() &&
+      Find.TickManager.TicksGame % Props.ticksToSpawnMote == 0)
+    {
+      DrawMotes();
+    }
+
+    if (EmptyTank && !VehicleMod.settings.debug.debugDraftAnyVehicle)
+    {
+      Vehicle.ignition.Drafted = false;
+    }
+
+    if (Props.ElectricPowered)
+    {
+      if (!Charging)
+      {
+        ConsumeFuel(Mathf.Min(DischargeRate * EfficiencyTickMultiplier, Fuel));
+      }
+      else if (Find.TickManager.TicksGame % TicksToCharge == 0)
+      {
+        ChangeStoredEnergy(-ChargeRate);
+        Refuel(ChargeRate);
+      }
+    }
+  }
+
+  public void LeakTick()
+  {
+    //Validate leak every so often
+    if (Find.TickManager.TicksGame % TicksPerLeakCheck == 0 && !FuelComponents.NullOrEmpty())
+    {
+      FuelLeaking = false;
+      foreach ((VehicleComponent component, Reactor_FuelLeak fuelLeak) in FuelComponents)
+      {
+        FuelLeaking |= component.HealthPercent <= fuelLeak.healthPercent;
       }
     }
 
-    public virtual IEnumerable<Gizmo> DevModeGizmos()
+    //If leaking, then loop through and spawn filth
+    if (FuelLeaking)
     {
-      if (DebugSettings.ShowDevGizmos)
+      foreach ((VehicleComponent component, Reactor_FuelLeak fuelLeak) in FuelComponents)
       {
-        yield return new Command_Action
+        float t = (fuelLeak.healthPercent - component.HealthPercent) * (1 / fuelLeak.healthPercent);
+        float rate = Mathf.Lerp(fuelLeak.rate.min, fuelLeak.rate.max, t);
+        if (rate == 0)
         {
-          defaultLabel = "Debug: Set fuel to 0",
-          action = delegate() { ConsumeFuel(float.MaxValue); }
-        };
-        yield return new Command_Action
+          continue;
+        }
+
+        int ticksPerLeak = Mathf.CeilToInt(60 / rate);
+        if (Find.TickManager.TicksGame % ticksPerLeak == 0)
         {
-          defaultLabel = "Debug: Set fuel to half",
-          action = delegate() { RefuelHalfway(); }
-        };
-        yield return new Command_Action
-        {
-          defaultLabel = "Debug: Set fuel to max",
-          action = delegate() { Refuel(FuelCapacity); }
-        };
-        yield return new Command_Action
-        {
-          defaultLabel = "Debug: Set fuel to 99.99%",
-          action = delegate()
+          ConsumeFuel(FuelPerLeak);
+          if (Vehicle.Spawned && Props.leakDef != null && !EmptyTank)
           {
-            ConsumeFuel(float.MaxValue);
-            Refuel(FuelCapacity * 0.999999f);
-          }
-        };
-      }
-    }
-
-    public override IEnumerable<FloatMenuOption> CompFloatMenuOptions(Pawn selPawn)
-    {
-      yield return new FloatMenuOption("Refuel".Translate().ToString(),
-        delegate()
-        {
-          Job job = new Job(JobDefOf_Vehicles.RefuelVehicle, parent, ClosestFuelAvailable(selPawn));
-          selPawn.jobs.TryTakeOrderedJob(job, JobTag.DraftedOrder);
-        }, MenuOptionPriority.Default, null, null, 0f, null, null);
-    }
-
-    public override void CompCaravanInspectString(StringBuilder stringBuilder)
-    {
-      if (EmptyTank)
-      {
-        stringBuilder.AppendLine("VF_OutOfFuel".Translate(Vehicle));
-      }
-    }
-
-    private void RevalidateConsumptionStatus()
-    {
-      if (ShouldConsumeNow)
-      {
-        StartTicking();
-      }
-      else
-      {
-        StopTicking();
-      }
-    }
-
-    public override void CompTick()
-    {
-      float fuelToConsume = ConsumptionRatePerTick;
-      if (!Vehicle.vehiclePather.Moving) fuelToConsume *= EfficiencyIdleMultiplier;
-      ConsumeFuel(fuelToConsume);
-
-      if (!terminateMotes && !Props.motesGenerated.NullOrEmpty())
-      {
-        if (Find.TickManager.TicksGame % Props.ticksToSpawnMote == 0)
-        {
-          DrawMotes();
-        }
-      }
-
-      if (EmptyTank && !VehicleMod.settings.debug.debugDraftAnyVehicle)
-      {
-        Vehicle.ignition.Drafted = false;
-      }
-
-      if (Props.electricPowered)
-      {
-        if (!Charging)
-        {
-          ConsumeFuel(Mathf.Min(DischargeRate * EfficiencyTickMultiplier, Fuel));
-        }
-        else if (Find.TickManager.TicksGame % TicksToCharge == 0)
-        {
-          PowerNetMethod.Invoke(connectedPower.PowerNet, new object[] { -ChargeRate });
-          Refuel(ChargeRate);
-        }
-      }
-    }
-
-    public void LeakTick()
-    {
-      //Validate leak every so often
-      if (Find.TickManager.TicksGame % TicksPerLeakCheck == 0 && !FuelComponents.NullOrEmpty())
-      {
-        leaking = false;
-        foreach ((VehicleComponent component, Reactor_FuelLeak fuelLeak) in FuelComponents)
-        {
-          leaking |= component.HealthPercent <= fuelLeak.maxHealth;
-        }
-      }
-
-      //If leaking, then loop through and spawn filth
-      if (leaking)
-      {
-        foreach ((VehicleComponent component, Reactor_FuelLeak fuelLeak) in FuelComponents)
-        {
-          float t = (fuelLeak.maxHealth - component.HealthPercent) * (1 / fuelLeak.maxHealth);
-          float rate = Mathf.Lerp(fuelLeak.rate.min, fuelLeak.rate.max, t);
-          if (rate == 0)
-          {
-            continue;
-          }
-
-          int ticksPerLeak = Mathf.CeilToInt(60 / rate);
-          if (Find.TickManager.TicksGame % ticksPerLeak == 0)
-          {
-            ConsumeFuel(FuelPerLeak);
-            if (Vehicle.Spawned && Props.leakDef != null && !EmptyTank)
-            {
-              IntVec2 offset =
-                component.props.hitbox.cells.RandomElementWithFallback(fallback: IntVec2.Zero);
-              IntVec3 leakCell = new IntVec3(Vehicle.Position.x + offset.x, 0,
-                Vehicle.Position.z + offset.z);
-              FilthMaker.TryMakeFilth(leakCell, Vehicle.Map, Props.leakDef);
-            }
-          }
-        }
-      }
-    }
-
-    public override void CompTickRare()
-    {
-      base.CompTickRare();
-
-      RevalidateConsumptionStatus(); //Intermittent checks to ensure no missed cases cause vehicle to drain
-
-      if (Vehicle.Spawned)
-      {
-        if (!FullTank)
-        {
-          Vehicle.Map.GetCachedMapComponent<VehicleReservationManager>()
-           .RegisterLister(Vehicle, ReservationType.Refuel);
-        }
-        else
-        {
-          Vehicle.Map.GetCachedMapComponent<VehicleReservationManager>()
-           .RemoveLister(Vehicle, ReservationType.Refuel);
-        }
-      }
-
-      if (Vehicle.vehiclePather.Moving)
-      {
-        DisconnectPower();
-      }
-    }
-
-    public virtual bool TryConnectPower()
-    {
-      if (Props.electricPowered)
-      {
-        foreach (IntVec3 cell in Vehicle.InhabitedCells(1))
-        {
-          Thing building = Vehicle.Map.thingGrid.ThingAt(cell, ThingCategory.Building);
-          if (building != null)
-          {
-            CompPower powerSource = building.TryGetComp<CompPower>();
-            if (powerSource != null && powerSource.TransmitsPowerNow)
-            {
-              connectedPower = powerSource;
-              break;
-            }
-          }
-        }
-      }
-
-      return connectedPower is null;
-    }
-
-    public virtual void DisconnectPower()
-    {
-      connectedPower = null;
-    }
-
-    //TODO - Refactor wind direction
-    public virtual void DrawMotes()
-    {
-      foreach (OffsetMote offset in Props.motesGenerated)
-      {
-        for (int i = 0; i < offset.NumTimesSpawned; i++)
-        {
-          try
-          {
-            Vector2 moteOffset = VehicleGraphics.VehicleDrawOffset(Vehicle.FullRotation,
-              offset.xOffset, offset.zOffset);
-            offsetX = moteOffset.x;
-            offsetZ = moteOffset.y;
-
-            motePosition = new Vector3(parent.Position.x + offsetX + CellOffsetIntVec3ToVector3,
-              parent.Position.y, parent.Position.z + offsetZ + CellOffsetIntVec3ToVector3);
-
-            MoteThrown mote = (MoteThrown)ThingMaker.MakeThing(Props.MoteDisplayed, null);
-            mote.exactPosition = motePosition;
-            mote.Scale = 1f;
-            mote.rotationRate = 15f;
-            float moteAngle = offset.predeterminedAngleVector is null ?
-              (Vehicle.Map.components.First(x => x is WindDirectional) as WindDirectional)
-             .WindDirection :
-              (float)offset.predeterminedAngleVector;
-            float moteSpeed = offset.windAffected ?
-              Rand.Range(0.5f, 3.5f) * Vehicle.Map.windManager.WindSpeed :
-              offset.moteThrownSpeed;
-            mote.SetVelocity(moteAngle, moteSpeed);
-            RenderHelper.ThrowMoteEnhanced(motePosition, parent.Map, mote);
-          }
-          catch (Exception ex)
-          {
-            Log.Error(
-              $"Exception thrown while trying to display {Props.MoteDisplayed.defName} Terminating MoteDraw Method from {parent.LabelShort} Exception={ex}");
-            terminateMotes = true;
-            return;
+            IntVec2 offset =
+              component.props.hitbox.cells.RandomElementWithFallback(fallback: IntVec2.Zero);
+            IntVec3 leakCell = new(Vehicle.Position.x + offset.x, 0,
+              Vehicle.Position.z + offset.z);
+            FilthMaker.TryMakeFilth(leakCell, Vehicle.Map, Props.leakDef);
           }
         }
       }
     }
+  }
 
-    public override void EventRegistration()
+  public override void CompTickRare()
+  {
+    base.CompTickRare();
+
+    RevalidateConsumptionStatus(); //Intermittent checks to ensure no missed cases cause vehicle to drain
+
+    if (!Vehicle.Spawned)
+      return;
+
+    if (!FullTank)
     {
-      FuelComponents = new List<(VehicleComponent component, Reactor_FuelLeak fuelLeak)>();
-      foreach (VehicleComponent component in Vehicle.statHandler.components.Where(component =>
-        component.props.HasReactor<Reactor_FuelLeak>()))
+      Vehicle.Map.GetCachedMapComponent<VehicleReservationManager>()
+       .RegisterLister(Vehicle, ReservationType.Refuel);
+    }
+    else
+    {
+      Vehicle.Map.GetCachedMapComponent<VehicleReservationManager>()
+       .RemoveLister(Vehicle, ReservationType.Refuel);
+    }
+
+    if (Props.ambientHeat != 0)
+    {
+      GenTemperature.PushHeat(Vehicle, Props.ambientHeat);
+    }
+
+    if (Vehicle.vehiclePather.Moving)
+    {
+      DisconnectPower();
+    }
+  }
+
+  [UsedImplicitly]
+  public bool TryConnectPower()
+  {
+    if (!Props.ElectricPowered)
+      return false;
+
+    Vehicle.RequestTickStart(this);
+    foreach (IntVec3 cell in Vehicle.InhabitedCells(1))
+    {
+      Thing building = Vehicle.Map.thingGrid.ThingAt(cell, ThingCategory.Building);
+      CompPower powerSource = building?.TryGetComp<CompPower>();
+      if (powerSource is { TransmitsPowerNow: true })
       {
-        if (component.props.HasReactor<Reactor_FuelLeak>())
+        connectedPower = powerSource;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  [UsedImplicitly]
+  public void DisconnectPower()
+  {
+    connectedPower = null;
+    changeStoredEnergy = null;
+  }
+
+  // TODO - Remove when animation system is finalized
+  protected virtual void DrawMotes()
+  {
+    foreach (OffsetMote offset in Props.motesGenerated)
+    {
+      for (int i = 0; i < offset.NumTimesSpawned; i++)
+      {
+        try
         {
-          FuelComponents.Add((component, component.props.GetReactor<Reactor_FuelLeak>()));
+          Vector2 moteOffset = VehicleGraphics.VehicleDrawOffset(Vehicle.FullRotation,
+            offset.xOffset, offset.zOffset);
+          offsetX = moteOffset.x;
+          offsetZ = moteOffset.y;
+
+          motePosition = new Vector3(parent.Position.x + offsetX + CellOffsetIntVec3ToVector3,
+            parent.Position.y, parent.Position.z + offsetZ + CellOffsetIntVec3ToVector3);
+
+          MoteThrown mote = (MoteThrown)ThingMaker.MakeThing(Props.MoteDisplayed);
+          mote.exactPosition = motePosition;
+          mote.Scale = 1f;
+          mote.rotationRate = 15f;
+          float moteAngle = offset.predeterminedAngleVector ?? 0;
+          float moteSpeed = offset.windAffected ?
+            Rand.Range(0.5f, 3.5f) * Vehicle.Map.windManager.WindSpeed :
+            offset.moteThrownSpeed;
+          mote.SetVelocity(moteAngle, moteSpeed);
+          RenderHelper.ThrowMoteEnhanced(motePosition, parent.Map, mote);
+        }
+        catch (Exception ex)
+        {
+          Log.Error(
+            $"Exception thrown while trying to display {Props.MoteDisplayed.defName}.\n{ex}");
+          terminateMotes = true;
+          return;
         }
       }
-
-      Vehicle.AddEvent(VehicleEventDefOf.MoveStart, RevalidateConsumptionStatus);
-      Vehicle.AddEvent(VehicleEventDefOf.MoveStop, RevalidateConsumptionStatus);
-      Vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, RevalidateConsumptionStatus);
-      Vehicle.AddEvent(VehicleEventDefOf.Refueled, RevalidateConsumptionStatus);
-      Vehicle.AddEvent(VehicleEventDefOf.IgnitionOn, RevalidateConsumptionStatus);
-      Vehicle.AddEvent(VehicleEventDefOf.IgnitionOff, RevalidateConsumptionStatus);
-      Vehicle.AddEvent(VehicleEventDefOf.DamageTaken, RevalidateConsumptionStatus);
-      Vehicle.AddEvent(VehicleEventDefOf.Repaired, RevalidateConsumptionStatus);
     }
+  }
 
-    public override void PostGeneration()
+  public override void EventRegistration()
+  {
+    FuelComponents = new List<(VehicleComponent component, Reactor_FuelLeak fuelLeak)>();
+    foreach (VehicleComponent component in Vehicle.statHandler.components.Where(component =>
+      component.props.HasReactor<Reactor_FuelLeak>()))
     {
-      base.PostGeneration();
-      targetFuelLevel = FuelCapacity;
-      targetFuelPercent = 1;
-      if (Vehicle.Faction != Faction.OfPlayer)
+      if (component.props.HasReactor<Reactor_FuelLeak>())
       {
-        Refuel(FuelCapacity * Rand.Range(0.45f, 0.85f));
+        FuelComponents.Add((component, component.props.GetReactor<Reactor_FuelLeak>()));
       }
     }
 
-    public override void PostSpawnSetup(bool respawningAfterLoad)
+    Vehicle.AddEvent(VehicleEventDefOf.MoveStart, RevalidateConsumptionStatus);
+    Vehicle.AddEvent(VehicleEventDefOf.MoveStop, RevalidateConsumptionStatus);
+    Vehicle.AddEvent(VehicleEventDefOf.OutOfFuel, RevalidateConsumptionStatus);
+    Vehicle.AddEvent(VehicleEventDefOf.Refueled, RevalidateConsumptionStatus);
+    Vehicle.AddEvent(VehicleEventDefOf.IgnitionOn, RevalidateConsumptionStatus);
+    Vehicle.AddEvent(VehicleEventDefOf.IgnitionOff, RevalidateConsumptionStatus);
+    Vehicle.AddEvent(VehicleEventDefOf.HealthChanged, RevalidateConsumptionStatus);
+  }
+
+  public override void PostGeneration()
+  {
+    base.PostGeneration();
+    targetFuelPercent = 1;
+    if (Vehicle.Faction != Faction.OfPlayer)
     {
-      base.PostSpawnSetup(respawningAfterLoad);
-
-      RevalidateConsumptionStatus();
-
-      if (postLoadReconnect)
-      {
-        TryConnectPower();
-      }
+      Refuel(FuelCapacity * Rand.Range(0.45f, 0.85f));
     }
+  }
 
-    public override void PostExposeData()
+  public override void PostSpawnSetup(bool respawningAfterLoad)
+  {
+    base.PostSpawnSetup(respawningAfterLoad);
+
+    RevalidateConsumptionStatus();
+
+    if (postLoadReconnect)
     {
-      base.PostExposeData();
-
-      //CurValues
-      Scribe_Values.Look(ref fuel, nameof(fuel));
-
-      if (Scribe.mode == LoadSaveMode.Saving && targetFuelPercent < 0)
-      {
-        targetFuelPercent = targetFuelLevel / FuelCapacity;
-      }
-
-      Scribe_Values.Look(ref targetFuelPercent, nameof(targetFuelPercent), defaultValue: 1);
-
-      if (Scribe.mode == LoadSaveMode.LoadingVars)
-      {
-        Scribe_Values.Look(ref targetFuelLevel, nameof(targetFuelLevel),
-          defaultValue: Props.fuelCapacity);
-      }
-
-      if (Scribe.mode == LoadSaveMode.Saving)
-      {
-        postLoadReconnect = Charging;
-      }
-
-      Scribe_Values.Look(ref postLoadReconnect, nameof(postLoadReconnect), defaultValue: false);
+      TryConnectPower();
     }
+  }
+
+  public override void PostExposeData()
+  {
+    base.PostExposeData();
+
+    Scribe_Values.Look(ref allowAutoRefuel, nameof(allowAutoRefuel), defaultValue: true);
+    Scribe_Values.Look(ref fuel, nameof(fuel));
+    Scribe_Values.Look(ref targetFuelPercent, nameof(targetFuelPercent), defaultValue: 1);
+
+    if (Scribe.mode == LoadSaveMode.Saving)
+    {
+      postLoadReconnect = Charging;
+    }
+
+    Scribe_Values.Look(ref postLoadReconnect, nameof(postLoadReconnect), defaultValue: false);
   }
 }

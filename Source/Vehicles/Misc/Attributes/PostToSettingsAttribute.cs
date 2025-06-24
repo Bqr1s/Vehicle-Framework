@@ -11,7 +11,7 @@ namespace Vehicles
   /// <summary>
   /// Retrieves and saves input values for fields defined in VehicleDef and VehicleComp objects for access in ModSettings
   /// </summary>
-  [AttributeUsage(AttributeTargets.Field, Inherited = true)]
+  [AttributeUsage(AttributeTargets.Field)]
   public class PostToSettingsAttribute : Attribute
   {
     /// <summary>
@@ -104,7 +104,7 @@ namespace Vehicles
         }
       }
 
-      if (VehicleType != VehicleType.Universal && VehicleType != vehicleDef.vehicleType)
+      if (VehicleType != VehicleType.Universal && VehicleType != vehicleDef.type)
       {
         disabledTooltip = "VF_SaveableFieldDisabledTooltip".Translate();
       }
@@ -147,7 +147,7 @@ namespace Vehicles
           return;
         case UISettingsType.Checkbox:
           lister.CheckboxLabeled(vehicleDef, saveable, label, tooltip, disabledTooltip, locked);
-          break;
+        break;
         case UISettingsType.IntegerBox:
         {
           if (field.TryGetAttribute<NumericBoxValuesAttribute>(out var inputBox))
@@ -177,11 +177,11 @@ namespace Vehicles
           break;
         }
         case UISettingsType.ToggleLabel:
-          break;
+        break;
         case UISettingsType.SliderEnum:
           lister.EnumSliderLabeled(vehicleDef, saveable, label, tooltip, disabledTooltip,
             field.FieldType, translate);
-          break;
+        break;
         case UISettingsType.SliderInt:
         {
           if (field.TryGetAttribute<SliderValuesAttribute>(out var slider))
@@ -199,7 +199,7 @@ namespace Vehicles
               string.Empty, 0, 100, -1, string.Empty, string.Empty, translate);
           }
         }
-          break;
+        break;
         case UISettingsType.SliderFloat:
         {
           if (field.TryGetAttribute<SliderValuesAttribute>(out var slider))
@@ -217,7 +217,7 @@ namespace Vehicles
               string.Empty, 0f, 100f, 0, -1, -1, string.Empty, translate);
           }
         }
-          break;
+        break;
         case UISettingsType.SliderPercent:
         {
           if (field.TryGetAttribute<SliderValuesAttribute>(out var slider))
@@ -235,12 +235,12 @@ namespace Vehicles
               string.Empty, 0f, 100f, 0, -1, string.Empty, translate);
           }
         }
-          break;
+        break;
         default:
           Log.ErrorOnce(
             $"{VehicleHarmony.LogLabel} {settingsType} has not yet been implemented for PostToSettings.DrawLister. Please notify mod author.",
             settingsType.ToString().GetHashCode());
-          break;
+        break;
       }
     }
 
@@ -255,7 +255,7 @@ namespace Vehicles
           return;
         case UISettingsType.Checkbox:
           lister.CheckboxLabeled(vehicleDef, saveable, label, tooltip, disabledTooltip, locked);
-          break;
+        break;
         case UISettingsType.IntegerBox:
         {
           lister.IntegerBox(vehicleDef, saveable, label, tooltip, disabledTooltip,
@@ -271,7 +271,7 @@ namespace Vehicles
         case UISettingsType.SliderEnum:
           lister.EnumSliderLabeled(vehicleDef, saveable, label, tooltip, disabledTooltip,
             field.FieldType, translate);
-          break;
+        break;
         case UISettingsType.SliderInt:
         {
           lister.SliderLabeled(vehicleDef, saveable, label, tooltip, disabledTooltip,
@@ -279,7 +279,7 @@ namespace Vehicles
             (int)settingsInfo.endValue, settingsInfo.maxValueDisplay, settingsInfo.minValueDisplay,
             translate);
         }
-          break;
+        break;
         case UISettingsType.SliderFloat:
         {
           lister.SliderLabeled(vehicleDef, saveable, label, tooltip, disabledTooltip,
@@ -287,7 +287,7 @@ namespace Vehicles
             settingsInfo.roundDecimalPlaces, settingsInfo.endValue, settingsInfo.increment,
             settingsInfo.maxValueDisplay, translate);
         }
-          break;
+        break;
         case UISettingsType.SliderPercent:
         {
           lister.SliderPercentLabeled(vehicleDef, saveable, label, tooltip, disabledTooltip,
@@ -295,12 +295,12 @@ namespace Vehicles
             settingsInfo.roundDecimalPlaces, settingsInfo.endValue, settingsInfo.maxValueDisplay,
             translate);
         }
-          break;
+        break;
         default:
           Log.ErrorOnce(
             $"{VehicleHarmony.LogLabel} {settingsInfo.settingsType} has not yet been implemented for PostToSettings.DrawLister. Please notify mod author.",
             settingsInfo.settingsType.ToString().GetHashCode());
-          break;
+        break;
       }
     }
   }

@@ -1,62 +1,58 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using Verse;
 
-namespace Vehicles
+namespace Vehicles;
+
+public class Dialog_ColorWheel : Window
 {
-	public class Dialog_ColorWheel : Window
-	{
-		private const int ButtonWidth = 90;
-		private const float ButtonHeight = 30f;
+  private const int ButtonWidth = 90;
+  private const float ButtonHeight = 30f;
 
-		public Color color = Color.white;
-		public Action<Color> onComplete;
+  private Color color;
+  private readonly Action<Color> onComplete;
 
-		public static float hue;
-		public static float saturation;
-		public static float value;
+  private float hue;
+  private float saturation;
+  private float value;
 
-		public Dialog_ColorWheel(Color color, Action<Color> onComplete)
-		{
-			this.color = color;
-			this.onComplete = onComplete;
-			doCloseX = true;
-			closeOnClickedOutside = true;
-		}
+  private readonly ColorPicker colorPicker = new();
 
-		public override Vector2 InitialSize => new Vector2(375, 350 + ButtonHeight);
+  public Dialog_ColorWheel(Color color, Action<Color> onComplete)
+  {
+    this.color = color;
+    this.onComplete = onComplete;
+    doCloseX = true;
+    closeOnClickedOutside = true;
+  }
 
-		public override void DoWindowContents(Rect inRect)
-		{
-			Rect colorContainerRect = new Rect(inRect)
-			{
-				height = inRect.width - 25
-			};
-			RenderHelper.DrawColorPicker(colorContainerRect, ref hue, ref saturation, ref value, SetColor);
+  public override Vector2 InitialSize => new(375, 350 + ButtonHeight);
 
-			Rect buttonRect = new Rect(0f, inRect.height - ButtonHeight, ButtonWidth, ButtonHeight);
-			DoBottomButtons(buttonRect);
-		}
+  public override void DoWindowContents(Rect inRect)
+  {
+    Rect colorContainerRect = inRect with { height = inRect.width - 25 };
+    colorPicker.Draw(colorContainerRect, ref hue, ref saturation, ref value, SetColor);
 
-		private void DoBottomButtons(Rect rect)
-		{
-			if (Widgets.ButtonText(rect, "VF_ApplyButton".Translate()))
-			{
-				onComplete(color);
-				Close(true);
-			}
-			rect.x += ButtonWidth;
-			if (Widgets.ButtonText(rect, "CancelButton".Translate()))
-			{
-				Close(true);
-			}
-		}
+    Rect buttonRect = new(0f, inRect.height - ButtonHeight, ButtonWidth, ButtonHeight);
+    DoBottomButtons(buttonRect);
+  }
 
-		private void SetColor(float h, float s, float b)
-		{
-			color = new ColorInt(Color.HSVToRGB(h, s, b)).ToColor;
-		}
-	}
+  private void DoBottomButtons(Rect rect)
+  {
+    if (Widgets.ButtonText(rect, "VF_ApplyButton".Translate()))
+    {
+      onComplete(color);
+      Close();
+    }
+    rect.x += ButtonWidth;
+    if (Widgets.ButtonText(rect, "CancelButton".Translate()))
+    {
+      Close();
+    }
+  }
+
+  private void SetColor(float h, float s, float b)
+  {
+    color = new ColorInt(Color.HSVToRGB(h, s, b)).ToColor;
+  }
 }

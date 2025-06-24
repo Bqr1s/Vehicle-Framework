@@ -14,6 +14,7 @@ namespace Vehicles
     public const int WorkerCount = 8;
 
     public delegate bool VehicleRegionEntry(VehicleRegion from, VehicleRegion to);
+
     public delegate bool VehicleRegionProcessor(VehicleRegion reg);
 
     private static readonly ThreadLocal<Queue<BFSWorker>> workers = new(CreateWorkers);
@@ -28,14 +29,18 @@ namespace Vehicles
     /// <param name="regionLookCount"></param>
     /// <param name="traverseParams"></param>
     /// <param name="traversableRegionTypes"></param>
-    public static bool WithinRegions(this IntVec3 A, IntVec3 B, Map map, VehicleDef vehicleDef, int regionLookCount, TraverseParms traverseParams, RegionType traversableRegionTypes = RegionType.Set_Passable)
+    public static bool WithinRegions(this IntVec3 A, IntVec3 B, Map map, VehicleDef vehicleDef,
+      int regionLookCount, TraverseParms traverseParams,
+      RegionType traversableRegionTypes = RegionType.Set_Passable)
     {
-      VehicleRegion regionA = VehicleRegionAndRoomQuery.RegionAt(A, map, vehicleDef, traversableRegionTypes);
+      VehicleRegion regionA =
+        VehicleRegionAndRoomQuery.RegionAt(A, map, vehicleDef, traversableRegionTypes);
       if (regionA is null)
       {
         return false;
       }
-      VehicleRegion regionB = VehicleRegionAndRoomQuery.RegionAt(B, map, vehicleDef, traversableRegionTypes);
+      VehicleRegion regionB =
+        VehicleRegionAndRoomQuery.RegionAt(B, map, vehicleDef, traversableRegionTypes);
       if (regionB is null)
       {
         return false;
@@ -44,8 +49,9 @@ namespace Vehicles
       {
         return true;
       }
-      bool entryCondition(VehicleRegion from, VehicleRegion to) => to.Allows(traverseParams, false);
+      bool entryCondition(VehicleRegion from, VehicleRegion to) => to.Allows(traverseParams);
       bool found = false;
+
       bool regionProcessor(VehicleRegion region)
       {
         if (region == regionB)
@@ -55,14 +61,16 @@ namespace Vehicles
         }
         return false;
       }
-      BreadthFirstTraverse(regionA, entryCondition, regionProcessor, regionLookCount, traversableRegionTypes);
+
+      BreadthFirstTraverse(regionA, entryCondition, regionProcessor, regionLookCount,
+        traversableRegionTypes);
       return found;
     }
 
     public static void MarkRegionsBFS(VehicleRegion root, VehicleRegionEntry entryCondition,
       int maxRegions, int inRadiusMark, RegionType traversableRegionTypes = RegionType.Set_Passable)
     {
-      BreadthFirstTraverse(root, entryCondition, delegate (VehicleRegion region)
+      BreadthFirstTraverse(root, entryCondition, delegate(VehicleRegion region)
       {
         region.mark = inRadiusMark;
         return false;
@@ -92,11 +100,15 @@ namespace Vehicles
     /// <param name="regionProcessor"></param>
     /// <param name="maxRegions"></param>
     /// <param name="traversableRegionTypes"></param>
-    public static void BreadthFirstTraverse(IntVec3 start, Map map, VehicleDef vehicleDef, VehicleRegionEntry entryCondition, VehicleRegionProcessor regionProcessor, int maxRegions = 999999, RegionType traversableRegionTypes = RegionType.Set_Passable)
+    public static void BreadthFirstTraverse(IntVec3 start, Map map, VehicleDef vehicleDef,
+      VehicleRegionEntry entryCondition, VehicleRegionProcessor regionProcessor,
+      int maxRegions = 999999, RegionType traversableRegionTypes = RegionType.Set_Passable)
     {
-      VehicleRegion region = VehicleRegionAndRoomQuery.RegionAt(start, map, vehicleDef, traversableRegionTypes);
+      VehicleRegion region =
+        VehicleRegionAndRoomQuery.RegionAt(start, map, vehicleDef, traversableRegionTypes);
       if (region is null) return;
-      BreadthFirstTraverse(region, entryCondition, regionProcessor, maxRegions, traversableRegionTypes);
+      BreadthFirstTraverse(region, entryCondition, regionProcessor, maxRegions,
+        traversableRegionTypes);
     }
 
     /// <summary>
@@ -107,7 +119,9 @@ namespace Vehicles
     /// <param name="regionProcessor"></param>
     /// <param name="maxRegions"></param>
     /// <param name="traversableRegionTypes"></param>
-    public static void BreadthFirstTraverse(VehicleRegion root, VehicleRegionEntry entryCondition, VehicleRegionProcessor regionProcessor, int maxRegions = 999999, RegionType traversableRegionTypes = RegionType.Set_Passable)
+    public static void BreadthFirstTraverse(VehicleRegion root, VehicleRegionEntry entryCondition,
+      VehicleRegionProcessor regionProcessor, int maxRegions = 999999,
+      RegionType traversableRegionTypes = RegionType.Set_Passable)
     {
       if (root is null)
       {
@@ -117,14 +131,16 @@ namespace Vehicles
 
       if (workers.Value.Count == 0)
       {
-        Log.Error($"No free workers for BFS. BFS recurred deeper than {WorkerCount}, or a bug has put this system in an inconsistent state.");
+        Log.Error(
+          $"No free workers for BFS. BFS recurred deeper than {WorkerCount}, or a bug has put this system in an inconsistent state.");
         return;
       }
       BFSWorker bfsWorker = workers.Value.Dequeue();
 
       try
       {
-        bfsWorker.BreadthFirstTraverseWork(root, entryCondition, regionProcessor, maxRegions, traversableRegionTypes);
+        bfsWorker.BreadthFirstTraverseWork(root, entryCondition, regionProcessor, maxRegions,
+          traversableRegionTypes);
       }
       catch (Exception ex)
       {
@@ -143,7 +159,8 @@ namespace Vehicles
     /// <param name="root"></param>
     /// <param name="map"></param>
     /// <param name="existingRoom"></param>
-    public static VehicleRoom FloodAndSetRooms(VehicleRegion region, Map map, VehicleDef vehicleDef, VehicleRoom existingRoom)
+    public static VehicleRoom FloodAndSetRooms(VehicleRegion region, Map map, VehicleDef vehicleDef,
+      VehicleRoom existingRoom)
     {
       VehicleRoom floodingRoom;
       if (existingRoom == null)
@@ -159,12 +176,16 @@ namespace Vehicles
       {
         return floodingRoom;
       }
-      bool entryCondition(VehicleRegion from, VehicleRegion r) => r.type == region.type && r.Room != floodingRoom;
+
+      bool entryCondition(VehicleRegion from, VehicleRegion r) =>
+        r.type == region.type && r.Room != floodingRoom;
+
       bool regionProcessor(VehicleRegion r)
       {
         r.Room = floodingRoom;
         return false;
       }
+
       BreadthFirstTraverse(region, entryCondition, regionProcessor, 999999, RegionType.Set_All);
       return floodingRoom;
     }
@@ -181,12 +202,16 @@ namespace Vehicles
       {
         return;
       }
-      bool entryCondition(VehicleRegion from, VehicleRegion r) => r.type == root.type && r.newRegionGroupIndex < 0;
+
+      bool entryCondition(VehicleRegion from, VehicleRegion r) =>
+        r.type == root.type && r.newRegionGroupIndex < 0;
+
       bool regionProcessor(VehicleRegion r)
       {
         r.newRegionGroupIndex = newRegionGroupIndex;
         return false;
       }
+
       BreadthFirstTraverse(root, entryCondition, regionProcessor, 999999, RegionType.Set_All);
     }
 
@@ -237,7 +262,8 @@ namespace Vehicles
       /// <param name="regionProcessor"></param>
       /// <param name="maxRegions"></param>
       /// <param name="traversableRegionTypes"></param>
-      public void BreadthFirstTraverseWork(VehicleRegion root, VehicleRegionEntry entryCondition, VehicleRegionProcessor regionProcessor, int maxRegions, RegionType traversableRegionTypes)
+      public void BreadthFirstTraverseWork(VehicleRegion root, VehicleRegionEntry entryCondition,
+        VehicleRegionProcessor regionProcessor, int maxRegions, RegionType traversableRegionTypes)
       {
         if (root.type == RegionType.None)
         {
@@ -268,7 +294,8 @@ namespace Vehicles
 
         void ProcessRegion(VehicleRegion region, VehicleRegion linkedRegion)
         {
-          if (linkedRegion != null && linkedRegion.closedIndex.Value[closedArrayPos] != closedIndex &&
+          if (linkedRegion != null &&
+            linkedRegion.closedIndex.Value[closedArrayPos] != closedIndex &&
             (linkedRegion.type & traversableRegionTypes) != RegionType.None &&
             (entryCondition is null || entryCondition(region, linkedRegion)))
           {

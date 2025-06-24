@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using UnityEngine;
-using Verse;
 using RimWorld;
 using RimWorld.Planet;
 using SmashTools;
+using Unity.Collections;
+using UnityEngine;
+using Verse;
 
 namespace Vehicles
 {
@@ -108,7 +108,7 @@ namespace Vehicles
     {
       if (vehicleDefs.NullOrEmpty())
       {
-        Log.Error($"Attempting to find path with no vehicles.");
+        Log.Error("Attempting to find path with no vehicles.");
         return WorldPath.NotFound;
       }
       ClearTileCache();
@@ -137,8 +137,8 @@ namespace Vehicles
         WorldGrid grid = world.grid;
         bool coastalTravel =
           vehicleDefs.All(v => v.properties.customBiomeCosts.ContainsKey(BiomeDefOf.Ocean));
-        List<int> tileIDToNeighbors_offsets = grid.tileIDToNeighbors_offsets;
-        List<int> tileIDToNeighbors_values = grid.tileIDToNeighbors_values;
+        NativeArray<int> tileIDToNeighbors_offsets = grid.UnsafeTileIDToNeighbors_offsets;
+        NativeArray<PlanetTile> tileIDToNeighbors_values = grid.UnsafeTileIDToNeighbors_values;
         Vector3 normalized = grid.GetTileCenter(destTile).normalized;
         float bestRoadDiscount = DefDatabase<RoadDef>.AllDefsListForReading.Min(road =>
           RoadCostHelper.GetRoadMovementDifficultyMultiplier(vehicleDefs, road));
@@ -175,9 +175,9 @@ namespace Vehicles
                   $"{vehiclesPathing} pathing from {startTile} to {destTile}. Hit search limit of {SearchLimit} tiles.");
                 return WorldPath.NotFound;
               }
-              int neighborOffsetCount = (tile + 1 < tileIDToNeighbors_offsets.Count) ?
+              int neighborOffsetCount = (tile + 1 < tileIDToNeighbors_offsets.Length) ?
                 tileIDToNeighbors_offsets[tile + 1] :
-                tileIDToNeighbors_values.Count;
+                tileIDToNeighbors_values.Length;
               for (int i = tileIDToNeighbors_offsets[tile]; i < neighborOffsetCount; i++)
               {
                 int neighbor = tileIDToNeighbors_values[i];
@@ -280,7 +280,7 @@ namespace Vehicles
         }
         num = parentTile;
       }
-      emptyWorldPath.SetupFound(calcGrid[lastTile].knownCost);
+      emptyWorldPath.SetupFound(calcGrid[lastTile].knownCost, Find.WorldGrid.Surface);
       return emptyWorldPath;
     }
 
@@ -393,10 +393,15 @@ namespace Vehicles
       public int IndexFor(int tileId)
       {
         Tile tile = WorldGrid[tileId];
-        BiomeDef biomeDef = tile.biome;
-        RiverDef riverDef = tile.Rivers?.MaxBy(river => river.river.widthOnWorld).river;
-        RoadDef roadDef = tile.Roads?.MinBy(road => road.road.movementCostMultiplier).road;
-        Hilliness hilliness = tile.hilliness;
+        if (tile is not SurfaceTile surfaceTile)
+        {
+          Log.Error("Invalid tile for indexing.");
+          return -1;
+        }
+        BiomeDef biomeDef = surfaceTile.PrimaryBiome;
+        RiverDef riverDef = surfaceTile.Rivers?.MaxBy(river => river.river.widthOnWorld).river;
+        RoadDef roadDef = surfaceTile.Roads?.MinBy(road => road.road.movementCostMultiplier).road;
+        Hilliness hilliness = surfaceTile.hilliness;
         return (IndexFor(biomeDef) * biomeDefs.Count) + (IndexFor(riverDef) * riverDefs.Count) +
           (IndexFor(roadDef) * roadDefs.Count) + (IndexFor(hilliness) * hills.Count);
       }

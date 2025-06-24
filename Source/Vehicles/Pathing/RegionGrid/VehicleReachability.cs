@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
@@ -28,7 +29,7 @@ namespace Vehicles
     private readonly VehiclePathGrid pathGrid;
     private readonly VehicleRegionGrid regionGrid;
 
-    public VehicleReachability(VehicleMapping mapping, VehicleDef createdFor,
+    public VehicleReachability(VehiclePathingSystem mapping, VehicleDef createdFor,
       VehiclePathGrid pathGrid, VehicleRegionGrid regionGrid) : base(mapping, createdFor)
     {
       chunkSearch = new AStar(this, mapping, createdFor);
@@ -216,7 +217,7 @@ namespace Vehicles
         if (peMode == PathEndMode.OnCell)
         {
           VehicleRegion region = VehicleRegionAndRoomQuery.RegionAt(dest.Cell, mapping, createdFor);
-          if (region != null && region.Allows(traverseParms, true))
+          if (region != null && region.Allows(traverseParms))
           {
             destRegions.Add(region);
           }
@@ -255,7 +256,7 @@ namespace Vehicles
             case BoolUnknown.False:
               return false;
             case BoolUnknown.Unknown:
-              break;
+            break;
             default:
               throw new NotImplementedException(nameof(BoolUnknown));
           }
@@ -370,7 +371,7 @@ namespace Vehicles
       bool RegionReachable(VehicleRegion linkedRegion)
       {
         if (linkedRegion != null && linkedRegion.reachedIndex != reachedIndex &&
-          linkedRegion.type.Passable() && linkedRegion.Allows(traverseParms, false))
+          linkedRegion.type.Passable() && linkedRegion.Allows(traverseParms))
         {
           if (destRegions.Contains(linkedRegion))
           {
@@ -390,15 +391,14 @@ namespace Vehicles
     }
 
     public ChunkSet FindChunks(IntVec3 start, LocalTargetInfo dest, PathEndMode peMode,
-      TraverseParms traverseParms, bool debugDrawSearch = false, float secondsBetweenDrawing = 0)
+      TraverseParms traverseParms, bool debugDrawSearch = false)
     {
       if (ValidateCanStart(start, dest, traverseParms, out VehicleDef _))
       {
         openQueue.Clear();
         reachedIndex++;
 
-        return chunkSearch.Run(start, dest, traverseParms, debugDrawSearch: debugDrawSearch,
-          secondsBetweenDrawing: secondsBetweenDrawing);
+        return chunkSearch.Run(start, dest, traverseParms, debugDrawSearch: debugDrawSearch);
       }
 
       Log.Error($"Can't validate for chunk search");
@@ -416,15 +416,15 @@ namespace Vehicles
         }
       }
 
-#if REGION_WEIGHTS
+#if HIERARCHAL_PATHFINDING
       if (drawWeights)
       {
-        foreach (VehicleRegionLink regionLink in region.links)
+        foreach (VehicleRegionLink regionLink in region.Links)
         {
-          foreach (VehicleRegionLink toRegionLink in region.links)
+          foreach (VehicleRegionLink toRegionLink in region.Links)
           {
             if (regionLink == toRegionLink) continue;
-            float weight = region.WeightBetween(regionLink, toRegionLink).cost;
+            float weight = region.WeightBetween(regionLink, toRegionLink);
             regionLink.DrawWeight(map, toRegionLink, weight);
           }
         }
@@ -432,33 +432,13 @@ namespace Vehicles
 #endif
     }
 
-#if REGION_WEIGHTS
-    private static void MarkLinksForDrawing(VehicleRegion region, Map map, VehicleRegionLink from, VehicleRegionLink to)
+    [Conditional("HIERARCHAL_PATHFINDING")]
+    private static void MarkLinksForDrawing(VehicleRegion region, Map map, VehicleRegionLink from,
+      VehicleRegionLink to)
     {
-
-      float weight = region.WeightBetween(from, to).cost;
+      float weight = region.WeightBetween(from, to);
       from.DrawWeight(map, to, weight);
-
     }
-
-    private static void MarkConnectedLinksForDrawing(Map map, VehicleRegionLink regionLink)
-    {
-      foreach (VehicleRegionLink drawingRegionLink in regionLink.regionB.Links)
-      {
-        if (drawingRegionLink.regionA != regionLink.regionB && drawingRegionLink.regionB != regionLink.regionB) continue;
-
-        float weight = regionLink.regionB.WeightBetween(in regionLink, in drawingRegionLink).cost;
-        regionLink.DrawWeight(map, drawingRegionLink, weight);
-      }
-      foreach (VehicleRegionLink drawingRegionLink in regionLink.regionA.Links)
-      {
-        if (drawingRegionLink.regionA != regionLink.regionA && drawingRegionLink.regionB != regionLink.regionA) continue;
-
-        float weight = regionLink.regionA.WeightBetween(in regionLink, in drawingRegionLink).cost;
-        regionLink.DrawWeight(map, drawingRegionLink, weight);
-      }
-    }
-#endif
 
     private bool ValidateCanStart(IntVec3 start, LocalTargetInfo dest, TraverseParms traverseParms,
       out VehicleDef forVehicleDef)
@@ -603,7 +583,7 @@ namespace Vehicles
       }
 
       VehicleRegion region = regionGrid.DirectGrid[num];
-      return region is null || region.Allows(traverseParms, false);
+      return region is null || region.Allows(traverseParms);
     }
 
     /// <summary>
@@ -723,7 +703,7 @@ namespace Vehicles
         return true;
       }
 
-      bool entryCondition(VehicleRegion from, VehicleRegion r) => r.Allows(traverseParms, false);
+      bool entryCondition(VehicleRegion from, VehicleRegion r) => r.Allows(traverseParms);
       bool foundReg = false;
 
       bool regionProcessor(VehicleRegion r)
@@ -782,13 +762,13 @@ namespace Vehicles
       }
 
       VehicleRegion region =
-        VehicleRegionAndRoomQuery.RegionAt(cell, mapping, createdFor, RegionType.Set_Passable);
+        VehicleRegionAndRoomQuery.RegionAt(cell, mapping, createdFor);
       if (region == null)
       {
         return false;
       }
 
-      bool entryCondition(VehicleRegion from, VehicleRegion r) => r.Allows(traverseParms, false);
+      bool entryCondition(VehicleRegion from, VehicleRegion r) => r.Allows(traverseParms);
       bool foundReg = false;
 
       bool regionProcessor(VehicleRegion r)
@@ -832,10 +812,10 @@ namespace Vehicles
       private readonly Dictionary<IntVec3, Node> nodes = new Dictionary<IntVec3, Node>();
 
       private readonly VehicleReachability vehicleReachability;
-      private readonly VehicleMapping mapping;
+      private readonly VehiclePathingSystem mapping;
       private readonly VehicleDef vehicleDef;
 
-      public AStar(VehicleReachability vehicleReachability, VehicleMapping mapping,
+      public AStar(VehicleReachability vehicleReachability, VehiclePathingSystem mapping,
         VehicleDef vehicleDef)
       {
         this.vehicleReachability = vehicleReachability;
@@ -848,7 +828,7 @@ namespace Vehicles
       public Map Map => mapping.map;
 
       public ChunkSet Run(IntVec3 start, LocalTargetInfo dest, TraverseParms traverseParms,
-        bool debugDrawSearch = false, float secondsBetweenDrawing = 0)
+        bool debugDrawSearch = false)
       {
         if (!InitRegions(start, dest, traverseParms, out VehicleRegion startingRegion,
           out VehicleRegion destinationRegion))
@@ -858,8 +838,7 @@ namespace Vehicles
 
         if (debugDrawSearch)
         {
-          CoroutineManager.QueueOrInvoke(() => MarkRegionForDrawing(startingRegion, Map),
-            secondsBetweenDrawing);
+          UnityThread.ExecuteOnMainThread(() => MarkRegionForDrawing(startingRegion, Map));
         }
 
         VehicleRegionLink closestLinkHeuristically = null;
@@ -943,8 +922,11 @@ namespace Vehicles
                 //Check if destination reached
                 if (otherRegion == destinationRegion)
                 {
-#if REGION_WEIGHTS
-                  if (debugDrawSearch) CoroutineManager.QueueOrInvoke(() => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor), secondsBetweenDrawing);
+#if HIERARCHAL_PATHFINDING
+                  if (debugDrawSearch)
+                    CoroutineManager.QueueOrInvoke(
+                      () => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor),
+                      secondsBetweenDrawing);
 #endif
                   return SolvePath(startingRegion, destinationRegion, current);
                 }
@@ -954,8 +936,10 @@ namespace Vehicles
 
                 if (debugDrawSearch)
                 {
-#if REGION_WEIGHTS
-                  CoroutineManager.QueueOrInvoke(() => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor), secondsBetweenDrawing);
+#if HIERARCHAL_PATHFINDING
+                  CoroutineManager.QueueOrInvoke(
+                    () => MarkLinksForDrawing(inFacingRegion, Map, current.regionLink, neighbor),
+                    secondsBetweenDrawing);
 #endif
                 }
               }
@@ -983,14 +967,14 @@ namespace Vehicles
         NodeRegions(current, neighbor, out VehicleRegion inFacingRegion,
           out VehicleRegion otherRegion);
 
-        int cost = inFacingRegion.WeightBetween(current.regionLink, neighbor).cost;
-        return CreateNode(dest, current, neighbor, inFacingRegion, otherRegion, cost);
+        float cost = inFacingRegion.WeightBetween(current.regionLink, neighbor);
+        return CreateNode(dest, current, neighbor, inFacingRegion, otherRegion, (int)cost);
       }
 
       private Node CreateNode(IntVec3 dest, Node current, VehicleRegionLink regionLink,
         VehicleRegion regionA, VehicleRegion regionB, int cost)
       {
-        Node node = new Node(regionLink, regionA, regionB);
+        Node node = new(regionLink, regionA, regionB);
         node.cost = cost;
         node.heuristicCost = VehicleRegion.EuclideanDistance(dest, regionLink);
         return node;
@@ -1036,7 +1020,7 @@ namespace Vehicles
 
         destinationRegion = VehicleRegionAndRoomQuery.RegionAt(dest.Cell, mapping,
           vehicleReachability.createdFor, RegionType.Set_Passable);
-        if (startingRegion == null || !destinationRegion.Allows(traverseParms, true))
+        if (startingRegion == null || !destinationRegion.Allows(traverseParms))
         {
           Log.Error(
             $"Unable to fetch valid starting region that allows traverseParms={traverseParms} at {start}.");
@@ -1136,8 +1120,10 @@ namespace Vehicles
         public bool Passable => regionA != null && regionA.type.Passable() && regionB != null &&
           regionB.type.Passable();
 
-        public bool Allows(TraverseParms traverseParms) => regionA.Allows(traverseParms, false) &&
-          regionB.Allows(traverseParms, false);
+        public bool Allows(TraverseParms traverseParms)
+        {
+          return regionA.Allows(traverseParms) && regionB.Allows(traverseParms);
+        }
 
         public override string ToString()
         {

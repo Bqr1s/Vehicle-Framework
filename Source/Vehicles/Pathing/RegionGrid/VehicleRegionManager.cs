@@ -1,24 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace Vehicles;
 
-namespace Vehicles
+public abstract class VehicleGridManager
 {
-  public abstract class VehicleGridManager
+  protected readonly VehiclePathingSystem mapping;
+  protected internal VehicleDef createdFor;
+
+  protected VehicleGridManager(VehiclePathingSystem mapping, VehicleDef createdFor)
   {
-    protected readonly VehicleMapping mapping;
-    internal protected VehicleDef createdFor;
+    this.mapping = mapping;
+    this.createdFor = createdFor;
+  }
 
-    protected VehicleGridManager(VehicleMapping mapping, VehicleDef createdFor)
-    {
-      this.mapping = mapping;
-      this.createdFor = createdFor;
-    }
+  public VehicleDef CreatedFor => createdFor;
 
-    public virtual void PostInit()
-    {
-    }
+  public virtual void PostInit()
+  {
   }
 }
